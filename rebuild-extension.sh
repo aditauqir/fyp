@@ -61,6 +61,12 @@ icons_dst.mkdir(exist_ok=True)
 for icon in (ff / "icons").glob("*.png"):
     shutil.copy2(icon, icons_dst / icon.name)
 
+for shared_file in ("background.js", "popup.html", "popup.css", "popup.js"):
+    source = ff / shared_file
+    if not source.exists():
+        raise FileNotFoundError(source)
+    shutil.copy2(source, ch / shared_file)
+
 for manifest_path in (ff / "manifest.json", ch / "manifest.json"):
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
     data["version"] = "$VERSION"
@@ -72,8 +78,12 @@ PY
 
 node --check "$FF/page.js"
 node --check "$FF/content.js"
+node --check "$FF/background.js"
+node --check "$FF/popup.js"
 node --check "$CH/page.js"
 node --check "$CH/content.js"
+node --check "$CH/background.js"
+node --check "$CH/popup.js"
 
 pack() {
   local dir="$1"
@@ -88,8 +98,11 @@ pack() {
 import zipfile, json
 z = zipfile.ZipFile("$out")
 names = z.namelist()
-assert "manifest.json" in names, names
-assert "content.js" in names
+for required in (
+    "manifest.json", "content.js", "page.js", "background.js",
+    "popup.html", "popup.css", "popup.js"
+):
+    assert required in names, (required, names)
 data = json.loads(z.read("manifest.json"))
 assert data.get("version") == "$VERSION", data.get("version")
 print("Validated", "$out", "files=", sorted(names))
@@ -100,11 +113,11 @@ FF_ZIP="$ROOT/fuck-youtube-premium-firefox-${VERSION}.zip"
 CH_ZIP="$ROOT/fuck-youtube-premium-chrome-${VERSION}.zip"
 
 pack "$FF" "$FF_ZIP" \
-  manifest.json content.js page.js \
+  manifest.json content.js page.js background.js popup.html popup.css popup.js \
   icons/icon-48.png icons/icon-96.png icons/icon-128.png
 
 pack "$CH" "$CH_ZIP" \
-  manifest.json content.js page.js \
+  manifest.json content.js page.js background.js popup.html popup.css popup.js \
   icons/icon-48.png icons/icon-96.png icons/icon-128.png
 
 echo

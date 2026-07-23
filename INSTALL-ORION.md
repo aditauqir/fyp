@@ -1,16 +1,16 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.8
+# Install Fuck YouTube Premium on Orion iOS — v2.0.9
 
-Version **2.0.8** keeps the stable 2.0.7 startup, prevents a normal Play tap from opening fullscreen, and removes compounded viewport padding that cut off the right side of YouTube.
+Version **2.0.9** completely disables fullscreen so Play remains inline, restores YouTube’s native viewport sizing, keeps only the hamburger drawer, and adds an extension menu with update checks.
 
 ## Install this
 
 **Prefer Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.8.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.9.zip`
 
 Firefox fallback:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.8.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.9.zip`
 
 ## Steps
 
@@ -29,11 +29,19 @@ If the Chrome zip does not install, repeat the same steps with the Firefox zip.
 
 Keep uBlock Origin enabled alongside this extension. uBlock Origin handles network ad blocking, while Fuck YouTube Premium handles Orion playback and the mobile-friendly YouTube layout.
 
+## Updates
+
+Tap the **Fuck YouTube Premium** extension icon and choose **Check for updates**. The extension also checks GitHub every six hours and shows an **UP** badge when a newer version exists.
+
+If an update is available, download the offered zip, uninstall the current extension, and install the new zip from Downloads. Orion does not allow an installed zip to replace itself silently.
+
 ## What should be true after install
 
-- Title / like row have clear side padding (not flush to the screen).
-- Upload / Create header button gone.
-- Tap play keeps the **normal** watch layout (video + title + comments), not system fullscreen.
-- Ads are hidden/skipped more aggressively (Chrome zip also uses network block rules).
+- Tap Play and the video remains inline above the title and comments.
+- The hamburger opens YouTube’s native drawer.
+- There is no permanent Home/Shorts/Subscriptions icon column.
+- Upload/Create is hidden.
+- The page uses YouTube’s native viewport width without extension-added side padding.
+- uBlock Origin handles network ad blocking.
 
-If padding still looks unchanged, the extension is not active on the tab — check Extensions list is enabled and allowed on youtube.com.
+If these changes are missing, confirm the extension is enabled and allowed on youtube.com.

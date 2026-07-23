@@ -10,7 +10,7 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v208-inline-viewport';
+  const NAV_LAYOUT_VERSION = 'ext-v209-inline-popup';
   const COMMENT_PREVIEW_COUNT = 3;
   const COMMENT_LOAD_STEP = 10;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
@@ -20,17 +20,10 @@
    * Keep floating controls above that chrome so they stay tappable.
    */
   const ORION_NAV_GAP = '72px';
-  const EDGE_PAD = '16px';
   const commentUiState = {
     videoId: null,
     visibleCount: COMMENT_PREVIEW_COUNT,
   };
-  const guideUiState = {
-    allowOpenUntil: 0,
-    userOpened: false,
-    wired: false,
-  };
-
   /*
    * Normalize every normal and short YouTube link onto the desktop host.
    * Orion can then use the full desktop player underneath the mobile-only UI
@@ -282,7 +275,6 @@
     recoveryTimers: new Set(),
     userPauseUntil: 0,
     lastPiPAttempt: 0,
-    allowFullscreenUntil: 0,
   };
 
   const nativeMediaPause = HTMLMediaElement.prototype.pause;
@@ -376,8 +368,6 @@
   }
 
   function exitAccidentalFullscreen(video = state.video) {
-    if (Date.now() <= state.allowFullscreenUntil) return;
-
     try {
       if (
         video &&
@@ -409,12 +399,8 @@
       '#movie_player.ytp-fullscreen, .html5-video-player.ytp-fullscreen'
     );
     if (player) {
-      try {
-        document.querySelector(
-          '.ytp-fullscreen-button[title*="Exit"], .ytp-fullscreen-button[aria-label*="Exit"], .ytp-fullscreen-button'
-        )?.click();
-      } catch {}
       player.classList.remove('ytp-fullscreen');
+      player.removeAttribute('data-vm-allow-fs');
     }
 
     const watch = document.querySelector('ytd-watch-flexy[fullscreen]');
@@ -483,8 +469,7 @@
         typeof video.webkitSupportsPresentationMode === 'function' &&
         video.webkitSupportsPresentationMode('inline') &&
         typeof video.webkitSetPresentationMode === 'function' &&
-        video.webkitPresentationMode === 'fullscreen' &&
-        Date.now() > state.allowFullscreenUntil
+        video.webkitPresentationMode === 'fullscreen'
       ) {
         video.webkitSetPresentationMode('inline');
       }
@@ -492,17 +477,13 @@
   }
 
   function forceInlineSoon(video = state.video) {
-    if (!video || Date.now() <= state.allowFullscreenUntil) return;
+    if (!video) return;
     enforceInlinePlayback(video);
     exitAccidentalFullscreen(video);
-    for (const delay of [0, 40, 120, 300, 700, 1200]) {
-      setTimeout(() => {
-        if (Date.now() > state.allowFullscreenUntil) {
-          enforceInlinePlayback(video);
-          exitAccidentalFullscreen(video);
-        }
-      }, delay);
-    }
+    setTimeout(() => {
+      enforceInlinePlayback(video);
+      exitAccidentalFullscreen(video);
+    }, 0);
   }
 
   function onVideoLoaded() {
@@ -510,28 +491,14 @@
   }
 
   function onVideoNativeFullscreen(event) {
-    if (Date.now() <= state.allowFullscreenUntil) return;
     event.preventDefault?.();
     exitAccidentalFullscreen(event.target instanceof HTMLVideoElement ? event.target : state.video);
   }
 
   function installFullscreenGuard() {
-    const flag = '__ytMobileOrionFullscreenGuardV3';
+    const flag = '__ytMobileOrionFullscreenGuardV4';
     if (window[flag]) return;
     Object.defineProperty(window, flag, { value: true });
-
-    const allowIfUserRequested = () => Date.now() <= state.allowFullscreenUntil;
-    const fullscreenControlSelector = [
-      '.ytp-fullscreen-button',
-      'button[aria-label="Full screen"]',
-      'button[aria-label="Fullscreen"]',
-      'button[title="Full screen"]',
-      'button[title="Fullscreen"]',
-      'button[aria-label^="Exit full screen"]',
-      'button[aria-label^="Exit fullscreen"]',
-      'button[title^="Exit full screen"]',
-      'button[title^="Exit fullscreen"]',
-    ].join(',');
 
     const replaceMethod = (proto, method, createGuard) => {
       const native = proto?.[method];
@@ -555,8 +522,8 @@
     const patchProto = (proto, method) => {
       replaceMethod(proto, method, (native) =>
         function guardedFullscreen() {
-          if (!allowIfUserRequested()) return Promise.resolve(undefined);
-          return native.apply(this, arguments);
+          if (this instanceof HTMLVideoElement) enforceInlinePlayback(this);
+          return Promise.resolve(undefined);
         }
       );
     };
@@ -572,9 +539,8 @@
       'webkitSetPresentationMode',
       (native) =>
         function guardedPresentationMode(mode) {
-          if (mode === 'fullscreen' && !allowIfUserRequested()) {
+          if (mode === 'fullscreen') {
             enforceInlinePlayback(this);
-            forceInlineSoon(this);
             return undefined;
           }
           return native.apply(this, arguments);
@@ -591,42 +557,27 @@
           }
         }
         const result = nativePlay.apply(this, arguments);
-        if (this instanceof HTMLVideoElement) {
-          forceInlineSoon(this);
-        }
+        if (this instanceof HTMLVideoElement) enforceInlinePlayback(this);
         return result;
       };
     } catch {}
 
-    const markFullscreenIntent = (event) => {
+    const keepPlayerInline = (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      const playerTap = target.closest(
+      if (!target.closest(
         '#movie_player, .html5-video-player, .html5-video-container, video, ytd-player'
-      );
-      if (!playerTap) return;
-
-      if (target.closest(fullscreenControlSelector)) {
-        state.allowFullscreenUntil = Date.now() + 1500;
-        document.querySelector('#movie_player, .html5-video-player')
-          ?.setAttribute('data-vm-allow-fs', '1');
-        return;
-      }
-
-      state.allowFullscreenUntil = 0;
-      document.querySelector('#movie_player, .html5-video-player')
-        ?.removeAttribute('data-vm-allow-fs');
-      forceInlineSoon(state.video || findVideo());
+      )) return;
+      enforceInlinePlayback(state.video || findVideo());
     };
-    nativeDocumentAddEventListener('pointerdown', markFullscreenIntent, true);
-    nativeDocumentAddEventListener('touchstart', markFullscreenIntent, {
+    nativeDocumentAddEventListener('pointerdown', keepPlayerInline, true);
+    nativeDocumentAddEventListener('touchstart', keepPlayerInline, {
       capture: true,
       passive: true,
     });
-    nativeDocumentAddEventListener('click', markFullscreenIntent, true);
+    nativeDocumentAddEventListener('click', keepPlayerInline, true);
 
     const onNativeFsEvent = (event) => {
-      if (allowIfUserRequested()) return;
       const video = event.target;
       if (video instanceof HTMLVideoElement) {
         event.preventDefault?.();
@@ -637,10 +588,10 @@
     };
     nativeDocumentAddEventListener('webkitbeginfullscreen', onNativeFsEvent, true);
     nativeDocumentAddEventListener('fullscreenchange', () => {
-      if (!allowIfUserRequested()) exitAccidentalFullscreen();
+      exitAccidentalFullscreen();
     }, true);
     nativeDocumentAddEventListener('webkitfullscreenchange', () => {
-      if (!allowIfUserRequested()) exitAccidentalFullscreen();
+      exitAccidentalFullscreen();
     }, true);
 
     const enforceVideoTree = (root) => {
@@ -875,6 +826,12 @@
         --ytd-mini-guide-width-min: 0px !important;
       }
 
+      ytd-app[guide-persistent],
+      ytd-app[mini-guide-visible] {
+        --ytd-mini-guide-width: 0px !important;
+        --ytd-mini-guide-width-min: 0px !important;
+      }
+
       /* Kill YouTube miniplayer when leaving a video. */
       ytd-miniplayer,
       ytd-miniplayer[active],
@@ -907,17 +864,6 @@
         height: 40px !important;
       }
 
-      /* Keep closed drawers off-screen without killing the open animation / first tap. */
-      tp-yt-app-drawer#guide:not([opened]):not([peeking]) {
-        pointer-events: none;
-      }
-
-      tp-yt-app-drawer#guide[opened],
-      #guide[opened] {
-        visibility: visible !important;
-        pointer-events: auto !important;
-      }
-
       /* Remove header upload / create. */
       ytd-masthead ytd-topbar-menu-button-renderer:has(a[href*='upload']),
       ytd-masthead ytd-button-renderer:has(a[href*='upload']),
@@ -943,80 +889,6 @@
         overflow: hidden !important;
       }
 
-      html,
-      body,
-      ytd-app,
-      ytm-app {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        box-sizing: border-box !important;
-      }
-
-      /* Keep the viewport roots edge-to-edge. Padding these nested 100%-wide
-         elements compounds and clips the right side on Orion iOS. */
-      html, body {
-        margin: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        overflow-x: hidden !important;
-      }
-
-      ytd-app,
-      ytm-app {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        overflow-x: clip !important;
-        --ytd-mini-guide-width: 0px !important;
-      }
-
-      ytd-page-manager,
-      #page-manager,
-      #content.ytd-app,
-      #columns,
-      #primary,
-      #primary-inner,
-      #secondary,
-      #player,
-      #player-container,
-      #player-container-outer,
-      #player-container-inner,
-      ytd-player,
-      #movie_player,
-      ytd-rich-grid-renderer,
-      ytd-watch-flexy,
-      ytd-watch-metadata {
-        box-sizing: border-box !important;
-        max-width: 100% !important;
-        width: 100% !important;
-        min-width: 0 !important;
-      }
-
-      /* Put the breathing room on content, not on the viewport/player roots. */
-      ytd-watch-metadata,
-      ytd-watch-flexy #below,
-      ytd-comments,
-      ytd-rich-grid-renderer {
-        box-sizing: border-box !important;
-        padding-left: max(clamp(8px, 3vw, 16px), env(safe-area-inset-left, 0px)) !important;
-        padding-right: max(clamp(8px, 3vw, 16px), env(safe-area-inset-right, 0px)) !important;
-      }
-
-      ytd-watch-flexy #below ytd-watch-metadata,
-      ytd-watch-flexy #below ytd-comments {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-      }
-
-      #movie_player,
-      .html5-video-player,
-      .html5-video-container,
-      video.html5-main-video {
-        max-width: 100% !important;
-      }
-
       #movie_player.ytp-fullscreen:not([data-vm-allow-fs='1']),
       .html5-video-player.ytp-fullscreen:not([data-vm-allow-fs='1']) {
         position: relative !important;
@@ -1026,48 +898,19 @@
         max-width: 100% !important;
       }
 
+      .ytp-fullscreen-button,
+      button[aria-label='Full screen'],
+      button[aria-label='Fullscreen'] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
       /* Keep watch layout as normal page (video + metadata), not immersive FS. */
       ytd-watch-flexy[fullscreen] #player-theater-container,
       ytd-watch-flexy[fullscreen] #full-bleed-container {
         position: relative !important;
         max-height: none !important;
-      }
-
-      ytd-masthead,
-      #masthead-container,
-      #header {
-        box-sizing: border-box !important;
-        padding-left: 6px !important;
-        padding-right: 6px !important;
-      }
-
-      ytd-page-manager,
-      #page-manager,
-      #content.ytd-app {
-        margin-left: 0 !important;
-      }
-
-      ytd-masthead {
-        width: 100% !important;
-      }
-
-      ytd-watch-flexy #columns,
-      ytd-watch-flexy #primary,
-      ytd-watch-flexy #secondary,
-      ytd-comments,
-      ytd-item-section-renderer#sections {
-        box-sizing: border-box !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 100% !important;
-      }
-
-      ytd-watch-flexy #columns {
-        display: block !important;
-      }
-
-      ytd-watch-flexy #secondary {
-        margin-left: 0 !important;
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -1706,173 +1549,22 @@
     if (nav) nav.remove();
   }
 
-  function applyEdgePadding() {
+  function applySafeBottomSpacing() {
     for (const app of document.querySelectorAll('ytd-app, ytm-app')) {
       setImportantStyles(app, {
-        'box-sizing': 'border-box',
-        width: '100%',
-        'max-width': '100%',
-        'padding-left': '0',
-        'padding-right': '0',
         'padding-bottom': 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)',
         '--ytd-mini-guide-width': '0px',
+        '--ytd-mini-guide-width-min': '0px',
       });
     }
   }
 
-  function markGuideOpenIntent() {
-    guideUiState.userOpened = true;
-    guideUiState.allowOpenUntil = Date.now() + 8000;
-  }
-
-  function isGuideOpenAllowed() {
-    return guideUiState.userOpened || Date.now() <= guideUiState.allowOpenUntil;
-  }
-
-  function isGuideControl(target) {
-    if (!(target instanceof Element)) return false;
-    return Boolean(
-      target.closest(
-        '#guide-button, #guide-button-icon, ytd-masthead #guide-button, ' +
-          'ytd-masthead yt-icon-button#guide-button, ' +
-          'button[aria-label="Guide"], button[aria-label*="Guide"], ' +
-          'yt-icon-button[aria-label="Guide"], yt-icon-button[aria-label*="Guide"], ' +
-          '#button.yt-icon-button[aria-label="Guide"]'
-      )
-    );
-  }
-
-  function closeGuideDrawer(drawer = document.querySelector('tp-yt-app-drawer#guide, #guide')) {
-    if (!drawer) return;
-    guideUiState.userOpened = false;
-    try {
-      if (typeof drawer.close === 'function') drawer.close();
-    } catch {
-      // close() is optional on some Polymer builds.
-    }
-    try {
-      drawer.opened = false;
-    } catch {
-      // opened may be a read-only reflector.
-    }
-    drawer.removeAttribute('opened');
-    drawer.removeAttribute('peeking');
-
-    const app = document.querySelector('ytd-app');
-    if (app) {
-      app.removeAttribute('guide-persistent');
-      try {
-        if ('guidePersistent' in app) app.guidePersistent = false;
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  function disableGuideSwipe(drawer) {
-    if (!drawer) return;
-    drawer.setAttribute('disable-swipe', '');
-    drawer.setAttribute('disable-swipe-open', '');
-    try {
-      drawer.disableSwipe = true;
-    } catch {
-      // ignore
-    }
-    try {
-      if ('swipeOpen' in drawer) drawer.swipeOpen = false;
-    } catch {
-      // ignore
-    }
-    try {
-      if ('disableSwipeOpen' in drawer) drawer.disableSwipeOpen = true;
-    } catch {
-      // ignore
-    }
-  }
-
-  function wireGuideTapOnlyControls() {
-    if (guideUiState.wired) return;
-    guideUiState.wired = true;
-
-    const markIfGuideControl = (event) => {
-      if (!isGuideControl(event.target)) return;
-      markGuideOpenIntent();
-      // Strip Shorts as soon as the drawer is about to show.
-      setTimeout(() => hideShortsGuideEntries(document), 0);
-      setTimeout(() => hideShortsGuideEntries(document), 120);
-      setTimeout(() => hideShortsGuideEntries(document), 400);
-    };
-
-    nativeDocumentAddEventListener('pointerdown', markIfGuideControl, true);
-    nativeDocumentAddEventListener('touchstart', markIfGuideControl, {
-      capture: true,
-      passive: true,
-    });
-    nativeDocumentAddEventListener('click', markIfGuideControl, true);
-
-    // Only dismiss swipe/scroll accidents — never fight a burger tap (touchmove caused double-tap).
-    const maybeCloseAccidentalGuide = () => {
-      if (isGuideOpenAllowed()) return;
-      const drawer = document.querySelector('tp-yt-app-drawer#guide, #guide');
-      if (!drawer) return;
-      const open =
-        drawer.hasAttribute('opened') ||
-        drawer.opened === true ||
-        drawer.hasAttribute('peeking');
-      if (open) closeGuideDrawer(drawer);
-    };
-
-    nativeDocumentAddEventListener('scroll', maybeCloseAccidentalGuide, {
-      capture: true,
-      passive: true,
-    });
-    nativeWindowAddEventListener('scroll', maybeCloseAccidentalGuide, {
-      capture: true,
-      passive: true,
-    });
-  }
-
   function lockGuideToTapOnly() {
-    wireGuideTapOnlyControls();
-
-    const drawers = document.querySelectorAll('tp-yt-app-drawer#guide, #guide');
-    for (const drawer of drawers) {
-      disableGuideSwipe(drawer);
-
-      if (!drawer.dataset.vmGuideLock) {
-        drawer.dataset.vmGuideLock = '1';
-        const observer = new MutationObserver(() => {
-          disableGuideSwipe(drawer);
-          const open =
-            drawer.hasAttribute('opened') ||
-            drawer.opened === true ||
-            drawer.hasAttribute('peeking');
-          if (!open) {
-            // User dismissed the drawer (backdrop / burger toggle).
-            if (Date.now() > guideUiState.allowOpenUntil) {
-              guideUiState.userOpened = false;
-            }
-            return;
-          }
-          hideShortsGuideEntries(drawer);
-          hideShortsGuideEntries(document);
-          // Keep user-opened drawers open; only kill anonymous swipe peeks.
-          if (!isGuideOpenAllowed() && drawer.hasAttribute('peeking') && !drawer.hasAttribute('opened')) {
-            closeGuideDrawer(drawer);
-          }
-        });
-        observer.observe(drawer, {
-          attributes: true,
-          childList: true,
-          subtree: true,
-          attributeFilter: ['opened', 'peeking', 'disable-swipe', 'class', 'style'],
-        });
-      }
-
-      if (drawer.hasAttribute('opened') || drawer.opened === true) {
-        hideShortsGuideEntries(drawer);
-      }
-    }
+    const drawer = document.querySelector('tp-yt-app-drawer#guide, #guide');
+    const drawerOpen = Boolean(
+      drawer &&
+      (drawer.hasAttribute('opened') || drawer.opened === true)
+    );
 
     for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
       setImportantStyles(mini, {
@@ -1880,6 +1572,29 @@
         visibility: 'hidden',
         'pointer-events': 'none',
       });
+    }
+
+    for (const app of document.querySelectorAll('ytd-app')) {
+      if (!drawerOpen) {
+        app.removeAttribute('guide-persistent');
+        app.removeAttribute('mini-guide-visible');
+        try {
+          if ('guidePersistent' in app) app.guidePersistent = false;
+          if ('miniGuideVisible' in app) app.miniGuideVisible = false;
+        } catch {
+          // YouTube may expose these as read-only Polymer properties.
+        }
+      }
+      setImportantStyles(app, {
+        '--ytd-mini-guide-width': '0px',
+        '--ytd-mini-guide-width-min': '0px',
+      });
+    }
+
+    for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
+      drawer.removeAttribute('disable-swipe');
+      drawer.removeAttribute('disable-swipe-open');
+      hideShortsGuideEntries(drawer);
     }
 
     hideShortsGuideEntries(document);
@@ -1915,24 +1630,6 @@
           visibility: 'visible',
           opacity: '1',
         });
-      }
-      if (!button.dataset.vmGuideTapBound) {
-        button.dataset.vmGuideTapBound = '1';
-        button.addEventListener(
-          'click',
-          () => {
-            markGuideOpenIntent();
-            hideShortsGuideEntries(document);
-          },
-          true
-        );
-        button.addEventListener(
-          'touchend',
-          () => {
-            markGuideOpenIntent();
-          },
-          { capture: true, passive: true }
-        );
       }
     }
 
@@ -2019,55 +1716,7 @@
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();
-    applyEdgePadding();
-
-    for (const element of document.querySelectorAll(
-      'html, body, ytd-app, ytm-app, ytd-page-manager, #page-manager'
-    )) {
-      setImportantStyles(element, {
-        'min-width': '0',
-        'max-width': '100%',
-        'box-sizing': 'border-box',
-      });
-    }
-
-    for (const page of document.querySelectorAll(
-      'ytd-page-manager, #page-manager, #content.ytd-app'
-    )) {
-      setImportantStyles(page, {
-        'margin-left': '0',
-      });
-    }
-
-    for (const columns of document.querySelectorAll(
-      'ytd-watch-flexy #columns'
-    )) {
-      setImportantStyles(columns, {
-        display: 'block',
-        width: '100%',
-        'min-width': '0',
-        'max-width': '100%',
-      });
-    }
-
-    for (const column of document.querySelectorAll(
-      'ytd-watch-flexy #primary, ytd-watch-flexy #secondary, ytd-comments'
-    )) {
-      setImportantStyles(column, {
-        width: '100%',
-        'min-width': '0',
-        'max-width': '100%',
-        'margin-left': '0',
-      });
-    }
-
-    for (const grid of document.querySelectorAll('ytd-rich-grid-renderer')) {
-      setImportantStyles(grid, {
-        '--ytd-rich-grid-items-per-row': '1',
-        width: '100%',
-        'min-width': '0',
-      });
-    }
+    applySafeBottomSpacing();
 
     for (const video of document.querySelectorAll('video')) {
       enforceInlinePlayback(video);

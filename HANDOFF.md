@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.8`** (2026-07-23)
+> **Current ship version: `2.0.9`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 
@@ -20,7 +20,7 @@ Orion Browser on **iOS** running **desktop** `www.youtube.com` with a mobile-fri
 | PiP | **Only** when user taps the status light next to the logo (not automatic). |
 | Comments | Under description; show top **3**; **Load more** / floating **Load less**. |
 | Upload | Header Create/Upload hidden. |
-| Layout | Light **8px** horizontal edge padding so content is not clipped under Orion chrome. |
+| Layout | Use YouTube’s native responsive sizing; do not force root widths or horizontal padding. |
 
 Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file).
 
@@ -36,8 +36,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.8.zip
-└── fuck-youtube-premium-firefox-2.0.8.zip
+├── fuck-youtube-premium-chrome-2.0.9.zip
+└── fuck-youtube-premium-firefox-2.0.9.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -45,7 +45,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 **Edit flow (mandatory):**
 
 1. Change `youtube-mobile-background.user.js` (bump `@version`).
-2. Run `./rebuild-extension.sh` (regenerates `page.js`, syncs versions, writes chrome+firefox zip/xpi).
+2. Run `./rebuild-extension.sh` (regenerates `page.js`, syncs versions, writes Chrome + Firefox zips).
 3. Tell the user to reinstall the new zip on Orion (replace old extension) and hard-refresh YouTube.
 
 Do **not** edit `firefox-extension/page.js` or `chrome-extension/page.js` directly — overwritten by rebuild.
@@ -60,12 +60,12 @@ Orion installs this as a **Firefox MV2** extension.
 - It injects `<script src="page.js">` into the **page** world so patches to `fetch` / `XHR` / `HTMLMediaElement.prototype.pause` / fullscreen APIs actually affect YouTube’s own JS.
 - `page.js` ≈ userscript body with `SCRIPT_ID = 'yt-mobile-orion-ext'`.
 
-Userscript headers remain for optional Violentmonkey use, but **primary deliverable is the Firefox zip/xpi**.
+Userscript headers remain for optional Violentmonkey use, but the primary deliverables are the Chrome and Firefox zips.
 
 ### Install on Orion iOS
 
-1. Settings → enable **Firefox extensions**.
-2. Extensions → **+** → **Install from file** → pick zip/xpi.
+1. Settings → enable **Chrome extensions** and **Firefox extensions**.
+2. Extensions → **+** → **Install from file** → pick a zip.
 3. Open YouTube; allow extension if prompted.
 4. Remove any old userscript copy so logic does not double-run.
 
@@ -77,15 +77,20 @@ In `youtube-mobile-background.user.js`:
 
 - `BACKEND_HOST = 'www.youtube.com'` — forces desktop host + `app=desktop&persist_app=1`.
 - `NAV_LAYOUT_VERSION` — bump when CSS/layout injection version must refresh (`style.dataset.layoutVersion`).
-- `EDGE_PAD = '8px'`, `ORION_NAV_GAP = '72px'` (Orion floating URL bar overlay).
-- `guideUiState.userOpened` / `allowOpenUntil` — burger tap intent; **do not** close drawer on `touchmove` (that caused double-tap).
-- `state.allowFullscreenUntil` — fullscreen only after user taps the native fullscreen control.
+- `ORION_NAV_GAP = '72px'` — bottom clearance for Orion’s floating URL bar.
 - `COMMENT_PREVIEW_COUNT = 3`, `COMMENT_LOAD_STEP = 10`.
 - Floating pill `#${NAV_ID}` is **intentionally removed** at runtime (`removeFloatingPillNav` / CSS `display:none`).
 
 ---
 
-## Latest changes (through 2.0.8)
+## Latest changes (through 2.0.9)
+
+### 2.0.9 — inline-only playback, native drawer, update popup
+- Fullscreen is disabled completely; Play stays inline so comments remain readable.
+- Removed custom guide close/swipe interception; the native hamburger controls the drawer.
+- Permanent mini-guide Home/Shorts/Subscriptions column remains hidden.
+- Removed extension viewport width/padding overrides and restored YouTube’s native responsive sizing.
+- Added a two-button extension popup and GitHub Release update checks.
 
 ### 2.0.8 — inline play + viewport fit
 - Revokes fullscreen permission for every player interaction except the actual fullscreen control.
@@ -121,14 +126,14 @@ In `youtube-mobile-background.user.js`:
 |----------|------|
 | `hideNativeNavigationAndShorts` | Hide pivot/mini-guide/Shorts shelves |
 | `hideShortsGuideEntries` | Strip Shorts rows inside guide drawer |
-| `ensureGuideButtonVisible` / `lockGuideToTapOnly` | Burger visible; swipe off; tap-only open |
+| `ensureGuideButtonVisible` / `lockGuideToTapOnly` | Burger visible; mini-guide hidden; native drawer left alone |
 | `dismissMiniplayer` | Kill YouTube miniplayer UI/state |
 | `removeFloatingPillNav` | Ensure custom pill stays gone |
-| `enforceInlinePlayback` / `installFullscreenGuard` | Inline play; no auto fullscreen |
+| `enforceInlinePlayback` / `installFullscreenGuard` | Inline play; fullscreen disabled |
 | `requestPiP` | Only from status-dot click handler |
 | `prepareForBackground` | Keep audio alive; **no** PiP |
 | `arrangeWatchComments` / `limitVisibleComments` | Comments under description; top 3 + more/less |
-| `applyEdgePadding` | 8px side padding on `ytd-app` |
+| `applySafeBottomSpacing` | Bottom clearance only; no horizontal viewport overrides |
 | `scanPage` | Periodic DOM reconcile entrypoint |
 
 ---
@@ -156,7 +161,7 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 
 - Prefer small, targeted edits in the userscript; rebuild; ship new zip.
 - Keep PiP user-gesture-only.
-- Keep guide open on single burger tap; only dismiss true swipe peeks / scroll accidents when `userOpened` is false.
+- Leave drawer open/close behavior to YouTube’s native hamburger control.
 - Re-test Shorts inside the **open** guide drawer (DOM is lazy).
 
 **Don’t**
@@ -172,7 +177,7 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 ## Known Orion / WebKit quirks
 
 - Floating address bar **overlays** page content → bottom controls need clearance (`ORION_NAV_GAP`).
-- Extension APIs are limited on iOS; this add-on is **content-script only** (no background page required).
+- Extension APIs are limited on iOS; the background script only checks GitHub Releases and cannot silently reinstall a zip.
 - Polymer `tp-yt-app-drawer#guide` uses `opened` / `peeking` / `disable-swipe`.
 - Desktop YouTube in a narrow viewport still uses `ytd-*` (not always `ytm-*`).
 
@@ -185,8 +190,8 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 - Hates Shorts anywhere.
 - Hates miniplayer after leaving a video.
 - Hates auto-fullscreen on play; wants background playback + optional PiP.
-- Content was clipping at edges → keep small padding.
-- Deliverables should be **zippable for AirDrop** (Firefox zip/xpi).
+- Content was clipping at edges → keep YouTube’s native viewport sizing and avoid root width/padding overrides.
+- Deliverables should be zip files suitable for Downloads or AirDrop.
 
 ---
 
