@@ -1,10 +1,10 @@
 # Fuck YouTube Premium
 
-Fuck YouTube Premium is an Orion extension for iPhone and iPad that makes desktop YouTube easier to use on iOS. It keeps video inline, supports background audio and user-triggered Picture in Picture, removes Shorts and the miniplayer, and provides a mobile-friendly layout. Use it alongside uBlock Origin for network ad blocking.
+Fuck YouTube Premium is an Orion extension for iPhone and iPad. It loads desktop YouTube as the functional backend, then applies a phone-sized interface: a full-width inline player, a compact watch page, one-column feeds, and hamburger-only navigation. It also supports background audio and removes Shorts and the miniplayer. Use it alongside uBlock Origin for network ad blocking.
 
 ## Install on Orion for iOS
 
-1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.9.zip](fuck-youtube-premium-chrome-2.0.9.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.9.zip](fuck-youtube-premium-firefox-2.0.9.zip).
+1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.10.zip](fuck-youtube-premium-chrome-2.0.10.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.10.zip](fuck-youtube-premium-firefox-2.0.10.zip).
 2. Open **Orion → Settings → Extensions**.
 3. Enable support for both **Chrome Extensions** and **Firefox Extensions**.
 4. In Orion’s Extensions screen, tap **+**, then **Install from File**.
@@ -17,7 +17,7 @@ The Chrome zip is recommended. The Firefox zip is provided as a fallback because
 
 ## Extension menu and updates
 
-Tap the extension icon in Orion to open a two-button menu:
+Tap the extension icon in Orion to open a compact menu containing only two buttons:
 
 - **Go to YouTube** opens desktop YouTube.
 - **Check for updates** compares the installed version with the latest GitHub Release. When an update is available, the button downloads the correct Chrome or Firefox zip.

@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.9`** (2026-07-23)
+> **Current ship version: `2.0.10`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 
@@ -16,11 +16,11 @@ Orion Browser on **iOS** running **desktop** `www.youtube.com` with a mobile-fri
 | Navigation | **Hamburger / guide drawer only** (single tap). No floating pill. No mini-guide rail (Home/Shorts/Subs/You icons). |
 | Shorts | Removed everywhere (guide, shelves, links). `/shorts` redirects to Home. |
 | Miniplayer | Dismissed / hidden when leaving a watch page. |
-| Playback | Inline only — **no auto-fullscreen**. Background audio kept via visibility spoof + play recovery. |
-| PiP | **Only** when user taps the status light next to the logo (not automatic). |
+| Playback | Inline only — `playsinline` is applied before native `play()`. Background audio kept via visibility spoof + play recovery. |
+| PiP | Disabled so starting playback can never switch the page into PiP. |
 | Comments | Under description; show top **3**; **Load more** / floating **Load less**. |
 | Upload | Header Create/Upload hidden. |
-| Layout | Use YouTube’s native responsive sizing; do not force root widths or horizontal padding. |
+| Layout | Keep the desktop backend, but remove its phone-width minimums and apply a 12px gutter to watch content. |
 
 Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file).
 
@@ -36,8 +36,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.9.zip
-└── fuck-youtube-premium-firefox-2.0.9.zip
+├── fuck-youtube-premium-chrome-2.0.10.zip
+└── fuck-youtube-premium-firefox-2.0.10.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -57,7 +57,7 @@ Do **not** edit `firefox-extension/page.js` or `chrome-extension/page.js` direct
 Orion installs this as a **Firefox MV2** extension.
 
 - `content.js` runs at `document_start` (isolated world).
-- It injects `<script src="page.js">` into the **page** world so patches to `fetch` / `XHR` / `HTMLMediaElement.prototype.pause` / fullscreen APIs actually affect YouTube’s own JS.
+- It injects `<script src="page.js">` into the **page** world so patches to `fetch` / `XHR` / `HTMLMediaElement.prototype.pause` / `play()` actually affect YouTube’s own JS.
 - `page.js` ≈ userscript body with `SCRIPT_ID = 'yt-mobile-orion-ext'`.
 
 Userscript headers remain for optional Violentmonkey use, but the primary deliverables are the Chrome and Firefox zips.
@@ -83,7 +83,17 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.9)
+## Latest changes (through 2.0.10)
+
+### 2.0.10 — mobile shell reset + reliable inline Play
+- Keeps desktop YouTube as the data/playback backend and adds a phone breakpoint over its narrow responsive layout.
+- Removes desktop YouTube’s 426.7px minimum watch-column width, which clipped roughly 18px from the left on a 390px viewport.
+- Uses a small 12px content gutter while leaving the video player full-width.
+- Uses one-column rich feeds at phone widths.
+- Marks videos `playsinline` immediately before native `play()`; no fullscreen-exit or presentation-mode calls run after the tap.
+- Disables PiP and removes the in-page PiP/status control.
+- Leaves YouTube’s guide attributes and Polymer state untouched; only the mini-guide element is hidden.
+- Popup contains only two compact buttons.
 
 ### 2.0.9 — inline-only playback, native drawer, update popup
 - Fullscreen is disabled completely; Play stays inline so comments remain readable.
@@ -107,7 +117,7 @@ In `youtube-mobile-background.user.js`:
 - Removed floating pill nav; hide mini-guide / pivot rails.
 - Dismiss `ytd-miniplayer` when leaving watch.
 - Aggressive Shorts shelf/link removal + `/shorts` → Home.
-- `installFullscreenGuard()` + `playsinline` enforcement; exit accidental WebKit fullscreen.
+- Earlier `installFullscreenGuard()` patched WebKit fullscreen APIs and exited fullscreen after Play. This was removed in 2.0.10 because it consumed the first user gesture in Orion.
 - PiP remains status-dot click only; `prepareForBackground()` does **not** call PiP.
 - `EDGE_PAD` horizontal inset.
 
@@ -129,8 +139,7 @@ In `youtube-mobile-background.user.js`:
 | `ensureGuideButtonVisible` / `lockGuideToTapOnly` | Burger visible; mini-guide hidden; native drawer left alone |
 | `dismissMiniplayer` | Kill YouTube miniplayer UI/state |
 | `removeFloatingPillNav` | Ensure custom pill stays gone |
-| `enforceInlinePlayback` / `installFullscreenGuard` | Inline play; fullscreen disabled |
-| `requestPiP` | Only from status-dot click handler |
+| `enforceInlinePlayback` / `installInlinePlaybackGuard` | Apply inline playback and disable PiP before native Play without changing WebKit presentation modes |
 | `prepareForBackground` | Keep audio alive; **no** PiP |
 | `arrangeWatchComments` / `limitVisibleComments` | Comments under description; top 3 + more/less |
 | `applySafeBottomSpacing` | Bottom clearance only; no horizontal viewport overrides |
@@ -170,14 +179,14 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 **Do**
 
 - Prefer small, targeted edits in the userscript; rebuild; ship new zip.
-- Keep PiP user-gesture-only.
+- Keep PiP disabled unless the user explicitly reverses that requirement.
 - Leave drawer open/close behavior to YouTube’s native hamburger control.
 - Re-test Shorts inside the **open** guide drawer (DOM is lazy).
 
 **Don’t**
 
 - Reintroduce floating bottom pill or mini-guide Home/Shorts/Subs rail unless the user asks.
-- Call `requestPiP` from visibility/`prepareForBackground`.
+- Call PiP or WebKit presentation-mode APIs from visibility/`prepareForBackground`.
 - Hand-edit `page.js`.
 - Rely only on CSS `:has()` for Shorts — always also run `hideShortsGuideEntries`.
 - Close the guide from `touchmove` (breaks single-tap).
@@ -199,7 +208,7 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 - Wants hamburger navigation, not a custom tab bar.
 - Hates Shorts anywhere.
 - Hates miniplayer after leaving a video.
-- Hates auto-fullscreen on play; wants background playback + optional PiP.
+- Hates auto-fullscreen and PiP on play; wants inline video and background audio.
 - Content was clipping at edges → keep YouTube’s native viewport sizing and avoid root width/padding overrides.
 - Deliverables should be zip files suitable for Downloads or AirDrop.
 
@@ -212,7 +221,7 @@ After reinstall + hard refresh on Orion:
 1. [ ] Burger opens guide on **one** tap and stays open.
 2. [ ] Guide has **no Shorts** row.
 3. [ ] No left mini-guide icon rail; no floating pill.
-4. [ ] Play stays inline (not fullscreen); status light → PiP only when tapped.
+4. [ ] One Play tap starts video inline; no fullscreen or PiP transition.
 5. [ ] Leave video → no miniplayer on Home.
 6. [ ] Watch page: comments under description, 3 visible, Load more / Load less.
 7. [ ] Feed/player not clipped at left/right edges.

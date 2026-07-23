@@ -7,27 +7,13 @@
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
-    <main class="popup-shell">
-      <header class="brand">
-        <span class="brand-mark" aria-hidden="true">▶</span>
-        <div>
-          <h1>Fuck YouTube Premium</h1>
-          <p id="version">Orion extension</p>
-        </div>
-      </header>
-
-      <div class="actions" aria-label="Extension actions">
-        <button id="open-youtube" class="action action-primary" type="button">
-          Go to YouTube
-        </button>
-        <button id="check-updates" class="action action-secondary" type="button">
-          Check for updates
-        </button>
-      </div>
-
-      <p id="status" class="status" role="status" aria-live="polite">
-        Playback stays inline so comments remain available.
-      </p>
+    <main class="popup-shell" aria-label="Fuck YouTube Premium actions">
+      <button id="open-youtube" class="action action-primary" type="button">
+        Go to YouTube
+      </button>
+      <button id="check-updates" class="action action-secondary" type="button">
+        Check for updates
+      </button>
     </main>
     <script src="popup.js"></script>
   </body>

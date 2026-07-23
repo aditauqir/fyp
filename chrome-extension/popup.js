@@ -5,10 +5,6 @@
   const manifest = api.runtime.getManifest();
   const openButton = document.getElementById('open-youtube');
   const updateButton = document.getElementById('check-updates');
-  const status = document.getElementById('status');
-  const version = document.getElementById('version');
-
-  version.textContent = `Version ${manifest.version}`;
 
   function openTab(url) {
     if (typeof browser !== 'undefined') {
@@ -36,18 +32,12 @@
     });
   }
 
-  function setStatus(message, state = '') {
-    status.textContent = message;
-    if (state) status.dataset.state = state;
-    else delete status.dataset.state;
-  }
-
   openButton.addEventListener('click', async () => {
     try {
       await openTab('https://www.youtube.com/?app=desktop&persist_app=1');
       window.close();
     } catch {
-      setStatus('Could not open YouTube.', 'error');
+      openButton.textContent = 'Could not open YouTube';
     }
   });
 
@@ -58,14 +48,13 @@
         await openTab(downloadUrl);
         window.close();
       } catch {
-        setStatus('Could not open the update download.', 'error');
+        updateButton.textContent = 'Could not open download';
       }
       return;
     }
 
     updateButton.disabled = true;
     updateButton.textContent = 'Checking…';
-    setStatus('Checking GitHub Releases…');
 
     try {
       const result = await sendMessage({ type: 'checkForUpdates' });
@@ -74,17 +63,11 @@
       if (result.updateAvailable && result.downloadUrl) {
         updateButton.dataset.downloadUrl = result.downloadUrl;
         updateButton.textContent = `Download v${result.latestVersion}`;
-        setStatus(
-          `Version ${result.latestVersion} is available. Tap Download to save the new ZIP.`,
-          'update'
-        );
       } else {
-        updateButton.textContent = 'Check for updates';
-        setStatus(`Version ${manifest.version} is up to date.`, 'success');
+        updateButton.textContent = `Up to date · v${manifest.version}`;
       }
     } catch {
-      updateButton.textContent = 'Try update check again';
-      setStatus('Could not reach GitHub Releases. Check your connection.', 'error');
+      updateButton.textContent = 'Update check failed · Retry';
     } finally {
       updateButton.disabled = false;
     }

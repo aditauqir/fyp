@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.9
+// @version      2.0.10
 // @description  Orion iOS: inline playback, native hamburger drawer, no mini-guide/Shorts/miniplayer, tap-PiP, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,13 +18,12 @@
   'use strict';
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
-  const DOT_ID = `${SCRIPT_ID}-dot`;
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v209-inline-popup';
+  const NAV_LAYOUT_VERSION = 'ext-v210-mobile-shell';
   const COMMENT_PREVIEW_COUNT = 3;
   const COMMENT_LOAD_STEP = 10;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
@@ -288,7 +287,6 @@
     wantsPlayback: false,
     recoveryTimers: new Set(),
     userPauseUntil: 0,
-    lastPiPAttempt: 0,
   };
 
   const nativeMediaPause = HTMLMediaElement.prototype.pause;
@@ -341,93 +339,14 @@
     }
   }
 
-  function updateDot() {
-    const dot = document.getElementById(DOT_ID);
-    if (!dot) return;
-    const video = state.video;
-    const playing = Boolean(video && !video.paused && !video.ended);
-    const playerState = playing ? 'playing' : video ? 'ready' : 'waiting';
-    dot.dataset.playerState = playerState;
-    dot.title = playing
-      ? 'Userscript active · video playing · tap for PiP'
-      : video
-        ? 'Userscript active · tap for PiP'
-        : 'Userscript active · waiting for video';
-    dot.setAttribute('aria-label', dot.title);
-
-    const light = dot.querySelector('.vm-yt-status-light');
-    const colors = {
-      playing: ['#30d5ff', '0 0 8px rgba(48, 213, 255, .8)'],
-      ready: ['#34c759', '0 0 7px rgba(52, 199, 89, .75)'],
-      waiting: ['#ffcc00', '0 0 7px rgba(255, 204, 0, .72)'],
-    };
-    const [background, glow] = colors[playerState];
-    setImportantStyles(light, {
-      display: 'block',
-      width: '8px',
-      height: '8px',
-      'border-radius': '999px',
-      background,
-      'box-shadow': glow,
-    });
-  }
-
   function onVideoPlay() {
     state.wantsPlayback = true;
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
-    forceInlineSoon(state.video);
-    updateDot();
-  }
-
-  function exitAccidentalFullscreen(video = state.video) {
-    try {
-      if (
-        video &&
-        typeof video.webkitDisplayingFullscreen === 'boolean' &&
-        video.webkitDisplayingFullscreen &&
-        typeof video.webkitExitFullscreen === 'function'
-      ) {
-        video.webkitExitFullscreen();
-      }
-    } catch {}
-
-    try {
-      if (
-        video &&
-        typeof video.webkitPresentationMode === 'string' &&
-        video.webkitPresentationMode === 'fullscreen' &&
-        typeof video.webkitSetPresentationMode === 'function'
-      ) {
-        video.webkitSetPresentationMode('inline');
-      }
-    } catch {}
-
-    try {
-      if (document.fullscreenElement) document.exitFullscreen?.();
-      if (document.webkitFullscreenElement) document.webkitExitFullscreen?.();
-    } catch {}
-
-    const player = document.querySelector(
-      '#movie_player.ytp-fullscreen, .html5-video-player.ytp-fullscreen'
-    );
-    if (player) {
-      player.classList.remove('ytp-fullscreen');
-      player.removeAttribute('data-vm-allow-fs');
-    }
-
-    const watch = document.querySelector('ytd-watch-flexy[fullscreen]');
-    if (watch) {
-      watch.removeAttribute('fullscreen');
-      try {
-        if ('fullscreen' in watch) watch.fullscreen = false;
-      } catch {}
-    }
   }
 
   function onVideoPause() {
-    updateDot();
     if (Date.now() <= state.userPauseUntil || !state.wantsPlayback) {
       state.wantsPlayback = false;
       clearRecoveryTimers();
@@ -469,144 +388,45 @@
 
   function enforceInlinePlayback(video) {
     if (!video) return;
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('x-webkit-airplay', 'allow');
+    if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', '');
+    if (!video.hasAttribute('webkit-playsinline')) {
+      video.setAttribute('webkit-playsinline', '');
+    }
     try {
       video.playsInline = true;
     } catch {}
     try {
-      video.disablePictureInPicture = false;
+      video.disablePictureInPicture = true;
     } catch {}
-    try {
-      if (
-        typeof video.webkitSupportsPresentationMode === 'function' &&
-        video.webkitSupportsPresentationMode('inline') &&
-        typeof video.webkitSetPresentationMode === 'function' &&
-        video.webkitPresentationMode === 'fullscreen'
-      ) {
-        video.webkitSetPresentationMode('inline');
-      }
-    } catch {}
-  }
-
-  function forceInlineSoon(video = state.video) {
-    if (!video) return;
-    enforceInlinePlayback(video);
-    exitAccidentalFullscreen(video);
-    setTimeout(() => {
-      enforceInlinePlayback(video);
-      exitAccidentalFullscreen(video);
-    }, 0);
   }
 
   function onVideoLoaded() {
     enforceInlinePlayback(state.video);
   }
 
-  function onVideoNativeFullscreen(event) {
-    event.preventDefault?.();
-    exitAccidentalFullscreen(event.target instanceof HTMLVideoElement ? event.target : state.video);
-  }
-
-  function installFullscreenGuard() {
-    const flag = '__ytMobileOrionFullscreenGuardV4';
+  /*
+   * WebKit decides whether playback is inline at the instant play() begins.
+   * Mark the video before delegating to the native method. Do not call
+   * presentation-mode or fullscreen-exit APIs after the tap: those transitions
+   * consume the user gesture in Orion and were the reason the first tap failed.
+   */
+  function installInlinePlaybackGuard() {
+    const flag = '__ytMobileOrionInlinePlaybackGuardV1';
     if (window[flag]) return;
     Object.defineProperty(window, flag, { value: true });
 
-    const replaceMethod = (proto, method, createGuard) => {
-      const native = proto?.[method];
-      if (typeof native !== 'function') return;
-      const guarded = createGuard(native);
-      try {
-        const descriptor = Object.getOwnPropertyDescriptor(proto, method);
-        Object.defineProperty(proto, method, {
-          configurable: descriptor?.configurable ?? true,
-          enumerable: descriptor?.enumerable ?? false,
-          writable: descriptor?.writable ?? true,
-          value: guarded,
-        });
-      } catch {
-        try {
-          proto[method] = guarded;
-        } catch {}
-      }
-    };
-
-    const patchProto = (proto, method) => {
-      replaceMethod(proto, method, (native) =>
-        function guardedFullscreen() {
-          if (this instanceof HTMLVideoElement) enforceInlinePlayback(this);
-          return Promise.resolve(undefined);
-        }
-      );
-    };
-
-    patchProto(HTMLVideoElement.prototype, 'webkitEnterFullscreen');
-    patchProto(HTMLVideoElement.prototype, 'webkitEnterFullScreen');
-    patchProto(Element.prototype, 'requestFullscreen');
-    patchProto(Element.prototype, 'webkitRequestFullscreen');
-    patchProto(Element.prototype, 'webkitRequestFullScreen');
-
-    replaceMethod(
-      HTMLVideoElement.prototype,
-      'webkitSetPresentationMode',
-      (native) =>
-        function guardedPresentationMode(mode) {
-          if (mode === 'fullscreen') {
-            enforceInlinePlayback(this);
-            return undefined;
-          }
-          return native.apply(this, arguments);
-        }
-    );
-
     try {
       const nativePlay = HTMLMediaElement.prototype.play;
-      HTMLMediaElement.prototype.play = function guardedPlay() {
+      HTMLMediaElement.prototype.play = function inlinePlay() {
         if (this instanceof HTMLVideoElement) {
           enforceInlinePlayback(this);
           if (this.classList?.contains('html5-main-video') || this === state.video) {
             attachVideo(this);
           }
         }
-        const result = nativePlay.apply(this, arguments);
-        if (this instanceof HTMLVideoElement) enforceInlinePlayback(this);
-        return result;
+        return nativePlay.apply(this, arguments);
       };
     } catch {}
-
-    const keepPlayerInline = (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (!target.closest(
-        '#movie_player, .html5-video-player, .html5-video-container, video, ytd-player'
-      )) return;
-      enforceInlinePlayback(state.video || findVideo());
-    };
-    nativeDocumentAddEventListener('pointerdown', keepPlayerInline, true);
-    nativeDocumentAddEventListener('touchstart', keepPlayerInline, {
-      capture: true,
-      passive: true,
-    });
-    nativeDocumentAddEventListener('click', keepPlayerInline, true);
-
-    const onNativeFsEvent = (event) => {
-      const video = event.target;
-      if (video instanceof HTMLVideoElement) {
-        event.preventDefault?.();
-        exitAccidentalFullscreen(video);
-      } else {
-        exitAccidentalFullscreen();
-      }
-    };
-    nativeDocumentAddEventListener('webkitbeginfullscreen', onNativeFsEvent, true);
-    nativeDocumentAddEventListener('fullscreenchange', () => {
-      exitAccidentalFullscreen();
-    }, true);
-    nativeDocumentAddEventListener('webkitfullscreenchange', () => {
-      exitAccidentalFullscreen();
-    }, true);
 
     const enforceVideoTree = (root) => {
       if (root instanceof HTMLVideoElement) enforceInlinePlayback(root);
@@ -627,12 +447,12 @@
     nativeDocumentAddEventListener('play', (event) => {
       if (event.target instanceof HTMLVideoElement) {
         attachVideo(event.target);
-        forceInlineSoon(event.target);
+        enforceInlinePlayback(event.target);
       }
     }, true);
   }
 
-  installFullscreenGuard();
+  installInlinePlaybackGuard();
 
   function attachVideo(video) {
     if (!video || video === state.video) {
@@ -644,7 +464,6 @@
       state.video.removeEventListener('playing', onVideoPlay);
       state.video.removeEventListener('pause', onVideoPause);
       state.video.removeEventListener('ended', onVideoPause);
-      state.video.removeEventListener('webkitbeginfullscreen', onVideoNativeFullscreen);
       state.video.removeEventListener('loadedmetadata', onVideoLoaded);
     }
 
@@ -655,10 +474,8 @@
     video.addEventListener('playing', onVideoPlay, true);
     video.addEventListener('pause', onVideoPause, true);
     video.addEventListener('ended', onVideoPause, true);
-    video.addEventListener('webkitbeginfullscreen', onVideoNativeFullscreen, true);
     video.addEventListener('loadedmetadata', onVideoLoaded, true);
     installMediaSessionHandlers();
-    updateDot();
   }
 
   function findVideo() {
@@ -688,38 +505,6 @@
     } catch {
       // MediaSession or a particular action is optional in older iOS WebKit.
     }
-  }
-
-  async function requestPiP(video = state.video) {
-    if (!video || video.readyState === 0 || video.ended) return false;
-    const now = Date.now();
-    if (now - state.lastPiPAttempt < 350) return false;
-    state.lastPiPAttempt = now;
-
-    try {
-      if (
-        typeof video.webkitSupportsPresentationMode === 'function' &&
-        video.webkitSupportsPresentationMode('picture-in-picture') &&
-        typeof video.webkitSetPresentationMode === 'function'
-      ) {
-        if (video.webkitPresentationMode !== 'picture-in-picture') {
-          video.webkitSetPresentationMode('picture-in-picture');
-        }
-        return true;
-      }
-
-      if (
-        document.pictureInPictureEnabled &&
-        typeof video.requestPictureInPicture === 'function' &&
-        document.pictureInPictureElement !== video
-      ) {
-        await video.requestPictureInPicture();
-        return true;
-      }
-    } catch {
-      // iOS can reject PiP when the transition is not considered a user gesture.
-    }
-    return false;
   }
 
   function prepareForBackground() {
@@ -903,15 +688,6 @@
         overflow: hidden !important;
       }
 
-      #movie_player.ytp-fullscreen:not([data-vm-allow-fs='1']),
-      .html5-video-player.ytp-fullscreen:not([data-vm-allow-fs='1']) {
-        position: relative !important;
-        inset: auto !important;
-        width: 100% !important;
-        height: auto !important;
-        max-width: 100% !important;
-      }
-
       .ytp-fullscreen-button,
       button[aria-label='Full screen'],
       button[aria-label='Fullscreen'] {
@@ -920,11 +696,69 @@
         pointer-events: none !important;
       }
 
-      /* Keep watch layout as normal page (video + metadata), not immersive FS. */
-      ytd-watch-flexy[fullscreen] #player-theater-container,
-      ytd-watch-flexy[fullscreen] #full-bleed-container {
-        position: relative !important;
-        max-height: none !important;
+      /*
+       * Desktop YouTube has a 426px minimum watch-column width. On an iPhone it
+       * centers that wider column and cuts roughly 18px from the left edge.
+       * Collapse only the content column at phone widths; the desktop player
+       * and data model stay untouched.
+       */
+      @media (max-width: 700px) {
+        html,
+        body,
+        ytd-app,
+        ytd-page-manager,
+        ytd-watch-flexy,
+        ytd-watch-flexy #columns {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        html,
+        body {
+          overflow-x: clip !important;
+        }
+
+        ytd-watch-flexy[is-single-column] #primary,
+        ytd-watch-flexy #primary {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 12px !important;
+        }
+
+        ytd-watch-flexy #primary-inner,
+        ytd-watch-flexy #below,
+        ytd-watch-flexy ytd-watch-metadata,
+        ytd-watch-flexy #panels {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        ytd-watch-flexy ytd-menu-renderer,
+        ytd-watch-flexy #actions,
+        ytd-watch-flexy #actions-inner,
+        ytd-watch-flexy #menu {
+          max-width: 100% !important;
+        }
+
+        ytd-rich-grid-renderer {
+          --ytd-rich-grid-items-per-row: 1 !important;
+          --ytd-rich-grid-posts-per-row: 1 !important;
+        }
+
+        ytd-rich-grid-row,
+        ytd-rich-item-renderer {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -1181,44 +1015,6 @@
         pointer-events: none !important;
       }
 
-      #${DOT_ID} {
-        appearance: none;
-        -webkit-appearance: none;
-        position: relative;
-        display: inline-flex;
-        flex: 0 0 auto;
-        width: 24px;
-        height: 28px;
-        margin: 0 0 0 2px;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        align-items: center;
-        justify-content: center;
-        vertical-align: middle;
-        z-index: 2147483647;
-        cursor: pointer;
-        touch-action: manipulation;
-      }
-
-      #${DOT_ID} .vm-yt-status-light {
-        display: block;
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: #34c759;
-        box-shadow: 0 0 0 2px rgba(52, 199, 89, .18), 0 0 7px rgba(52, 199, 89, .75);
-      }
-
-      #${DOT_ID}[data-player-state='playing'] .vm-yt-status-light {
-        background: #30d5ff;
-        box-shadow: 0 0 0 2px rgba(48, 213, 255, .18), 0 0 8px rgba(48, 213, 255, .8);
-      }
-
-      #${DOT_ID}[data-player-state='waiting'] .vm-yt-status-light {
-        background: #ffcc00;
-        box-shadow: 0 0 0 2px rgba(255, 204, 0, .18), 0 0 7px rgba(255, 204, 0, .72);
-      }
     `;
   }
 
@@ -1574,12 +1370,6 @@
   }
 
   function lockGuideToTapOnly() {
-    const drawer = document.querySelector('tp-yt-app-drawer#guide, #guide');
-    const drawerOpen = Boolean(
-      drawer &&
-      (drawer.hasAttribute('opened') || drawer.opened === true)
-    );
-
     for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
       setImportantStyles(mini, {
         display: 'none',
@@ -1589,16 +1379,6 @@
     }
 
     for (const app of document.querySelectorAll('ytd-app')) {
-      if (!drawerOpen) {
-        app.removeAttribute('guide-persistent');
-        app.removeAttribute('mini-guide-visible');
-        try {
-          if ('guidePersistent' in app) app.guidePersistent = false;
-          if ('miniGuideVisible' in app) app.miniGuideVisible = false;
-        } catch {
-          // YouTube may expose these as read-only Polymer properties.
-        }
-      }
       setImportantStyles(app, {
         '--ytd-mini-guide-width': '0px',
         '--ytd-mini-guide-width-min': '0px',
@@ -1606,8 +1386,6 @@
     }
 
     for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
-      drawer.removeAttribute('disable-swipe');
-      drawer.removeAttribute('disable-swipe-open');
       hideShortsGuideEntries(drawer);
     }
 
@@ -2540,97 +2318,6 @@
     viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
   }
 
-  function findLogoAnchor() {
-    const selectors = [
-      'ytm-mobile-topbar-renderer ytm-topbar-logo-renderer',
-      'ytm-mobile-topbar-renderer a[href="/"]',
-      'ytm-mobile-topbar-renderer a[aria-label*="YouTube"]',
-      'ytm-mobile-topbar-renderer .mobile-topbar-logo',
-      'ytm-topbar-logo-renderer',
-      'header a[href="/"]',
-      'header a[aria-label*="YouTube"]',
-      'a#logo',
-    ];
-    for (const selector of selectors) {
-      const match = document.querySelector(selector);
-      if (match) return match.closest('a') || match;
-    }
-    return null;
-  }
-
-  function positionStatusDot(dot) {
-    const logo = findLogoAnchor();
-    if (logo?.parentElement) {
-      if (dot.previousElementSibling !== logo) {
-        logo.insertAdjacentElement('afterend', dot);
-      }
-      setImportantStyles(dot, {
-        position: 'relative',
-        top: 'auto',
-        right: 'auto',
-        bottom: 'auto',
-        left: 'auto',
-      });
-      return;
-    }
-
-    if (document.body && dot.parentElement !== document.body) {
-      document.body.appendChild(dot);
-    }
-    setImportantStyles(dot, {
-      position: 'fixed',
-      top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
-      right: '12px',
-      bottom: 'auto',
-      left: 'auto',
-    });
-  }
-
-  function ensureStatusDot() {
-    injectStyle();
-    const existingDot = document.getElementById(DOT_ID);
-    if (existingDot) {
-      positionStatusDot(existingDot);
-      updateDot();
-      return;
-    }
-    if (!document.body) return;
-
-    const dot = document.createElement('button');
-    dot.id = DOT_ID;
-    dot.type = 'button';
-    dot.dataset.playerState = 'waiting';
-    dot.innerHTML = '<span class="vm-yt-status-light" aria-hidden="true"></span>';
-    setImportantStyles(dot, {
-      appearance: 'none',
-      position: 'relative',
-      display: 'inline-flex',
-      flex: '0 0 auto',
-      width: '24px',
-      height: '28px',
-      margin: '0 0 0 2px',
-      padding: '0',
-      border: '0',
-      background: 'transparent',
-      'align-items': 'center',
-      'justify-content': 'center',
-      'vertical-align': 'middle',
-      'z-index': '2147483647',
-    });
-    dot.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const video = state.video || findVideo();
-      if (video) {
-        attachVideo(video);
-        requestPiP(video);
-      }
-    });
-    document.body.appendChild(dot);
-    positionStatusDot(dot);
-    updateDot();
-  }
-
   function scanPage() {
     ensureViewport();
     if (location.pathname.startsWith('/shorts')) {
@@ -2642,7 +2329,6 @@
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();
-    ensureStatusDot();
     showWelcomeOnce();
     markSubscribeButtons();
     hideAskGeminiControls();
@@ -2728,10 +2414,6 @@
     for (const video of document.querySelectorAll('video')) {
       enforceInlinePlayback(video);
     }
-    if (state.video && !state.video.paused) {
-      exitAccidentalFullscreen(state.video);
-    }
     if (location.pathname === '/watch') arrangeWatchComments();
   }, 1200);
-  setInterval(updateDot, 1500);
 })();
