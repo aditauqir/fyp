@@ -1,16 +1,16 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.7
+# Install Fuck YouTube Premium on Orion iOS — v2.0.8
 
-Version **2.0.7** restores the stable extension startup used by 2.0.5. It removes the aggressive 2.0.6 document CSS and network rules that could prevent YouTube from loading.
+Version **2.0.8** keeps the stable 2.0.7 startup, prevents a normal Play tap from opening fullscreen, and removes compounded viewport padding that cut off the right side of YouTube.
 
 ## Install this
 
 **Prefer Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.7.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.8.zip`
 
 Firefox fallback:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.7.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.8.zip`
 
 ## Steps
 

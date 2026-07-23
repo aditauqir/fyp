@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.7`** (2026-07-23)
+> **Current ship version: `2.0.8`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 
@@ -36,8 +36,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.7.zip
-└── fuck-youtube-premium-firefox-2.0.7.zip
+├── fuck-youtube-premium-chrome-2.0.8.zip
+└── fuck-youtube-premium-firefox-2.0.8.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -85,7 +85,12 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.3)
+## Latest changes (through 2.0.8)
+
+### 2.0.8 — inline play + viewport fit
+- Revokes fullscreen permission for every player interaction except the actual fullscreen control.
+- Guards WebKit presentation-mode fullscreen and enforces `playsinline` as video nodes appear.
+- Keeps `html`, `body`, and app roots edge-to-edge; responsive gutters now apply only to content.
 
 ### 2.0.3 — single-tap guide + Shorts in drawer
 - Removed `touchmove` auto-close of guide (was closing on the same gesture as open → required double-tap).

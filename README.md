@@ -4,7 +4,7 @@ Fuck YouTube Premium is an Orion extension for iPhone and iPad that makes deskto
 
 ## Install on Orion for iOS
 
-1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.7.zip](fuck-youtube-premium-chrome-2.0.7.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.7.zip](fuck-youtube-premium-firefox-2.0.7.zip).
+1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.8.zip](fuck-youtube-premium-chrome-2.0.8.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.8.zip](fuck-youtube-premium-firefox-2.0.8.zip).
 2. Open **Orion → Settings → Extensions**.
 3. Enable support for both **Chrome Extensions** and **Firefox Extensions**.
 4. In Orion’s Extensions screen, tap **+**, then **Install from File**.

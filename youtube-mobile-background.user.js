@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.7
+// @version      2.0.8
 // @description  Orion iOS: reliable inject, inline play (no click-FS), real padding, uBlock-style ads, burger guide, no Shorts/miniplayer, tap-PiP.
 // @author       You
 // @match        *://youtube.com/*
@@ -24,7 +24,7 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v207-stable';
+  const NAV_LAYOUT_VERSION = 'ext-v208-inline-viewport';
   const COMMENT_PREVIEW_COUNT = 3;
   const COMMENT_LOAD_STEP = 10;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
@@ -385,10 +385,7 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
-    exitAccidentalFullscreen(state.video);
-    setTimeout(() => exitAccidentalFullscreen(state.video), 50);
-    setTimeout(() => exitAccidentalFullscreen(state.video), 200);
-    setTimeout(() => exitAccidentalFullscreen(state.video), 600);
+    forceInlineSoon(state.video);
     updateDot();
   }
 
@@ -508,6 +505,20 @@
     } catch {}
   }
 
+  function forceInlineSoon(video = state.video) {
+    if (!video || Date.now() <= state.allowFullscreenUntil) return;
+    enforceInlinePlayback(video);
+    exitAccidentalFullscreen(video);
+    for (const delay of [0, 40, 120, 300, 700, 1200]) {
+      setTimeout(() => {
+        if (Date.now() > state.allowFullscreenUntil) {
+          enforceInlinePlayback(video);
+          exitAccidentalFullscreen(video);
+        }
+      }, delay);
+    }
+  }
+
   function onVideoLoaded() {
     enforceInlinePlayback(state.video);
   }
@@ -519,28 +530,70 @@
   }
 
   function installFullscreenGuard() {
-    const flag = '__ytMobileOrionFullscreenGuardV2';
+    const flag = '__ytMobileOrionFullscreenGuardV3';
     if (window[flag]) return;
     Object.defineProperty(window, flag, { value: true });
 
     const allowIfUserRequested = () => Date.now() <= state.allowFullscreenUntil;
+    const fullscreenControlSelector = [
+      '.ytp-fullscreen-button',
+      'button[aria-label="Full screen"]',
+      'button[aria-label="Fullscreen"]',
+      'button[title="Full screen"]',
+      'button[title="Fullscreen"]',
+      'button[aria-label^="Exit full screen"]',
+      'button[aria-label^="Exit fullscreen"]',
+      'button[title^="Exit full screen"]',
+      'button[title^="Exit fullscreen"]',
+    ].join(',');
 
-    const patchProto = (proto, method) => {
+    const replaceMethod = (proto, method, createGuard) => {
       const native = proto?.[method];
       if (typeof native !== 'function') return;
+      const guarded = createGuard(native);
       try {
-        proto[method] = function guardedFullscreen() {
+        const descriptor = Object.getOwnPropertyDescriptor(proto, method);
+        Object.defineProperty(proto, method, {
+          configurable: descriptor?.configurable ?? true,
+          enumerable: descriptor?.enumerable ?? false,
+          writable: descriptor?.writable ?? true,
+          value: guarded,
+        });
+      } catch {
+        try {
+          proto[method] = guarded;
+        } catch {}
+      }
+    };
+
+    const patchProto = (proto, method) => {
+      replaceMethod(proto, method, (native) =>
+        function guardedFullscreen() {
           if (!allowIfUserRequested()) return Promise.resolve(undefined);
           return native.apply(this, arguments);
-        };
-      } catch {}
+        }
+      );
     };
 
     patchProto(HTMLVideoElement.prototype, 'webkitEnterFullscreen');
     patchProto(HTMLVideoElement.prototype, 'webkitEnterFullScreen');
-    patchProto(HTMLElement.prototype, 'requestFullscreen');
-    patchProto(HTMLElement.prototype, 'webkitRequestFullscreen');
-    patchProto(HTMLElement.prototype, 'webkitRequestFullScreen');
+    patchProto(Element.prototype, 'requestFullscreen');
+    patchProto(Element.prototype, 'webkitRequestFullscreen');
+    patchProto(Element.prototype, 'webkitRequestFullScreen');
+
+    replaceMethod(
+      HTMLVideoElement.prototype,
+      'webkitSetPresentationMode',
+      (native) =>
+        function guardedPresentationMode(mode) {
+          if (mode === 'fullscreen' && !allowIfUserRequested()) {
+            enforceInlinePlayback(this);
+            forceInlineSoon(this);
+            return undefined;
+          }
+          return native.apply(this, arguments);
+        }
+    );
 
     try {
       const nativePlay = HTMLMediaElement.prototype.play;
@@ -553,8 +606,7 @@
         }
         const result = nativePlay.apply(this, arguments);
         if (this instanceof HTMLVideoElement) {
-          setTimeout(() => exitAccidentalFullscreen(this), 30);
-          setTimeout(() => exitAccidentalFullscreen(this), 250);
+          forceInlineSoon(this);
         }
         return result;
       };
@@ -563,15 +615,22 @@
     const markFullscreenIntent = (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (
-        target.closest(
-          '.ytp-fullscreen-button, button[aria-label*="Full screen"], ' +
-            'button[aria-label*="Fullscreen"], button[title*="Full screen"], ' +
-            'button[aria-label*="Exit full"], button[title*="Exit full"]'
-        )
-      ) {
-        state.allowFullscreenUntil = Date.now() + 4000;
+      const playerTap = target.closest(
+        '#movie_player, .html5-video-player, .html5-video-container, video, ytd-player'
+      );
+      if (!playerTap) return;
+
+      if (target.closest(fullscreenControlSelector)) {
+        state.allowFullscreenUntil = Date.now() + 1500;
+        document.querySelector('#movie_player, .html5-video-player')
+          ?.setAttribute('data-vm-allow-fs', '1');
+        return;
       }
+
+      state.allowFullscreenUntil = 0;
+      document.querySelector('#movie_player, .html5-video-player')
+        ?.removeAttribute('data-vm-allow-fs');
+      forceInlineSoon(state.video || findVideo());
     };
     nativeDocumentAddEventListener('pointerdown', markFullscreenIntent, true);
     nativeDocumentAddEventListener('touchstart', markFullscreenIntent, {
@@ -596,6 +655,29 @@
     }, true);
     nativeDocumentAddEventListener('webkitfullscreenchange', () => {
       if (!allowIfUserRequested()) exitAccidentalFullscreen();
+    }, true);
+
+    const enforceVideoTree = (root) => {
+      if (root instanceof HTMLVideoElement) enforceInlinePlayback(root);
+      root.querySelectorAll?.('video').forEach(enforceInlinePlayback);
+    };
+    enforceVideoTree(document);
+    const videoObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) enforceVideoTree(node);
+        });
+      }
+    });
+    videoObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+    nativeDocumentAddEventListener('play', (event) => {
+      if (event.target instanceof HTMLVideoElement) {
+        attachVideo(event.target);
+        forceInlineSoon(event.target);
+      }
     }, true);
   }
 
@@ -880,21 +962,27 @@
       ytd-app,
       ytm-app {
         width: 100% !important;
+        max-width: 100% !important;
         min-width: 0 !important;
-        overflow-x: hidden !important;
         box-sizing: border-box !important;
       }
 
-      /* Stronger edge + safe-area inset so feed/player is not clipped on Orion. */
+      /* Keep the viewport roots edge-to-edge. Padding these nested 100%-wide
+         elements compounds and clips the right side on Orion iOS. */
       html, body {
-        padding-left: max(${EDGE_PAD}, env(safe-area-inset-left, 0px)) !important;
-        padding-right: max(${EDGE_PAD}, env(safe-area-inset-right, 0px)) !important;
+        margin: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        overflow-x: hidden !important;
       }
 
       ytd-app,
       ytm-app {
-        padding-left: max(${EDGE_PAD}, env(safe-area-inset-left, 0px)) !important;
-        padding-right: max(${EDGE_PAD}, env(safe-area-inset-right, 0px)) !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        overflow-x: clip !important;
         --ytd-mini-guide-width: 0px !important;
       }
 
@@ -920,10 +1008,35 @@
         min-width: 0 !important;
       }
 
+      /* Put the breathing room on content, not on the viewport/player roots. */
+      ytd-watch-metadata,
+      ytd-watch-flexy #below,
+      ytd-comments,
+      ytd-rich-grid-renderer {
+        box-sizing: border-box !important;
+        padding-left: max(clamp(8px, 3vw, 16px), env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(clamp(8px, 3vw, 16px), env(safe-area-inset-right, 0px)) !important;
+      }
+
+      ytd-watch-flexy #below ytd-watch-metadata,
+      ytd-watch-flexy #below ytd-comments {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+      }
+
       #movie_player,
       .html5-video-player,
       .html5-video-container,
       video.html5-main-video {
+        max-width: 100% !important;
+      }
+
+      #movie_player.ytp-fullscreen:not([data-vm-allow-fs='1']),
+      .html5-video-player.ytp-fullscreen:not([data-vm-allow-fs='1']) {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        height: auto !important;
         max-width: 100% !important;
       }
 
@@ -1611,8 +1724,10 @@
     for (const app of document.querySelectorAll('ytd-app, ytm-app')) {
       setImportantStyles(app, {
         'box-sizing': 'border-box',
-        'padding-left': `max(${EDGE_PAD}, env(safe-area-inset-left, 0px))`,
-        'padding-right': `max(${EDGE_PAD}, env(safe-area-inset-right, 0px))`,
+        width: '100%',
+        'max-width': '100%',
+        'padding-left': '0',
+        'padding-right': '0',
         'padding-bottom': 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)',
         '--ytd-mini-guide-width': '0px',
       });
