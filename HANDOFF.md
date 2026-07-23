@@ -155,6 +155,16 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 
 ---
 
+## GitHub Release policy (mandatory)
+
+- Never delete an old GitHub Release or its assets.
+- Publish the newest version normally as `Fuck YouTube Premium <version>`.
+- After the new release is live, rename every older release to `[DEPRECATED] Fuck YouTube Premium <version>`.
+- Do not add `[DEPRECATED]` to the current latest release.
+- Verify with `gh release list --repo aditauqir/fyp`.
+
+---
+
 ## Do / don’t
 
 **Do**

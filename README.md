@@ -24,6 +24,10 @@ Tap the extension icon in Orion to open a two-button menu:
 
 The extension checks GitHub periodically and shows an **UP** badge when a newer release exists. Orion does not permit a manually installed zip to silently replace itself, so the final installation step remains manual: download the new zip, remove the old extension, and install the new file.
 
+### Release history policy
+
+Old GitHub Releases and their downloads are always preserved. Whenever a new version becomes the latest release, every older release title is prefixed with **`[DEPRECATED]`** so users can immediately identify the current build without losing access to previous versions.
+
 ## Update
 
 Remove the older copy from Orion, download the newest zip, and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
