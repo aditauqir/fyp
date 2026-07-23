@@ -1,9 +1,11 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.10`** (2026-07-23)
+> **Current ship version: `2.0.11`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
+>
+> Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 
 ---
 
@@ -31,13 +33,15 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ```
 /Users/aditauqir/Downloads/userscript/
 ├── HANDOFF.md
+├── ARCHITECTURE.md                     ← product and technical contract
+├── PATCH_NOTES.md                      ← release and popup changelog source
 ├── INSTALL-ORION.md                    ← install troubleshooting for the user
 ├── rebuild-extension.sh                ← builds Chrome + Firefox zips
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.10.zip
-└── fuck-youtube-premium-firefox-2.0.10.zip
+├── fuck-youtube-premium-chrome-2.0.11.zip
+└── fuck-youtube-premium-firefox-2.0.11.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -83,7 +87,12 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.10)
+## Latest changes (through 2.0.11)
+
+### 2.0.11 — popup changelog + architecture handoff
+- Added three highest-priority changelog lines above the existing two popup buttons.
+- Added `PATCH_NOTES.md` as the release/OTA copy source of truth.
+- Added `ARCHITECTURE.md` so future agents can preserve the product boundaries and regression constraints.
 
 ### 2.0.10 — mobile shell reset + reliable inline Play
 - Keeps desktop YouTube as the data/playback backend and adds a phone breakpoint over its narrow responsive layout.

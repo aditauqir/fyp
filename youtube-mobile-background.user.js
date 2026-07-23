@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.10
+// @version      2.0.11
 // @description  Orion iOS: inline playback, native hamburger drawer, no mini-guide/Shorts/miniplayer, tap-PiP, and update checks.
 // @author       You
 // @match        *://youtube.com/*

@@ -4,7 +4,7 @@ Fuck YouTube Premium is an Orion extension for iPhone and iPad. It loads desktop
 
 ## Install on Orion for iOS
 
-1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.10.zip](fuck-youtube-premium-chrome-2.0.10.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.10.zip](fuck-youtube-premium-firefox-2.0.10.zip).
+1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.11.zip](fuck-youtube-premium-chrome-2.0.11.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.11.zip](fuck-youtube-premium-firefox-2.0.11.zip).
 2. Open **Orion → Settings → Extensions**.
 3. Enable support for both **Chrome Extensions** and **Firefox Extensions**.
 4. In Orion’s Extensions screen, tap **+**, then **Install from File**.
@@ -17,7 +17,7 @@ The Chrome zip is recommended. The Firefox zip is provided as a fallback because
 
 ## Extension menu and updates
 
-Tap the extension icon in Orion to open a compact menu containing only two buttons:
+Tap the extension icon in Orion to see the three highest-priority release notes and a compact menu containing only two buttons:
 
 - **Go to YouTube** opens desktop YouTube.
 - **Check for updates** compares the installed version with the latest GitHub Release. When an update is available, the button downloads the correct Chrome or Firefox zip.
@@ -41,3 +41,5 @@ Run:
 ```
 
 The build validates the generated JavaScript and writes the Chrome and Firefox packages to this folder.
+
+Release history is maintained in [PATCH_NOTES.md](PATCH_NOTES.md). Agent and developer documentation is in [ARCHITECTURE.md](ARCHITECTURE.md), with current implementation history and handoff notes in [HANDOFF.md](HANDOFF.md).

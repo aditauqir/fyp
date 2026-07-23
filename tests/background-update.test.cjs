@@ -25,7 +25,7 @@ const fakeApi = {
   },
   runtime: {
     getManifest() {
-      return { manifest_version: manifestVersion, version: '2.0.10' };
+      return { manifest_version: manifestVersion, version: '2.0.11' };
     },
     onInstalled: {
       addListener(listener) {
@@ -95,7 +95,7 @@ function requestUpdate() {
 (async () => {
   const chromeUpdate = await requestUpdate();
   assert.equal(chromeUpdate.ok, true);
-  assert.equal(chromeUpdate.currentVersion, '2.0.10');
+  assert.equal(chromeUpdate.currentVersion, '2.0.11');
   assert.equal(chromeUpdate.latestVersion, '2.1.0');
   assert.equal(chromeUpdate.updateAvailable, true);
   assert.equal(

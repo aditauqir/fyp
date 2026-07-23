@@ -24,10 +24,24 @@ body {
 .popup-shell {
   display: grid;
   width: 100%;
-  gap: 0.5rem;
-  padding: 0.625rem;
+  gap: clamp(0.45rem, 2vw, 0.55rem);
+  padding: clamp(0.625rem, 3vw, 0.75rem);
   border-radius: 0.9rem;
   background: #0f0f0f;
+}
+
+.release-highlights {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  color: #d6d6d6;
+  font: 600 clamp(0.72rem, 3.2vw, 0.78rem)/1.25 -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.release-highlights li::marker {
+  color: #ff0033;
 }
 
 .action {
