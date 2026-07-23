@@ -1,0 +1,2973 @@
+// ==UserScript==
+// @name         Fuck YouTube Premium
+// @namespace    https://github.com/violentmonkey
+// @version      2.0.7
+// @description  Orion iOS: reliable inject, inline play (no click-FS), real padding, uBlock-style ads, burger guide, no Shorts/miniplayer, tap-PiP.
+// @author       You
+// @match        *://youtube.com/*
+// @match        *://www.youtube.com/*
+// @match        *://m.youtube.com/*
+// @match        *://youtu.be/*
+// @run-at       document-start
+// @inject-into  page
+// @grant        none
+// @noframes
+// ==/UserScript==
+
+(() => {
+  'use strict';
+
+  const SCRIPT_ID = 'vm-yt-mobile-background';
+  const DOT_ID = `${SCRIPT_ID}-dot`;
+  const STYLE_ID = `${SCRIPT_ID}-style`;
+  const NAV_ID = `${SCRIPT_ID}-nav`;
+  const WELCOME_ID = `${SCRIPT_ID}-welcome`;
+  const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
+  const BACKEND_HOST = 'www.youtube.com';
+  const NAV_LAYOUT_VERSION = 'ext-v207-stable';
+  const COMMENT_PREVIEW_COUNT = 3;
+  const COMMENT_LOAD_STEP = 10;
+  const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
+  const LOAD_LESS_COMMENTS_ID = `${SCRIPT_ID}-load-less-comments`;
+  /*
+   * Orion's floating address bar overlays the bottom of the page (like Safari).
+   * Keep floating controls above that chrome so they stay tappable.
+   */
+  const ORION_NAV_GAP = '72px';
+  const EDGE_PAD = '16px';
+  const commentUiState = {
+    videoId: null,
+    visibleCount: COMMENT_PREVIEW_COUNT,
+  };
+  const guideUiState = {
+    allowOpenUntil: 0,
+    userOpened: false,
+    wired: false,
+  };
+
+  /*
+   * Normalize every normal and short YouTube link onto the desktop host.
+   * Orion can then use the full desktop player underneath the mobile-only UI
+   * provided by this script.
+   */
+  if (location.hostname === 'youtu.be') {
+    const videoId = location.pathname.split('/').filter(Boolean)[0];
+    if (videoId) {
+      const target = new URL(`https://${BACKEND_HOST}/watch`);
+      target.searchParams.set('v', videoId);
+      for (const [key, value] of new URL(location.href).searchParams) {
+        target.searchParams.set(key, value);
+      }
+      target.searchParams.set('app', 'desktop');
+      target.searchParams.set('persist_app', '1');
+      target.hash = location.hash;
+      location.replace(target.href);
+      return;
+    }
+  }
+
+  if (location.hostname !== BACKEND_HOST) {
+    const target = new URL(location.href);
+    target.protocol = 'https:';
+    target.hostname = BACKEND_HOST;
+    target.port = '';
+    target.searchParams.set('app', 'desktop');
+    target.searchParams.set('persist_app', '1');
+    location.replace(target.href);
+    return;
+  }
+
+  // Never land on Shorts — send those URLs to Home.
+  if (location.pathname.startsWith('/shorts')) {
+    location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
+    return;
+  }
+
+  const AD_RESPONSE_KEYS = new Set(['adPlacements', 'adSlots', 'playerAds']);
+
+  function pruneAdsFromPlayerResponse(value, seen = new WeakSet()) {
+    if (!value || typeof value !== 'object' || seen.has(value)) return value;
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => pruneAdsFromPlayerResponse(item, seen));
+      return value;
+    }
+
+    for (const key of Object.keys(value)) {
+      if (AD_RESPONSE_KEYS.has(key)) {
+        value[key] = [];
+        continue;
+      }
+      if (key === 'adBreakHeartbeatParams') {
+        delete value[key];
+        continue;
+      }
+      pruneAdsFromPlayerResponse(value[key], seen);
+    }
+
+    if (value.playerConfig && typeof value.playerConfig === 'object') {
+      if ('adPlacementConfig' in value.playerConfig) {
+        value.playerConfig.adPlacementConfig = {};
+      }
+      if ('adSignalsConfig' in value.playerConfig) {
+        value.playerConfig.adSignalsConfig = {};
+      }
+    }
+    return value;
+  }
+
+  function sanitizePlayerResponseText(text) {
+    if (typeof text !== 'string' || !text.includes('"ad')) return text;
+    try {
+      return JSON.stringify(pruneAdsFromPlayerResponse(JSON.parse(text)));
+    } catch {
+      return text;
+    }
+  }
+
+  function isPlayerResponseUrl(input) {
+    const url = String(input?.url || input || '');
+    return (
+      url.includes('/youtubei/v1/player') ||
+      url.includes('/youtubei/v1/get_watch') ||
+      /\/playlist(?:\?|$)/.test(url)
+    );
+  }
+
+  function installPlayerResponseAdFilter() {
+    const installFlag = '__vmYtPlayerResponseFilterV2';
+    if (window[installFlag]) return;
+    Object.defineProperty(window, installFlag, {
+      configurable: false,
+      value: true,
+    });
+
+    let initialPlayerResponse = pruneAdsFromPlayerResponse(
+      window.ytInitialPlayerResponse
+    );
+    try {
+      Object.defineProperty(window, 'ytInitialPlayerResponse', {
+        configurable: true,
+        get: () => initialPlayerResponse,
+        set: (value) => {
+          initialPlayerResponse = pruneAdsFromPlayerResponse(value);
+        },
+      });
+    } catch {
+      if (window.ytInitialPlayerResponse) {
+        pruneAdsFromPlayerResponse(window.ytInitialPlayerResponse);
+      }
+    }
+
+    const nativeFetch = window.fetch;
+    if (typeof nativeFetch === 'function') {
+      window.fetch = async function filteredYouTubeFetch(input, init) {
+        const response = await nativeFetch.call(this, input, init);
+        if (!isPlayerResponseUrl(response.url || input)) return response;
+        try {
+          const originalText = await response.clone().text();
+          const filteredText = sanitizePlayerResponseText(originalText);
+          if (filteredText === originalText) return response;
+
+          const filteredResponse = new Response(filteredText, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+          for (const property of ['url', 'redirected', 'type']) {
+            try {
+              Object.defineProperty(filteredResponse, property, {
+                configurable: true,
+                value: response[property],
+              });
+            } catch {
+              // These metadata properties are optional to the player.
+            }
+          }
+          return filteredResponse;
+        } catch {
+          return response;
+        }
+      };
+    }
+
+    const NativeXHR = window.XMLHttpRequest;
+    if (typeof NativeXHR !== 'function') return;
+    const xhrUrls = new WeakMap();
+    const nativeOpen = NativeXHR.prototype.open;
+    NativeXHR.prototype.open = function filteredYouTubeOpen(method, url) {
+      xhrUrls.set(this, String(url || ''));
+      return nativeOpen.apply(this, arguments);
+    };
+
+    const responseTextDescriptor = Object.getOwnPropertyDescriptor(
+      NativeXHR.prototype,
+      'responseText'
+    );
+    const responseDescriptor = Object.getOwnPropertyDescriptor(
+      NativeXHR.prototype,
+      'response'
+    );
+
+    if (responseTextDescriptor?.get && responseTextDescriptor.configurable) {
+      Object.defineProperty(NativeXHR.prototype, 'responseText', {
+        ...responseTextDescriptor,
+        get() {
+          const text = responseTextDescriptor.get.call(this);
+          return isPlayerResponseUrl(xhrUrls.get(this))
+            ? sanitizePlayerResponseText(text)
+            : text;
+        },
+      });
+    }
+
+    if (responseDescriptor?.get && responseDescriptor.configurable) {
+      Object.defineProperty(NativeXHR.prototype, 'response', {
+        ...responseDescriptor,
+        get() {
+          const response = responseDescriptor.get.call(this);
+          if (!isPlayerResponseUrl(xhrUrls.get(this))) return response;
+          if (typeof response === 'string') return sanitizePlayerResponseText(response);
+          return pruneAdsFromPlayerResponse(response);
+        },
+      });
+    }
+  }
+
+  installPlayerResponseAdFilter();
+
+  const nativeDocumentAddEventListener = document.addEventListener.bind(document);
+  const nativeWindowAddEventListener = window.addEventListener.bind(window);
+
+  function inheritedDescriptor(object, property) {
+    let current = object;
+    while (current) {
+      const descriptor = Object.getOwnPropertyDescriptor(current, property);
+      if (descriptor) return descriptor;
+      current = Object.getPrototypeOf(current);
+    }
+    return null;
+  }
+
+  const nativeHiddenDescriptor = inheritedDescriptor(document, 'hidden');
+  const nativeVisibilityDescriptor = inheritedDescriptor(document, 'visibilityState');
+
+  function readNativeDescriptor(descriptor, fallback) {
+    try {
+      return descriptor?.get ? descriptor.get.call(document) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function isReallyHidden() {
+    const nativeHidden = readNativeDescriptor(nativeHiddenDescriptor, null);
+    if (typeof nativeHidden === 'boolean') return nativeHidden;
+    return readNativeDescriptor(nativeVisibilityDescriptor, 'visible') === 'hidden';
+  }
+
+  /*
+   * YouTube normally receives visibility events when iOS backgrounds the tab.
+   * Reporting "visible" prevents its page code from treating that transition
+   * as a reason to stop playback. The native values above remain available to
+   * this script so it can still request PiP and recover playback.
+   */
+  function spoofDocumentProperty(property, value) {
+    try {
+      Object.defineProperty(document, property, {
+        configurable: true,
+        enumerable: true,
+        get: () => value,
+      });
+    } catch {
+      // Some WebKit builds make these properties non-configurable.
+    }
+  }
+
+  spoofDocumentProperty('hidden', false);
+  spoofDocumentProperty('webkitHidden', false);
+  spoofDocumentProperty('visibilityState', 'visible');
+  spoofDocumentProperty('webkitVisibilityState', 'visible');
+
+  const state = {
+    video: null,
+    wantsPlayback: false,
+    recoveryTimers: new Set(),
+    userPauseUntil: 0,
+    lastPiPAttempt: 0,
+    allowFullscreenUntil: 0,
+  };
+
+  const nativeMediaPause = HTMLMediaElement.prototype.pause;
+  HTMLMediaElement.prototype.pause = function guardedMediaPause() {
+    const isActiveVideo =
+      this === state.video || this.classList?.contains('html5-main-video');
+    const shouldKeepPlaying =
+      isActiveVideo &&
+      state.wantsPlayback &&
+      Date.now() > state.userPauseUntil &&
+      isReallyHidden() &&
+      !this.ended;
+    if (shouldKeepPlaying) return;
+    return nativeMediaPause.apply(this, arguments);
+  };
+
+  function safePlay(video = state.video) {
+    if (!video || video.ended || video.error) return;
+    const result = video.play();
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {});
+    }
+  }
+
+  function clearRecoveryTimers() {
+    for (const timer of state.recoveryTimers) clearTimeout(timer);
+    state.recoveryTimers.clear();
+  }
+
+  function configurePlaybackAudioSession() {
+    try {
+      if (navigator.audioSession) {
+        navigator.audioSession.type = 'playback';
+      }
+    } catch {
+      // AudioSession is an optional WebKit API.
+    }
+  }
+
+  function recoverPlayback(video = state.video) {
+    if (!video || !state.wantsPlayback || video.ended) return;
+    safePlay(video);
+    clearRecoveryTimers();
+    for (const delay of [80, 250, 750, 1500]) {
+      const timer = setTimeout(() => {
+        state.recoveryTimers.delete(timer);
+        if (state.wantsPlayback && isReallyHidden()) safePlay(video);
+      }, delay);
+      state.recoveryTimers.add(timer);
+    }
+  }
+
+  function updateDot() {
+    const dot = document.getElementById(DOT_ID);
+    if (!dot) return;
+    const video = state.video;
+    const playing = Boolean(video && !video.paused && !video.ended);
+    const playerState = playing ? 'playing' : video ? 'ready' : 'waiting';
+    dot.dataset.playerState = playerState;
+    dot.title = playing
+      ? 'Userscript active · video playing · tap for PiP'
+      : video
+        ? 'Userscript active · tap for PiP'
+        : 'Userscript active · waiting for video';
+    dot.setAttribute('aria-label', dot.title);
+
+    const light = dot.querySelector('.vm-yt-status-light');
+    const colors = {
+      playing: ['#30d5ff', '0 0 8px rgba(48, 213, 255, .8)'],
+      ready: ['#34c759', '0 0 7px rgba(52, 199, 89, .75)'],
+      waiting: ['#ffcc00', '0 0 7px rgba(255, 204, 0, .72)'],
+    };
+    const [background, glow] = colors[playerState];
+    setImportantStyles(light, {
+      display: 'block',
+      width: '8px',
+      height: '8px',
+      'border-radius': '999px',
+      background,
+      'box-shadow': glow,
+    });
+  }
+
+  function onVideoPlay() {
+    state.wantsPlayback = true;
+    state.userPauseUntil = 0;
+    configurePlaybackAudioSession();
+    enforceInlinePlayback(state.video);
+    exitAccidentalFullscreen(state.video);
+    setTimeout(() => exitAccidentalFullscreen(state.video), 50);
+    setTimeout(() => exitAccidentalFullscreen(state.video), 200);
+    setTimeout(() => exitAccidentalFullscreen(state.video), 600);
+    updateDot();
+  }
+
+  function exitAccidentalFullscreen(video = state.video) {
+    if (Date.now() <= state.allowFullscreenUntil) return;
+
+    try {
+      if (
+        video &&
+        typeof video.webkitDisplayingFullscreen === 'boolean' &&
+        video.webkitDisplayingFullscreen &&
+        typeof video.webkitExitFullscreen === 'function'
+      ) {
+        video.webkitExitFullscreen();
+      }
+    } catch {}
+
+    try {
+      if (
+        video &&
+        typeof video.webkitPresentationMode === 'string' &&
+        video.webkitPresentationMode === 'fullscreen' &&
+        typeof video.webkitSetPresentationMode === 'function'
+      ) {
+        video.webkitSetPresentationMode('inline');
+      }
+    } catch {}
+
+    try {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      if (document.webkitFullscreenElement) document.webkitExitFullscreen?.();
+    } catch {}
+
+    const player = document.querySelector(
+      '#movie_player.ytp-fullscreen, .html5-video-player.ytp-fullscreen'
+    );
+    if (player) {
+      try {
+        document.querySelector(
+          '.ytp-fullscreen-button[title*="Exit"], .ytp-fullscreen-button[aria-label*="Exit"], .ytp-fullscreen-button'
+        )?.click();
+      } catch {}
+      player.classList.remove('ytp-fullscreen');
+    }
+
+    const watch = document.querySelector('ytd-watch-flexy[fullscreen]');
+    if (watch) {
+      watch.removeAttribute('fullscreen');
+      try {
+        if ('fullscreen' in watch) watch.fullscreen = false;
+      } catch {}
+    }
+  }
+
+  function onVideoPause() {
+    updateDot();
+    if (Date.now() <= state.userPauseUntil || !state.wantsPlayback) {
+      state.wantsPlayback = false;
+      clearRecoveryTimers();
+      return;
+    }
+    if (isReallyHidden() && state.wantsPlayback && !state.video?.ended) {
+      recoverPlayback();
+    } else if (!isReallyHidden()) {
+      // A pause while the page is visible is treated as an intentional pause.
+      state.wantsPlayback = false;
+      clearRecoveryTimers();
+    }
+  }
+
+  function recordPlayerControlIntent(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const control = target.closest([
+      '.ytp-play-button',
+      'button[aria-label^="Pause"]',
+      'button[aria-label^="Play"]',
+      'button[data-title-no-tooltip="Pause"]',
+      'button[data-title-no-tooltip="Play"]',
+    ].join(','));
+    if (!control) return;
+
+    const video = state.video || findVideo();
+    if (!video) return;
+    attachVideo(video);
+    if (video.paused || video.ended) {
+      state.wantsPlayback = true;
+      state.userPauseUntil = 0;
+    } else {
+      state.wantsPlayback = false;
+      state.userPauseUntil = Date.now() + 3000;
+      clearRecoveryTimers();
+    }
+  }
+
+  function enforceInlinePlayback(video) {
+    if (!video) return;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.setAttribute('x-webkit-airplay', 'allow');
+    try {
+      video.playsInline = true;
+    } catch {}
+    try {
+      video.disablePictureInPicture = false;
+    } catch {}
+    try {
+      if (
+        typeof video.webkitSupportsPresentationMode === 'function' &&
+        video.webkitSupportsPresentationMode('inline') &&
+        typeof video.webkitSetPresentationMode === 'function' &&
+        video.webkitPresentationMode === 'fullscreen' &&
+        Date.now() > state.allowFullscreenUntil
+      ) {
+        video.webkitSetPresentationMode('inline');
+      }
+    } catch {}
+  }
+
+  function onVideoLoaded() {
+    enforceInlinePlayback(state.video);
+  }
+
+  function onVideoNativeFullscreen(event) {
+    if (Date.now() <= state.allowFullscreenUntil) return;
+    event.preventDefault?.();
+    exitAccidentalFullscreen(event.target instanceof HTMLVideoElement ? event.target : state.video);
+  }
+
+  function installFullscreenGuard() {
+    const flag = '__ytMobileOrionFullscreenGuardV2';
+    if (window[flag]) return;
+    Object.defineProperty(window, flag, { value: true });
+
+    const allowIfUserRequested = () => Date.now() <= state.allowFullscreenUntil;
+
+    const patchProto = (proto, method) => {
+      const native = proto?.[method];
+      if (typeof native !== 'function') return;
+      try {
+        proto[method] = function guardedFullscreen() {
+          if (!allowIfUserRequested()) return Promise.resolve(undefined);
+          return native.apply(this, arguments);
+        };
+      } catch {}
+    };
+
+    patchProto(HTMLVideoElement.prototype, 'webkitEnterFullscreen');
+    patchProto(HTMLVideoElement.prototype, 'webkitEnterFullScreen');
+    patchProto(HTMLElement.prototype, 'requestFullscreen');
+    patchProto(HTMLElement.prototype, 'webkitRequestFullscreen');
+    patchProto(HTMLElement.prototype, 'webkitRequestFullScreen');
+
+    try {
+      const nativePlay = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function guardedPlay() {
+        if (this instanceof HTMLVideoElement) {
+          enforceInlinePlayback(this);
+          if (this.classList?.contains('html5-main-video') || this === state.video) {
+            attachVideo(this);
+          }
+        }
+        const result = nativePlay.apply(this, arguments);
+        if (this instanceof HTMLVideoElement) {
+          setTimeout(() => exitAccidentalFullscreen(this), 30);
+          setTimeout(() => exitAccidentalFullscreen(this), 250);
+        }
+        return result;
+      };
+    } catch {}
+
+    const markFullscreenIntent = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest(
+          '.ytp-fullscreen-button, button[aria-label*="Full screen"], ' +
+            'button[aria-label*="Fullscreen"], button[title*="Full screen"], ' +
+            'button[aria-label*="Exit full"], button[title*="Exit full"]'
+        )
+      ) {
+        state.allowFullscreenUntil = Date.now() + 4000;
+      }
+    };
+    nativeDocumentAddEventListener('pointerdown', markFullscreenIntent, true);
+    nativeDocumentAddEventListener('touchstart', markFullscreenIntent, {
+      capture: true,
+      passive: true,
+    });
+    nativeDocumentAddEventListener('click', markFullscreenIntent, true);
+
+    const onNativeFsEvent = (event) => {
+      if (allowIfUserRequested()) return;
+      const video = event.target;
+      if (video instanceof HTMLVideoElement) {
+        event.preventDefault?.();
+        exitAccidentalFullscreen(video);
+      } else {
+        exitAccidentalFullscreen();
+      }
+    };
+    nativeDocumentAddEventListener('webkitbeginfullscreen', onNativeFsEvent, true);
+    nativeDocumentAddEventListener('fullscreenchange', () => {
+      if (!allowIfUserRequested()) exitAccidentalFullscreen();
+    }, true);
+    nativeDocumentAddEventListener('webkitfullscreenchange', () => {
+      if (!allowIfUserRequested()) exitAccidentalFullscreen();
+    }, true);
+  }
+
+  installFullscreenGuard();
+
+  function attachVideo(video) {
+    if (!video || video === state.video) {
+      if (video) enforceInlinePlayback(video);
+      return;
+    }
+    if (state.video) {
+      state.video.removeEventListener('play', onVideoPlay);
+      state.video.removeEventListener('playing', onVideoPlay);
+      state.video.removeEventListener('pause', onVideoPause);
+      state.video.removeEventListener('ended', onVideoPause);
+      state.video.removeEventListener('webkitbeginfullscreen', onVideoNativeFullscreen);
+      state.video.removeEventListener('loadedmetadata', onVideoLoaded);
+    }
+
+    state.video = video;
+    state.wantsPlayback = !video.paused && !video.ended;
+    enforceInlinePlayback(video);
+    video.addEventListener('play', onVideoPlay, true);
+    video.addEventListener('playing', onVideoPlay, true);
+    video.addEventListener('pause', onVideoPause, true);
+    video.addEventListener('ended', onVideoPause, true);
+    video.addEventListener('webkitbeginfullscreen', onVideoNativeFullscreen, true);
+    video.addEventListener('loadedmetadata', onVideoLoaded, true);
+    installMediaSessionHandlers();
+    updateDot();
+  }
+
+  function findVideo() {
+    const videos = [...document.querySelectorAll('video')];
+    return (
+      videos.find((video) => video.classList.contains('html5-main-video')) ||
+      videos.find((video) => !video.ended && video.readyState > 0) ||
+      videos[0] ||
+      null
+    );
+  }
+
+  function installMediaSessionHandlers() {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.setActionHandler('play', () => {
+        state.wantsPlayback = true;
+        state.userPauseUntil = 0;
+        safePlay();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        state.wantsPlayback = false;
+        state.userPauseUntil = Date.now() + 3000;
+        clearRecoveryTimers();
+        state.video?.pause();
+      });
+    } catch {
+      // MediaSession or a particular action is optional in older iOS WebKit.
+    }
+  }
+
+  async function requestPiP(video = state.video) {
+    if (!video || video.readyState === 0 || video.ended) return false;
+    const now = Date.now();
+    if (now - state.lastPiPAttempt < 350) return false;
+    state.lastPiPAttempt = now;
+
+    try {
+      if (
+        typeof video.webkitSupportsPresentationMode === 'function' &&
+        video.webkitSupportsPresentationMode('picture-in-picture') &&
+        typeof video.webkitSetPresentationMode === 'function'
+      ) {
+        if (video.webkitPresentationMode !== 'picture-in-picture') {
+          video.webkitSetPresentationMode('picture-in-picture');
+        }
+        return true;
+      }
+
+      if (
+        document.pictureInPictureEnabled &&
+        typeof video.requestPictureInPicture === 'function' &&
+        document.pictureInPictureElement !== video
+      ) {
+        await video.requestPictureInPicture();
+        return true;
+      }
+    } catch {
+      // iOS can reject PiP when the transition is not considered a user gesture.
+    }
+    return false;
+  }
+
+  function prepareForBackground() {
+    const video = state.video || findVideo();
+    if (!video) return;
+    attachVideo(video);
+    installMediaSessionHandlers();
+    configurePlaybackAudioSession();
+    if (!video.paused && !video.ended) state.wantsPlayback = true;
+    recoverPlayback(video);
+  }
+
+  const SKIP_BUTTON_SELECTOR = [
+    '.ytp-ad-skip-button',
+    '.ytp-ad-skip-button-modern',
+    '.ytp-skip-ad-button',
+    '.videoAdUiSkipButton',
+    'button[class*="ytp-ad-skip"]',
+  ].join(',');
+
+  function skipPlayerAd() {
+    document.querySelectorAll(SKIP_BUTTON_SELECTOR).forEach((button) => {
+      if (button instanceof HTMLElement) button.click();
+    });
+
+    const video = findVideo();
+    if (video) attachVideo(video);
+  }
+
+  function removeAdCards(root = document) {
+    const selector = [
+      'ytm-promoted-sparkles-web-renderer',
+      'ytm-companion-ad-renderer',
+      'ytm-display-ad-renderer',
+      'ytm-promoted-video-renderer',
+      'ytm-ad-slot-renderer',
+      'ytd-companion-slot-renderer',
+      'ytd-companion-ad-renderer',
+      'ytd-action-companion-ad-renderer',
+      'ytd-banner-promo-renderer-background',
+      'ytd-video-masthead-ad-v3-renderer',
+      'ytd-video-masthead-ad-renderer',
+      'ytd-video-masthead-ad-primary-video-renderer',
+      'ytd-in-feed-ad-layout-renderer',
+      'ytd-promoted-sparkles-web-renderer',
+      'ytd-promoted-sparkles-text-search-renderer',
+      'ytd-display-ad-renderer',
+      'ytd-promoted-video-renderer',
+      'ytd-ad-slot-renderer',
+      '.ytp-ad-overlay-container',
+      '.ytp-ad-message-container',
+    ].join(',');
+    root.querySelectorAll?.(selector).forEach((element) => element.remove());
+  }
+
+  function injectStyle() {
+    let style = document.getElementById(STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = STYLE_ID;
+      const styleHost = document.head || document.documentElement;
+      if (styleHost) styleHost.appendChild(style);
+    }
+    if (style.dataset.layoutVersion === NAV_LAYOUT_VERSION) return;
+    style.dataset.layoutVersion = NAV_LAYOUT_VERSION;
+    style.textContent = `
+      ytm-promoted-sparkles-web-renderer,
+      ytm-companion-ad-renderer,
+      ytm-display-ad-renderer,
+      ytm-promoted-video-renderer,
+      ytm-ad-slot-renderer,
+      ytd-companion-slot-renderer,
+      ytd-companion-ad-renderer,
+      ytd-action-companion-ad-renderer,
+      ytd-banner-promo-renderer-background,
+      ytd-video-masthead-ad-v3-renderer,
+      ytd-video-masthead-ad-renderer,
+      ytd-video-masthead-ad-primary-video-renderer,
+      ytd-in-feed-ad-layout-renderer,
+      ytd-promoted-sparkles-web-renderer,
+      ytd-promoted-sparkles-text-search-renderer,
+      ytd-display-ad-renderer,
+      ytd-promoted-video-renderer,
+      ytd-ad-slot-renderer,
+      .ytp-ad-overlay-container,
+      .ytp-ad-message-container,
+      .ytp-ad-player-overlay {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      /* Burger drawer only — hide every persistent Home/Shorts/Subs/You rail. */
+      ytm-pivot-bar-renderer,
+      ytd-mini-guide-renderer,
+      ytd-mini-guide-entry-renderer,
+      #guide-button-badge,
+      ytd-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-mini-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-guide-entry-renderer:has(a[title='Shorts']),
+      tp-yt-paper-item:has(a[href^='/shorts']),
+      ytd-rich-shelf-renderer:has(a[href*='/shorts']),
+      ytd-reel-shelf-renderer,
+      ytd-rich-section-renderer:has(a[href*='/shorts']),
+      ytm-reel-shelf-renderer,
+      ytm-shorts-lockup-view-model,
+      grid-shelf-view-model:has(a[href*='/shorts']),
+      a[href^='/shorts'],
+      [is-shorts],
+      ytd-thumbnail[href*='/shorts'] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      ytd-app {
+        --ytd-mini-guide-width: 0px !important;
+        --ytd-mini-guide-width-min: 0px !important;
+      }
+
+      /* Kill YouTube miniplayer when leaving a video. */
+      ytd-miniplayer,
+      ytd-miniplayer[active],
+      #miniplayer,
+      #miniplayer-container,
+      .ytp-miniplayer-ui,
+      ytd-app[miniplayer-active_] #movie_player,
+      .miniplayer {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        opacity: 0 !important;
+      }
+
+      /* Force the guide (burger) button to stay visible on narrow Orion layouts.
+         Do NOT force the drawer itself visible — that makes it peek while scrolling. */
+      #guide-button,
+      ytd-masthead #guide-button,
+      #guide-button-icon,
+      button#button.yt-icon-button[aria-label='Guide'],
+      ytd-masthead button[aria-label='Guide'] {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+      }
+
+      /* Keep closed drawers off-screen without killing the open animation / first tap. */
+      tp-yt-app-drawer#guide:not([opened]):not([peeking]) {
+        pointer-events: none;
+      }
+
+      tp-yt-app-drawer#guide[opened],
+      #guide[opened] {
+        visibility: visible !important;
+        pointer-events: auto !important;
+      }
+
+      /* Remove header upload / create. */
+      ytd-masthead ytd-topbar-menu-button-renderer:has(a[href*='upload']),
+      ytd-masthead ytd-button-renderer:has(a[href*='upload']),
+      ytd-masthead a[href='/upload'],
+      ytd-masthead a[href*='upload?'],
+      ytd-masthead button[aria-label='Create'],
+      ytd-masthead button[aria-label*='Create a video'],
+      ytd-masthead [aria-label='Upload video'],
+      ytd-masthead [aria-label='Upload'],
+      #masthead-upload-button,
+      ytm-mobile-topbar-renderer button[aria-label*='Upload'],
+      ytm-mobile-topbar-renderer button[aria-label*='Create'],
+      ytm-mobile-topbar-renderer a[href*='upload'],
+      ytm-topbar-menu-button-renderer:has([aria-label*='Upload']),
+      ytm-topbar-menu-button-renderer:has([aria-label*='Create']) {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+
+      html,
+      body,
+      ytd-app,
+      ytm-app {
+        width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Stronger edge + safe-area inset so feed/player is not clipped on Orion. */
+      html, body {
+        padding-left: max(${EDGE_PAD}, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(${EDGE_PAD}, env(safe-area-inset-right, 0px)) !important;
+      }
+
+      ytd-app,
+      ytm-app {
+        padding-left: max(${EDGE_PAD}, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(${EDGE_PAD}, env(safe-area-inset-right, 0px)) !important;
+        --ytd-mini-guide-width: 0px !important;
+      }
+
+      ytd-page-manager,
+      #page-manager,
+      #content.ytd-app,
+      #columns,
+      #primary,
+      #primary-inner,
+      #secondary,
+      #player,
+      #player-container,
+      #player-container-outer,
+      #player-container-inner,
+      ytd-player,
+      #movie_player,
+      ytd-rich-grid-renderer,
+      ytd-watch-flexy,
+      ytd-watch-metadata {
+        box-sizing: border-box !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      #movie_player,
+      .html5-video-player,
+      .html5-video-container,
+      video.html5-main-video {
+        max-width: 100% !important;
+      }
+
+      /* Keep watch layout as normal page (video + metadata), not immersive FS. */
+      ytd-watch-flexy[fullscreen] #player-theater-container,
+      ytd-watch-flexy[fullscreen] #full-bleed-container {
+        position: relative !important;
+        max-height: none !important;
+      }
+
+      ytd-masthead,
+      #masthead-container,
+      #header {
+        box-sizing: border-box !important;
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+      }
+
+      ytd-page-manager,
+      #page-manager,
+      #content.ytd-app {
+        margin-left: 0 !important;
+      }
+
+      ytd-masthead {
+        width: 100% !important;
+      }
+
+      ytd-watch-flexy #columns,
+      ytd-watch-flexy #primary,
+      ytd-watch-flexy #secondary,
+      ytd-comments,
+      ytd-item-section-renderer#sections {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+
+      ytd-watch-flexy #columns {
+        display: block !important;
+      }
+
+      ytd-watch-flexy #secondary {
+        margin-left: 0 !important;
+      }
+
+      ytd-comment-view-model[data-vm-comment-enhanced='true'],
+      ytd-comment-renderer[data-vm-comment-enhanced='true'] {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: clamp(.65rem, 2.8vw, 1rem) clamp(.6rem, 3vw, 1rem);
+        border-bottom: 1px solid rgba(127, 127, 127, .2);
+        touch-action: manipulation;
+      }
+
+      [data-vm-comment-enhanced='true'] > #toolbar,
+      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-view-model,
+      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-renderer {
+        display: none !important;
+      }
+
+      .vm-yt-comment-actions {
+        box-sizing: border-box;
+        display: flex;
+        width: 100%;
+        margin-top: clamp(.45rem, 2vw, .75rem);
+        gap: clamp(.4rem, 2vw, .75rem);
+      }
+
+      .vm-yt-comment-action {
+        appearance: none;
+        -webkit-appearance: none;
+        box-sizing: border-box;
+        display: inline-flex;
+        flex: 1 1 50%;
+        min-width: 0;
+        min-height: 44px;
+        padding: clamp(.55rem, 2.5vw, .75rem) clamp(.7rem, 3vw, 1rem);
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        color: inherit;
+        background: rgba(127, 127, 127, .12);
+        border: 1px solid rgba(127, 127, 127, .22);
+        border-radius: clamp(.6rem, 3vw, .9rem);
+        font: 600 clamp(.78rem, 3.2vw, .9rem)/1 Roboto, Arial, sans-serif;
+        touch-action: manipulation;
+      }
+
+      .vm-yt-comment-action[data-pressed='true'] {
+        color: #ff0033;
+        background: rgba(255, 0, 51, .1);
+        border-color: rgba(255, 0, 51, .32);
+      }
+
+      .vm-yt-comment-action svg {
+        width: 1.15rem;
+        height: 1.15rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.8;
+      }
+
+      ytd-comment-simplebox-renderer #placeholder-area,
+      ytd-comment-simplebox-renderer #simplebox-placeholder {
+        box-sizing: border-box;
+        min-height: 44px;
+        padding: clamp(.7rem, 3vw, 1rem) !important;
+        touch-action: manipulation;
+      }
+
+      ytd-comments#comments,
+      ytd-comments {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: clamp(.35rem, 1.5vw, .75rem) 0 0 !important;
+        order: 2 !important;
+      }
+
+      ytd-comment-thread-renderer[data-vm-comment-hidden='true'] {
+        display: none !important;
+      }
+
+      ytd-comments ytd-continuation-item-renderer[data-vm-continuation-hidden='true'] {
+        display: none !important;
+      }
+
+      #${LOAD_MORE_COMMENTS_ID} {
+        appearance: none;
+        -webkit-appearance: none;
+        box-sizing: border-box;
+        display: flex;
+        width: calc(100% - 1.5rem);
+        min-height: 46px;
+        margin: .65rem .75rem 1rem;
+        padding: .75rem 1rem;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        color: inherit;
+        background: rgba(127, 127, 127, .14);
+        border: 1px solid rgba(127, 127, 127, .24);
+        border-radius: 999px;
+        font: 600 .9rem/1 "SF Pro Text", Roboto, system-ui, sans-serif;
+        cursor: pointer;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #${LOAD_MORE_COMMENTS_ID}:active {
+        background: rgba(127, 127, 127, .22);
+      }
+
+      #${LOAD_MORE_COMMENTS_ID} svg {
+        width: 1rem;
+        height: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      #${LOAD_MORE_COMMENTS_ID}[hidden] {
+        display: none !important;
+      }
+
+      #${LOAD_LESS_COMMENTS_ID} {
+        appearance: none;
+        -webkit-appearance: none;
+        box-sizing: border-box;
+        position: fixed;
+        right: auto;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + ${ORION_NAV_GAP} + 4.35rem);
+        left: 50%;
+        z-index: 2147483645;
+        display: flex;
+        width: auto;
+        min-height: 2.65rem;
+        margin: 0;
+        padding: .7rem 1.15rem;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        color: #f1f1f1;
+        background: rgba(28, 28, 28, .92);
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 999px;
+        box-shadow: 0 .35rem 1.1rem rgba(0, 0, 0, .35);
+        font: 600 .85rem/1 "SF Pro Text", Roboto, system-ui, sans-serif;
+        cursor: pointer;
+        pointer-events: auto;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-backdrop-filter: saturate(1.3) blur(1rem);
+        backdrop-filter: saturate(1.3) blur(1rem);
+        transform: translate3d(-50%, 0, 0);
+        -webkit-transform: translate3d(-50%, 0, 0);
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      html:not([dark]):not([dark-theme]) #${LOAD_LESS_COMMENTS_ID} {
+        color: #0f0f0f;
+        background: rgba(255, 255, 255, .94);
+        border-color: rgba(0, 0, 0, .12);
+        box-shadow: 0 .35rem 1.1rem rgba(0, 0, 0, .16);
+      }
+
+      #${LOAD_LESS_COMMENTS_ID}:active {
+        opacity: .88;
+      }
+
+      #${LOAD_LESS_COMMENTS_ID} svg {
+        width: 1rem;
+        height: 1rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2.2;
+      }
+
+      #${LOAD_LESS_COMMENTS_ID}[hidden] {
+        display: none !important;
+      }
+
+      @media (hover: none) {
+        tp-yt-paper-tooltip,
+        yt-tooltip-renderer {
+          display: none !important;
+          pointer-events: none !important;
+        }
+      }
+
+      /* Floating pill removed — navigation is burger/guide only. */
+      #${NAV_ID} {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      ytd-app,
+      ytm-app {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem) !important;
+      }
+
+      #${WELCOME_ID} {
+        box-sizing: border-box;
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, 10svh, 5rem));
+        left: 50%;
+        z-index: 2147483647;
+        width: min(calc(100% - 2rem), 22rem);
+        padding: clamp(.75rem, 2.8vw, 1rem) clamp(1rem, 4vw, 1.35rem);
+        color: #fff;
+        background: rgba(15, 15, 15, .96);
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: clamp(.65rem, 3vw, 1rem);
+        box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .28);
+        font: 600 clamp(.9rem, 3.8vw, 1.05rem)/1.3 Roboto, Arial, sans-serif;
+        text-align: center;
+        transform: translateX(-50%);
+        opacity: 1;
+        transition: opacity .22s ease, transform .22s ease;
+      }
+
+      #${WELCOME_ID}[data-hiding='true'] {
+        opacity: 0;
+        transform: translate(-50%, -.45rem);
+        pointer-events: none;
+      }
+
+      /* Only the action to subscribe is red; an already-subscribed button is untouched. */
+      button[data-vm-subscribe-action='true'],
+      [role='button'][data-vm-subscribe-action='true'] {
+        color: #fff !important;
+        background-color: #ff0033 !important;
+        background-image: none !important;
+        border-color: #ff0033 !important;
+        box-shadow: none !important;
+      }
+
+      [data-vm-subscribe-action='true'] .yt-spec-button-shape-next__button-text-content {
+        color: #fff !important;
+      }
+
+      .ytp-fullscreen-quick-actions button[aria-label^='Ask'],
+      #movie_player button[aria-label*='Ask Gemini'],
+      ytd-watch-metadata button[aria-label^='Ask'],
+      ytd-watch-metadata [title^='Ask Gemini'] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      #${DOT_ID} {
+        appearance: none;
+        -webkit-appearance: none;
+        position: relative;
+        display: inline-flex;
+        flex: 0 0 auto;
+        width: 24px;
+        height: 28px;
+        margin: 0 0 0 2px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+        z-index: 2147483647;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #${DOT_ID} .vm-yt-status-light {
+        display: block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #34c759;
+        box-shadow: 0 0 0 2px rgba(52, 199, 89, .18), 0 0 7px rgba(52, 199, 89, .75);
+      }
+
+      #${DOT_ID}[data-player-state='playing'] .vm-yt-status-light {
+        background: #30d5ff;
+        box-shadow: 0 0 0 2px rgba(48, 213, 255, .18), 0 0 8px rgba(48, 213, 255, .8);
+      }
+
+      #${DOT_ID}[data-player-state='waiting'] .vm-yt-status-light {
+        background: #ffcc00;
+        box-shadow: 0 0 0 2px rgba(255, 204, 0, .18), 0 0 7px rgba(255, 204, 0, .72);
+      }
+    `;
+  }
+
+  /* Lucide icon paths — Home, ListVideo, CircleUser. Shorts + Create omitted. */
+  const MOBILE_NAV_ITEMS = [
+    {
+      id: 'home',
+      label: 'Home',
+      href: '/',
+      active: (path) => path === '/' || path === '',
+      icon: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    },
+    {
+      id: 'subscriptions',
+      label: 'Subs',
+      href: '/feed/subscriptions',
+      active: (path) => path.startsWith('/feed/subscriptions'),
+      icon: '<path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/><path d="m16 12 5 3-5 3v-6Z"/>',
+    },
+    {
+      id: 'you',
+      label: 'You',
+      href: '/feed/you',
+      active: (path) =>
+        path.startsWith('/feed/you') ||
+        path.startsWith('/feed/library') ||
+        path.startsWith('/account'),
+      icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>',
+    },
+  ];
+
+  function setImportantStyles(element, declarations) {
+    if (!element) return;
+    for (const [property, value] of Object.entries(declarations)) {
+      element.style.setProperty(property, value, 'important');
+    }
+  }
+
+  function isDarkTheme() {
+    return Boolean(
+      document.documentElement.hasAttribute('dark') ||
+      document.documentElement.hasAttribute('dark-theme') ||
+      document.body?.hasAttribute('dark') ||
+      document.querySelector('ytd-app[dark], ytm-app[dark]') ||
+      window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    );
+  }
+
+  function applyCriticalNavigationLayout(nav) {
+    const dark = isDarkTheme();
+    // Orion iOS: browser chrome is outside the webview — keep a tight safe-area gap.
+    const clearance = `calc(env(safe-area-inset-bottom, 0px) + ${ORION_NAV_GAP})`;
+    setImportantStyles(nav, {
+      'box-sizing': 'border-box',
+      position: 'fixed',
+      top: 'auto',
+      right: 'auto',
+      bottom: clearance,
+      left: '50%',
+      'z-index': '2147483646',
+      display: 'flex',
+      'flex-direction': 'row',
+      width: 'min(calc(100% - 28px), 352px)',
+      height: 'auto',
+      'min-height': '56px',
+      margin: '0',
+      'padding-top': '5px',
+      'padding-right': '6px',
+      'padding-bottom': '5px',
+      'padding-left': '6px',
+      'align-items': 'stretch',
+      'justify-content': 'space-around',
+      gap: '2px',
+      color: dark ? '#f1f1f1' : '#0f0f0f',
+      background: dark ? 'rgba(28, 28, 28, .9)' : 'rgba(255, 255, 255, .9)',
+      border: dark
+        ? '1px solid rgba(255, 255, 255, .12)'
+        : '1px solid rgba(0, 0, 0, .1)',
+      'border-radius': '999px',
+      'box-shadow': dark
+        ? '0 6px 22px rgba(0, 0, 0, .45)'
+        : '0 6px 20px rgba(0, 0, 0, .18)',
+      'font-family': '"SF Pro Text", Roboto, system-ui, sans-serif',
+      overflow: 'hidden',
+      'pointer-events': 'auto',
+      transform: 'translate3d(-50%, 0, 0)',
+      '-webkit-transform': 'translate3d(-50%, 0, 0)',
+      '-webkit-backdrop-filter': 'saturate(1.4) blur(18px)',
+      'backdrop-filter': 'saturate(1.4) blur(18px)',
+      '-webkit-user-select': 'none',
+      'user-select': 'none',
+    });
+
+    for (const link of nav.querySelectorAll('.vm-yt-nav-item')) {
+      setImportantStyles(link, {
+        'box-sizing': 'border-box',
+        display: 'flex',
+        flex: '1 1 33%',
+        'flex-direction': 'column',
+        'min-width': '0',
+        'min-height': '48px',
+        margin: '0',
+        padding: '4px 2px',
+        'align-items': 'center',
+        'justify-content': 'center',
+        gap: '3px',
+        background: 'transparent',
+        border: '0',
+        'border-radius': '999px',
+        'text-decoration': 'none',
+        cursor: 'pointer',
+      });
+
+      const iconWrap = link.querySelector('.vm-yt-nav-icon-wrap');
+      if (iconWrap) {
+        setImportantStyles(iconWrap, {
+          display: 'flex',
+          width: 'auto',
+          height: 'auto',
+          'align-items': 'center',
+          'justify-content': 'center',
+          color: 'inherit',
+          background: 'transparent',
+          'border-radius': '999px',
+        });
+      }
+
+      setImportantStyles(link.querySelector('.vm-yt-nav-icon'), {
+        display: 'block',
+        width: '22px',
+        height: '22px',
+        flex: '0 0 auto',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        'stroke-width': '2',
+      });
+
+      const label = link.querySelector('.vm-yt-nav-label');
+      if (label) {
+        setImportantStyles(label, {
+          display: 'block',
+          'max-width': '100%',
+          overflow: 'hidden',
+          'font-size': '10px',
+          'font-weight': '500',
+          'line-height': '1.1',
+          'text-overflow': 'ellipsis',
+          'white-space': 'nowrap',
+        });
+      }
+    }
+
+    for (const app of document.querySelectorAll('ytd-app, ytm-app')) {
+      setImportantStyles(app, {
+        width: '100%',
+        'min-width': '0',
+        'padding-bottom': `calc(${clearance} + 64px)`,
+      });
+    }
+  }
+
+  function hideShortsGuideEntries(root = document) {
+    const entries = root.querySelectorAll?.(
+      'ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer, ytm-pivot-bar-item-renderer, ' +
+        'tp-yt-paper-item, yt-list-item-view-model'
+    ) || [];
+
+    for (const entry of entries) {
+      const href = [
+        entry.querySelector?.('a#endpoint')?.getAttribute('href'),
+        entry.querySelector?.('a')?.getAttribute('href'),
+        entry.getAttribute?.('href'),
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const label = [
+        entry.getAttribute?.('title'),
+        entry.querySelector?.('[title]')?.getAttribute('title'),
+        entry.querySelector?.('a#endpoint')?.getAttribute('title'),
+        entry.querySelector?.('yt-formatted-string')?.textContent,
+        entry.querySelector?.('.title')?.textContent,
+        entry.getAttribute?.('aria-label'),
+        entry.querySelector?.('[aria-label]')?.getAttribute('aria-label'),
+        entry.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const isShorts =
+        /\/shorts\b/i.test(href) ||
+        /^shorts\b/i.test(label) ||
+        (/\bshorts\b/i.test(label) && label.length < 48) ||
+        /tab_shorts|shorts_fill|shorts_outline/i.test(
+          entry.innerHTML?.slice?.(0, 500) || ''
+        );
+
+      if (!isShorts) continue;
+
+      setImportantStyles(entry, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
+      });
+      entry.setAttribute('aria-hidden', 'true');
+      entry.hidden = true;
+      entry.dataset.vmShortsHidden = 'true';
+    }
+  }
+
+  function hideNativeNavigationAndShorts() {
+    for (const element of document.querySelectorAll(
+      [
+        'ytm-pivot-bar-renderer',
+        'ytd-mini-guide-renderer',
+        'ytd-mini-guide-entry-renderer',
+        'ytd-reel-shelf-renderer',
+        'ytm-reel-shelf-renderer',
+        'ytm-shorts-lockup-view-model',
+      ].join(',')
+    )) {
+      setImportantStyles(element, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+      });
+      element.setAttribute('aria-hidden', 'true');
+      element.hidden = true;
+    }
+
+    for (const element of document.querySelectorAll(
+      'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+    )) {
+      const isShortsShelf =
+        Boolean(element.querySelector?.('a[href*="/shorts"]')) ||
+        /shorts/i.test(
+          (element.querySelector?.('#title, .title, yt-formatted-string')
+            ?.textContent || '')
+            .trim()
+        );
+      if (!isShortsShelf) continue;
+      setImportantStyles(element, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+      });
+      element.hidden = true;
+    }
+
+    const possibleShortsControls = document.querySelectorAll([
+      '.pivot-shorts',
+      'a[href^="/shorts"]',
+      'a[href*="/shorts"]',
+      'a[href*="youtube.com/shorts"]',
+      '[aria-label="Shorts"]',
+      '[title="Shorts"]',
+      '[is-shorts]',
+    ].join(','));
+
+    for (const control of possibleShortsControls) {
+      const item =
+        control.closest(
+          'ytm-pivot-bar-item-renderer, ytd-guide-entry-renderer, ' +
+            'ytd-mini-guide-entry-renderer, yt-tab-shape, [role="tab"], ' +
+            'ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ' +
+            'ytd-rich-shelf-renderer, ytd-reel-shelf-renderer, ytd-rich-section-renderer, ' +
+            'tp-yt-paper-item'
+        ) || control;
+      setImportantStyles(item, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+      });
+      item.setAttribute('aria-hidden', 'true');
+      item.hidden = true;
+    }
+
+    hideShortsGuideEntries(document);
+  }
+
+  function dismissMiniplayer() {
+    const app = document.querySelector('ytd-app');
+    if (app) {
+      app.removeAttribute('miniplayer-active_');
+      app.removeAttribute('miniplayer-active');
+      try {
+        if ('miniplayerActive_' in app) app.miniplayerActive_ = false;
+        if ('miniplayerActive' in app) app.miniplayerActive = false;
+      } catch {
+        // ignore
+      }
+    }
+
+    for (const mini of document.querySelectorAll(
+      'ytd-miniplayer, #miniplayer, #miniplayer-container'
+    )) {
+      setImportantStyles(mini, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+        opacity: '0',
+        width: '0',
+        height: '0',
+      });
+      mini.removeAttribute('active');
+      mini.removeAttribute('enabled');
+      try {
+        if (typeof mini.minimize === 'function') {
+          // no-op path
+        }
+        if ('active' in mini) mini.active = false;
+      } catch {
+        // ignore
+      }
+    }
+
+    document
+      .querySelectorAll(
+        '.ytp-miniplayer-close-button, ytd-miniplayer button[aria-label*="Close"], ' +
+          '#miniplayer button[aria-label*="Close"]'
+      )
+      .forEach((button) => {
+        if (button instanceof HTMLElement) {
+          try {
+            button.click();
+          } catch {
+            // ignore
+          }
+        }
+      });
+  }
+
+  function removeFloatingPillNav() {
+    const nav = document.getElementById(NAV_ID);
+    if (nav) nav.remove();
+  }
+
+  function applyEdgePadding() {
+    for (const app of document.querySelectorAll('ytd-app, ytm-app')) {
+      setImportantStyles(app, {
+        'box-sizing': 'border-box',
+        'padding-left': `max(${EDGE_PAD}, env(safe-area-inset-left, 0px))`,
+        'padding-right': `max(${EDGE_PAD}, env(safe-area-inset-right, 0px))`,
+        'padding-bottom': 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)',
+        '--ytd-mini-guide-width': '0px',
+      });
+    }
+  }
+
+  function markGuideOpenIntent() {
+    guideUiState.userOpened = true;
+    guideUiState.allowOpenUntil = Date.now() + 8000;
+  }
+
+  function isGuideOpenAllowed() {
+    return guideUiState.userOpened || Date.now() <= guideUiState.allowOpenUntil;
+  }
+
+  function isGuideControl(target) {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest(
+        '#guide-button, #guide-button-icon, ytd-masthead #guide-button, ' +
+          'ytd-masthead yt-icon-button#guide-button, ' +
+          'button[aria-label="Guide"], button[aria-label*="Guide"], ' +
+          'yt-icon-button[aria-label="Guide"], yt-icon-button[aria-label*="Guide"], ' +
+          '#button.yt-icon-button[aria-label="Guide"]'
+      )
+    );
+  }
+
+  function closeGuideDrawer(drawer = document.querySelector('tp-yt-app-drawer#guide, #guide')) {
+    if (!drawer) return;
+    guideUiState.userOpened = false;
+    try {
+      if (typeof drawer.close === 'function') drawer.close();
+    } catch {
+      // close() is optional on some Polymer builds.
+    }
+    try {
+      drawer.opened = false;
+    } catch {
+      // opened may be a read-only reflector.
+    }
+    drawer.removeAttribute('opened');
+    drawer.removeAttribute('peeking');
+
+    const app = document.querySelector('ytd-app');
+    if (app) {
+      app.removeAttribute('guide-persistent');
+      try {
+        if ('guidePersistent' in app) app.guidePersistent = false;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  function disableGuideSwipe(drawer) {
+    if (!drawer) return;
+    drawer.setAttribute('disable-swipe', '');
+    drawer.setAttribute('disable-swipe-open', '');
+    try {
+      drawer.disableSwipe = true;
+    } catch {
+      // ignore
+    }
+    try {
+      if ('swipeOpen' in drawer) drawer.swipeOpen = false;
+    } catch {
+      // ignore
+    }
+    try {
+      if ('disableSwipeOpen' in drawer) drawer.disableSwipeOpen = true;
+    } catch {
+      // ignore
+    }
+  }
+
+  function wireGuideTapOnlyControls() {
+    if (guideUiState.wired) return;
+    guideUiState.wired = true;
+
+    const markIfGuideControl = (event) => {
+      if (!isGuideControl(event.target)) return;
+      markGuideOpenIntent();
+      // Strip Shorts as soon as the drawer is about to show.
+      setTimeout(() => hideShortsGuideEntries(document), 0);
+      setTimeout(() => hideShortsGuideEntries(document), 120);
+      setTimeout(() => hideShortsGuideEntries(document), 400);
+    };
+
+    nativeDocumentAddEventListener('pointerdown', markIfGuideControl, true);
+    nativeDocumentAddEventListener('touchstart', markIfGuideControl, {
+      capture: true,
+      passive: true,
+    });
+    nativeDocumentAddEventListener('click', markIfGuideControl, true);
+
+    // Only dismiss swipe/scroll accidents — never fight a burger tap (touchmove caused double-tap).
+    const maybeCloseAccidentalGuide = () => {
+      if (isGuideOpenAllowed()) return;
+      const drawer = document.querySelector('tp-yt-app-drawer#guide, #guide');
+      if (!drawer) return;
+      const open =
+        drawer.hasAttribute('opened') ||
+        drawer.opened === true ||
+        drawer.hasAttribute('peeking');
+      if (open) closeGuideDrawer(drawer);
+    };
+
+    nativeDocumentAddEventListener('scroll', maybeCloseAccidentalGuide, {
+      capture: true,
+      passive: true,
+    });
+    nativeWindowAddEventListener('scroll', maybeCloseAccidentalGuide, {
+      capture: true,
+      passive: true,
+    });
+  }
+
+  function lockGuideToTapOnly() {
+    wireGuideTapOnlyControls();
+
+    const drawers = document.querySelectorAll('tp-yt-app-drawer#guide, #guide');
+    for (const drawer of drawers) {
+      disableGuideSwipe(drawer);
+
+      if (!drawer.dataset.vmGuideLock) {
+        drawer.dataset.vmGuideLock = '1';
+        const observer = new MutationObserver(() => {
+          disableGuideSwipe(drawer);
+          const open =
+            drawer.hasAttribute('opened') ||
+            drawer.opened === true ||
+            drawer.hasAttribute('peeking');
+          if (!open) {
+            // User dismissed the drawer (backdrop / burger toggle).
+            if (Date.now() > guideUiState.allowOpenUntil) {
+              guideUiState.userOpened = false;
+            }
+            return;
+          }
+          hideShortsGuideEntries(drawer);
+          hideShortsGuideEntries(document);
+          // Keep user-opened drawers open; only kill anonymous swipe peeks.
+          if (!isGuideOpenAllowed() && drawer.hasAttribute('peeking') && !drawer.hasAttribute('opened')) {
+            closeGuideDrawer(drawer);
+          }
+        });
+        observer.observe(drawer, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+          attributeFilter: ['opened', 'peeking', 'disable-swipe', 'class', 'style'],
+        });
+      }
+
+      if (drawer.hasAttribute('opened') || drawer.opened === true) {
+        hideShortsGuideEntries(drawer);
+      }
+    }
+
+    for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
+      setImportantStyles(mini, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+      });
+    }
+
+    hideShortsGuideEntries(document);
+  }
+
+  function ensureGuideButtonVisible() {
+    const candidates = document.querySelectorAll([
+      '#guide-button',
+      'ytd-masthead #guide-button',
+      'ytd-masthead button[aria-label="Guide"]',
+      'ytd-masthead button[aria-label*="Guide"]',
+      'ytd-masthead yt-icon-button#guide-button',
+      'button[aria-label="Guide"]',
+      'button[aria-label*="Guide"]',
+    ].join(','));
+
+    for (const button of candidates) {
+      button.removeAttribute('hidden');
+      button.setAttribute('aria-hidden', 'false');
+      setImportantStyles(button, {
+        display: 'inline-flex',
+        visibility: 'visible',
+        opacity: '1',
+        'pointer-events': 'auto',
+        width: '40px',
+        'min-width': '40px',
+        height: '40px',
+      });
+      const icon = button.querySelector('yt-icon, .yt-icon-button, svg');
+      if (icon) {
+        setImportantStyles(icon, {
+          display: 'block',
+          visibility: 'visible',
+          opacity: '1',
+        });
+      }
+      if (!button.dataset.vmGuideTapBound) {
+        button.dataset.vmGuideTapBound = '1';
+        button.addEventListener(
+          'click',
+          () => {
+            markGuideOpenIntent();
+            hideShortsGuideEntries(document);
+          },
+          true
+        );
+        button.addEventListener(
+          'touchend',
+          () => {
+            markGuideOpenIntent();
+          },
+          { capture: true, passive: true }
+        );
+      }
+    }
+
+    lockGuideToTapOnly();
+  }
+
+  function hideUploadControls(root = document) {
+    const selectors = [
+      'ytd-masthead a[href="/upload"]',
+      'ytd-masthead a[href*="upload?"]',
+      'ytd-masthead a[href*="/upload"]',
+      'ytd-masthead button[aria-label="Create"]',
+      'ytd-masthead button[aria-label*="Create a video"]',
+      'ytd-masthead button[aria-label="Upload"]',
+      'ytd-masthead button[aria-label="Upload video"]',
+      'ytd-masthead [aria-label="Create"]',
+      'ytd-masthead [aria-label="Upload video"]',
+      '#masthead-upload-button',
+      'ytm-mobile-topbar-renderer button[aria-label*="Upload"]',
+      'ytm-mobile-topbar-renderer button[aria-label*="Create"]',
+      'ytm-mobile-topbar-renderer a[href*="upload"]',
+    ].join(',');
+
+    for (const control of root.querySelectorAll?.(selectors) || []) {
+      const host =
+        control.closest(
+          'ytd-topbar-menu-button-renderer, ytd-button-renderer, ' +
+            'ytm-topbar-menu-button-renderer, yt-icon-button, button-view-model'
+        ) || control;
+      setImportantStyles(host, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+        width: '0',
+        'min-width': '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
+      });
+      host.setAttribute('aria-hidden', 'true');
+      host.hidden = true;
+    }
+
+    // Fallback: match by label text when YouTube changes aria attributes.
+    for (const candidate of root.querySelectorAll?.(
+      'ytd-masthead button, ytd-masthead a, ytm-mobile-topbar-renderer button, ytm-mobile-topbar-renderer a'
+    ) || []) {
+      const label = [
+        candidate.getAttribute('aria-label'),
+        candidate.getAttribute('title'),
+        candidate.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      if (!label) continue;
+      if (
+        !/^(create|upload)(\b|$)/.test(label) &&
+        !label.includes('upload video') &&
+        !label.includes('create a video') &&
+        !label.includes('create video or post')
+      ) {
+        continue;
+      }
+      const host =
+        candidate.closest(
+          'ytd-topbar-menu-button-renderer, ytd-button-renderer, ' +
+            'ytm-topbar-menu-button-renderer, yt-icon-button, button-view-model'
+        ) || candidate;
+      setImportantStyles(host, {
+        display: 'none',
+        visibility: 'hidden',
+        'pointer-events': 'none',
+      });
+      host.hidden = true;
+    }
+  }
+
+  function applyMobileShell() {
+    hideNativeNavigationAndShorts();
+    ensureGuideButtonVisible();
+    hideUploadControls();
+    dismissMiniplayer();
+    removeFloatingPillNav();
+    applyEdgePadding();
+
+    for (const element of document.querySelectorAll(
+      'html, body, ytd-app, ytm-app, ytd-page-manager, #page-manager'
+    )) {
+      setImportantStyles(element, {
+        'min-width': '0',
+        'max-width': '100%',
+        'box-sizing': 'border-box',
+      });
+    }
+
+    for (const page of document.querySelectorAll(
+      'ytd-page-manager, #page-manager, #content.ytd-app'
+    )) {
+      setImportantStyles(page, {
+        'margin-left': '0',
+      });
+    }
+
+    for (const columns of document.querySelectorAll(
+      'ytd-watch-flexy #columns'
+    )) {
+      setImportantStyles(columns, {
+        display: 'block',
+        width: '100%',
+        'min-width': '0',
+        'max-width': '100%',
+      });
+    }
+
+    for (const column of document.querySelectorAll(
+      'ytd-watch-flexy #primary, ytd-watch-flexy #secondary, ytd-comments'
+    )) {
+      setImportantStyles(column, {
+        width: '100%',
+        'min-width': '0',
+        'max-width': '100%',
+        'margin-left': '0',
+      });
+    }
+
+    for (const grid of document.querySelectorAll('ytd-rich-grid-renderer')) {
+      setImportantStyles(grid, {
+        '--ytd-rich-grid-items-per-row': '1',
+        width: '100%',
+        'min-width': '0',
+      });
+    }
+
+    for (const video of document.querySelectorAll('video')) {
+      enforceInlinePlayback(video);
+    }
+  }
+
+  function getWatchVideoId() {
+    return new URLSearchParams(location.search).get('v');
+  }
+
+  function findCommentsRoot() {
+    const watch = document.querySelector('ytd-watch-flexy');
+    return (
+      watch?.querySelector('ytd-comments#comments') ||
+      watch?.querySelector('#comments ytd-comments') ||
+      watch?.querySelector('ytd-comments') ||
+      document.querySelector('ytd-comments#comments') ||
+      document.querySelector('#comments') ||
+      document.querySelector('ytd-comments')
+    );
+  }
+
+  function expandCommentsSection(watch, comments) {
+    if (!comments) return;
+
+    comments.removeAttribute('hidden');
+    comments.removeAttribute('aria-hidden');
+    setImportantStyles(comments, {
+      display: 'block',
+      visibility: 'visible',
+      height: 'auto',
+      'max-height': 'none',
+      opacity: '1',
+      'pointer-events': 'auto',
+    });
+
+    // Expand common collapsed comment entry points / teasers.
+    const teasers = watch?.querySelectorAll?.(
+      [
+        '#comment-teaser',
+        'ytd-comments-entry-point-header-renderer',
+        'ytd-watch-metadata #comments-button',
+        'ytd-watch-metadata button[aria-label*="comment"]',
+        'ytd-watch-metadata button[aria-label*="Comment"]',
+        '#comments-button',
+        'tp-yt-paper-button[aria-label*="comment"]',
+        'tp-yt-paper-button[aria-label*="Comment"]',
+      ].join(',')
+    ) || [];
+
+    for (const teaser of teasers) {
+      if (!(teaser instanceof HTMLElement)) continue;
+      if (teaser.dataset.vmCommentsOpened === '1') continue;
+      teaser.dataset.vmCommentsOpened = '1';
+      try {
+        teaser.click();
+      } catch {
+        // Opening the teaser is best-effort.
+      }
+    }
+
+    // Engagement panel comments (some layouts park comments there).
+    const panel = watch?.querySelector?.(
+      'ytd-engagement-panel-section-list-renderer[target-id*="comment"], ' +
+        'ytd-engagement-panel-section-list-renderer[target-id*="comments"]'
+    );
+    if (panel) {
+      panel.removeAttribute('visibility');
+      panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
+      setImportantStyles(panel, {
+        display: 'block',
+        visibility: 'visible',
+      });
+    }
+  }
+
+  function getTopLevelCommentThreads(commentsRoot) {
+    if (!commentsRoot) return [];
+    return [...commentsRoot.querySelectorAll('ytd-comment-thread-renderer')].filter(
+      (thread) => !thread.closest('ytd-comment-replies-renderer')
+    );
+  }
+
+  function findNativeCommentContinuation(commentsRoot) {
+    if (!commentsRoot) return null;
+    return (
+      commentsRoot.querySelector(
+        'ytd-continuation-item-renderer button, ' +
+          'ytd-continuation-item-renderer tp-yt-paper-button, ' +
+          'ytd-continuation-item-renderer [role="button"], ' +
+          '#continuations ytd-button-renderer button'
+      ) || commentsRoot.querySelector('ytd-continuation-item-renderer')
+    );
+  }
+
+  function positionCommentsBelowDescription() {
+    if (location.pathname !== '/watch') return;
+
+    const watch = document.querySelector('ytd-watch-flexy');
+    if (!watch) return;
+
+    let below = watch.querySelector('#below');
+    const primary = watch.querySelector('#primary-inner, #primary');
+    if (!below && primary) {
+      below = primary.querySelector('#below');
+    }
+    if (!below && primary) {
+      below = document.createElement('div');
+      below.id = 'below';
+      primary.appendChild(below);
+    }
+    if (!below) return;
+
+    const descriptionBlock =
+      [...below.children].find((element) =>
+        element.matches(
+          'ytd-watch-metadata, ytd-video-primary-info-renderer, ytd-video-secondary-info-renderer'
+        )
+      ) ||
+      watch.querySelector(
+        'ytd-watch-metadata, ytd-video-primary-info-renderer, ytd-video-secondary-info-renderer'
+      );
+
+    let comments = findCommentsRoot();
+    expandCommentsSection(watch, comments);
+    comments = findCommentsRoot();
+    if (!descriptionBlock || !comments) return;
+
+    if (descriptionBlock.parentElement !== below) {
+      below.insertAdjacentElement('afterbegin', descriptionBlock);
+    }
+
+    setImportantStyles(below, {
+      display: 'flex',
+      'flex-direction': 'column',
+      width: '100%',
+      'min-width': '0',
+    });
+    setImportantStyles(descriptionBlock, { order: '1' });
+    setImportantStyles(comments, {
+      order: '2',
+      display: 'block',
+      visibility: 'visible',
+      width: '100%',
+      'min-width': '0',
+      'max-width': '100%',
+      margin: '8px 0 0',
+    });
+
+    if (comments.parentElement !== below) {
+      descriptionBlock.insertAdjacentElement('afterend', comments);
+    } else if (descriptionBlock.nextElementSibling !== comments) {
+      descriptionBlock.insertAdjacentElement('afterend', comments);
+    }
+
+    // Push related / secondary content after comments.
+    const related =
+      watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+      watch.querySelector('#secondary');
+    if (related && related !== comments) {
+      setImportantStyles(related, {
+        order: '3',
+        width: '100%',
+        'max-width': '100%',
+        'margin-left': '0',
+      });
+      if (related.parentElement === below && comments.nextElementSibling !== related) {
+        comments.insertAdjacentElement('afterend', related);
+      } else if (
+        related.parentElement !== below &&
+        related.matches('ytd-watch-next-secondary-results-renderer')
+      ) {
+        comments.insertAdjacentElement('afterend', related);
+      }
+    }
+
+    for (const sibling of below.children) {
+      if (
+        sibling === descriptionBlock ||
+        sibling === comments ||
+        sibling === related
+      ) {
+        continue;
+      }
+      setImportantStyles(sibling, { order: '4' });
+    }
+  }
+
+  function collapseCommentsToPreview() {
+    commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
+    limitVisibleComments();
+    const commentsRoot = findCommentsRoot();
+    commentsRoot?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function ensureLoadLessCommentsButton() {
+    let button = document.getElementById(LOAD_LESS_COMMENTS_ID);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = LOAD_LESS_COMMENTS_ID;
+      button.type = 'button';
+      button.setAttribute('aria-label', 'Show fewer comments');
+      button.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m18 15-6-6-6 6"/>
+        </svg>
+        <span>Load less</span>
+      `;
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        collapseCommentsToPreview();
+      });
+      document.body?.appendChild(button);
+    }
+
+    if (document.body && button.parentElement !== document.body) {
+      document.body.appendChild(button);
+    }
+
+    const dark = isDarkTheme();
+    setImportantStyles(button, {
+      appearance: 'none',
+      position: 'fixed',
+      top: 'auto',
+      right: 'auto',
+      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${ORION_NAV_GAP} + 70px)`,
+      left: '50%',
+      'z-index': '2147483645',
+      'min-height': '42px',
+      margin: '0',
+      padding: '11px 18px',
+      'align-items': 'center',
+      'justify-content': 'center',
+      gap: '6px',
+      color: dark ? '#f1f1f1' : '#0f0f0f',
+      background: dark ? 'rgba(28, 28, 28, .92)' : 'rgba(255, 255, 255, .94)',
+      border: dark
+        ? '1px solid rgba(255, 255, 255, .16)'
+        : '1px solid rgba(0, 0, 0, .12)',
+      'border-radius': '999px',
+      'box-shadow': dark
+        ? '0 6px 18px rgba(0, 0, 0, .35)'
+        : '0 6px 18px rgba(0, 0, 0, .16)',
+      'font-family': '"SF Pro Text", Roboto, system-ui, sans-serif',
+      'font-size': '14px',
+      'font-weight': '600',
+      'line-height': '1',
+      cursor: 'pointer',
+      'pointer-events': 'auto',
+      'touch-action': 'manipulation',
+      transform: 'translate3d(-50%, 0, 0)',
+      '-webkit-transform': 'translate3d(-50%, 0, 0)',
+      '-webkit-backdrop-filter': 'saturate(1.3) blur(16px)',
+      'backdrop-filter': 'saturate(1.3) blur(16px)',
+    });
+    return button;
+  }
+
+  function ensureLoadMoreCommentsButton(commentsRoot) {
+    let button = document.getElementById(LOAD_MORE_COMMENTS_ID);
+    if (!button) {
+      button = document.createElement('button');
+      button.id = LOAD_MORE_COMMENTS_ID;
+      button.type = 'button';
+      button.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+        <span>Load more</span>
+      `;
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const root = findCommentsRoot();
+        commentUiState.visibleCount += COMMENT_LOAD_STEP;
+        const threads = getTopLevelCommentThreads(root);
+        if (commentUiState.visibleCount > threads.length) {
+          const continuation = findNativeCommentContinuation(root);
+          if (continuation instanceof HTMLElement) {
+            const clickable =
+              continuation.matches('button, [role="button"], tp-yt-paper-button')
+                ? continuation
+                : continuation.querySelector(
+                    'button, tp-yt-paper-button, [role="button"]'
+                  );
+            (clickable || continuation).click();
+          }
+        }
+        limitVisibleComments();
+      });
+    }
+
+    setImportantStyles(button, {
+      appearance: 'none',
+      width: 'calc(100% - 24px)',
+      'min-height': '46px',
+      margin: '10px 12px 16px',
+      padding: '12px 16px',
+      'align-items': 'center',
+      'justify-content': 'center',
+      gap: '8px',
+      color: 'inherit',
+      background: 'rgba(127, 127, 127, .14)',
+      border: '1px solid rgba(127, 127, 127, .24)',
+      'border-radius': '999px',
+      'font-family': '"SF Pro Text", Roboto, system-ui, sans-serif',
+      'font-size': '14px',
+      'font-weight': '600',
+      'line-height': '1',
+      cursor: 'pointer',
+      'touch-action': 'manipulation',
+    });
+
+    const contents =
+      commentsRoot.querySelector('#contents') ||
+      commentsRoot.querySelector('ytd-item-section-renderer #contents') ||
+      commentsRoot;
+    if (button.parentElement !== contents) {
+      contents.appendChild(button);
+    }
+    return button;
+  }
+
+  function limitVisibleComments() {
+    const loadMoreExisting = document.getElementById(LOAD_MORE_COMMENTS_ID);
+    const loadLessExisting = document.getElementById(LOAD_LESS_COMMENTS_ID);
+    if (location.pathname !== '/watch') {
+      loadMoreExisting?.remove();
+      loadLessExisting?.remove();
+      return;
+    }
+
+    const commentsRoot = findCommentsRoot();
+    if (!commentsRoot) {
+      loadMoreExisting?.remove();
+      loadLessExisting?.remove();
+      return;
+    }
+
+    const videoId = getWatchVideoId();
+    if (videoId && videoId !== commentUiState.videoId) {
+      commentUiState.videoId = videoId;
+      commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
+    }
+
+    const threads = getTopLevelCommentThreads(commentsRoot);
+    const visibleCount = Math.max(
+      COMMENT_PREVIEW_COUNT,
+      commentUiState.visibleCount
+    );
+    const isExpanded = visibleCount > COMMENT_PREVIEW_COUNT;
+
+    threads.forEach((thread, index) => {
+      if (index >= visibleCount) {
+        thread.dataset.vmCommentHidden = 'true';
+        setImportantStyles(thread, { display: 'none' });
+      } else {
+        delete thread.dataset.vmCommentHidden;
+        thread.style.removeProperty('display');
+      }
+    });
+
+    const continuationItems = commentsRoot.querySelectorAll(
+      'ytd-continuation-item-renderer'
+    );
+    const hasMoreLoaded = threads.length > visibleCount;
+    const hasContinuation = continuationItems.length > 0;
+    const shouldShowLoadMore = hasMoreLoaded || hasContinuation;
+
+    for (const item of continuationItems) {
+      item.dataset.vmContinuationHidden = 'true';
+      setImportantStyles(item, { display: 'none' });
+    }
+
+    const moreButton = ensureLoadMoreCommentsButton(commentsRoot);
+    const moreLabel = moreButton.querySelector('span');
+    if (shouldShowLoadMore) {
+      moreButton.hidden = false;
+      setImportantStyles(moreButton, { display: 'flex' });
+      if (moreLabel) {
+        const remaining = threads.length - visibleCount;
+        moreLabel.textContent =
+          remaining > 0 ? `Load more (${remaining}+)` : 'Load more';
+      }
+    } else {
+      moreButton.hidden = true;
+      setImportantStyles(moreButton, { display: 'none' });
+    }
+
+    const lessButton = ensureLoadLessCommentsButton();
+    if (isExpanded) {
+      lessButton.hidden = false;
+      setImportantStyles(lessButton, { display: 'flex' });
+    } else {
+      lessButton.hidden = true;
+      setImportantStyles(lessButton, { display: 'none' });
+    }
+  }
+
+  function arrangeWatchComments() {
+    positionCommentsBelowDescription();
+    limitVisibleComments();
+  }
+
+  function hideAskGeminiControls() {
+    const roots = document.querySelectorAll(
+      '#movie_player, ytd-player, ytd-watch-metadata'
+    );
+    for (const root of roots) {
+      const candidates = root.querySelectorAll(
+        'button, [role="button"], yt-button-view-model, button-view-model'
+      );
+      for (const candidate of candidates) {
+        const label = [
+          candidate.getAttribute('aria-label'),
+          candidate.getAttribute('title'),
+          candidate.textContent,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!/^ask(?:\s+gemini|\s+about|\s*$)/i.test(label)) continue;
+
+        const control =
+          candidate.closest(
+            '.ytp-fullscreen-quick-action, yt-button-view-model, button-view-model'
+          ) || candidate;
+        setImportantStyles(control, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+        });
+        control.setAttribute('aria-hidden', 'true');
+        control.hidden = true;
+      }
+    }
+  }
+
+  function showWelcomeOnce() {
+    if (!document.body || document.getElementById(WELCOME_ID)) return;
+
+    const memoryFlag = '__vmYtWelcomeShown';
+    try {
+      if (localStorage.getItem(WELCOME_KEY) === '1') return;
+      localStorage.setItem(WELCOME_KEY, '1');
+    } catch {
+      if (window[memoryFlag]) return;
+      window[memoryFlag] = true;
+    }
+
+    const welcome = document.createElement('div');
+    welcome.id = WELCOME_ID;
+    welcome.setAttribute('role', 'status');
+    welcome.setAttribute('aria-live', 'polite');
+    welcome.textContent = 'Welcome to Fuck YouTube Premium';
+    setImportantStyles(welcome, {
+      'box-sizing': 'border-box',
+      position: 'fixed',
+      top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
+      left: '50%',
+      'z-index': '2147483647',
+      width: 'min(calc(100% - 32px), 352px)',
+      margin: '0',
+      padding: '14px 18px',
+      color: '#ffffff',
+      background: 'rgba(15, 15, 15, .96)',
+      border: '1px solid rgba(255, 255, 255, .18)',
+      'border-radius': '14px',
+      'box-shadow': '0 8px 24px rgba(0, 0, 0, .28)',
+      'font-family': 'Roboto, Arial, sans-serif',
+      'font-size': '16px',
+      'font-weight': '600',
+      'line-height': '1.3',
+      'text-align': 'center',
+      transform: 'translateX(-50%)',
+      opacity: '1',
+    });
+    document.body.appendChild(welcome);
+
+    let dismissed = false;
+    const dismiss = () => {
+      if (dismissed) return;
+      dismissed = true;
+      welcome.dataset.hiding = 'true';
+      welcome.style.setProperty('opacity', '0', 'important');
+      welcome.style.setProperty(
+        'transform',
+        'translate(-50%, -8px)',
+        'important'
+      );
+      setTimeout(() => welcome.remove(), 240);
+    };
+    welcome.addEventListener('click', dismiss, { once: true });
+    setTimeout(dismiss, 4200);
+  }
+
+  function updateMobileNavigation() {
+    const nav = document.getElementById(NAV_ID);
+    if (!nav) return;
+    applyCriticalNavigationLayout(nav);
+    const inactiveColor = isDarkTheme() ? '#f1f1f1' : '#0f0f0f';
+    for (const link of nav.querySelectorAll('.vm-yt-nav-item')) {
+      const item = MOBILE_NAV_ITEMS[Number(link.dataset.index)];
+      const isActive = Boolean(item?.active(location.pathname));
+      const isCreate = item?.create === true;
+      link.dataset.active = String(isActive);
+      link.style.setProperty(
+        'color',
+        isActive && !isCreate ? '#ff0033' : inactiveColor,
+        'important'
+      );
+      link.style.setProperty('background', 'transparent', 'important');
+      if (item) {
+        if (isActive) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      }
+    }
+  }
+
+  function buildNavItem(item, index) {
+    const link = document.createElement('a');
+    link.className = 'vm-yt-nav-item';
+    link.href = item.href;
+    link.dataset.index = String(index);
+    link.dataset.id = item.id;
+    if (item.create) link.dataset.create = 'true';
+    link.setAttribute('aria-label', item.label);
+    link.innerHTML = `
+      <span class="vm-yt-nav-icon-wrap">
+        <svg class="vm-yt-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+          ${item.icon}
+        </svg>
+      </span>
+      <span class="vm-yt-nav-label">${item.label}</span>
+    `;
+    return link;
+  }
+
+  function ensureMobileNavigation() {
+    // Burger / guide drawer is the only nav — never reinject the floating pill.
+    removeFloatingPillNav();
+  }
+
+  function markSubscribeButtons(root = document) {
+    const candidates = root.querySelectorAll?.([
+      'ytm-subscribe-button-renderer button',
+      'yt-subscribe-button-view-model button',
+      'ytd-subscribe-button-renderer button',
+      'ytd-subscribe-button-renderer tp-yt-paper-button',
+      'ytd-subscribe-button-renderer [role="button"]',
+      'button[aria-label*="Subscribe"]',
+      'button[aria-label*="subscribe"]',
+      '[role="button"][aria-label*="Subscribe"]',
+      '[role="button"][aria-label*="subscribe"]',
+    ].join(',')) || [];
+
+    for (const button of candidates) {
+      const owner = button.closest(
+        'ytm-subscribe-button-renderer, yt-subscribe-button-view-model, ' +
+          'ytd-subscribe-button-renderer'
+      );
+      const label = [
+        button.getAttribute('aria-label'),
+        button.textContent,
+        owner?.getAttribute('aria-label'),
+        owner?.textContent,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      const alreadySubscribed =
+        button.getAttribute('aria-pressed') === 'true' ||
+        owner?.hasAttribute('subscribed') ||
+        owner?.getAttribute('subscribed') === 'true' ||
+        label.includes('subscribed') ||
+        label.includes('unsubscribe');
+      const isSubscribeAction =
+        !alreadySubscribed &&
+        /(^|\s)subscribe(?:\s|$| to )/.test(label);
+
+      if (isSubscribeAction) {
+        if (!button.dataset.vmSubscribeOriginalStyle) {
+          button.dataset.vmSubscribeOriginalStyle = JSON.stringify(
+            [
+              'color',
+              'background',
+              'background-color',
+              'background-image',
+              'border',
+              'border-color',
+              'box-shadow',
+              '--yt-spec-brand-button-background',
+              '--yt-spec-static-brand-red',
+            ].map((property) => [
+              property,
+              button.style.getPropertyValue(property),
+              button.style.getPropertyPriority(property),
+            ])
+          );
+        }
+        button.dataset.vmSubscribeAction = 'true';
+        owner?.setAttribute('data-vm-subscribe-action', 'true');
+        setImportantStyles(button, {
+          color: '#ffffff',
+          background: '#ff0033',
+          'background-color': '#ff0033',
+          'background-image': 'none',
+          border: '1px solid #ff0033',
+          'border-color': '#ff0033',
+          'box-shadow': 'none',
+          '--yt-spec-brand-button-background': '#ff0033',
+          '--yt-spec-static-brand-red': '#ff0033',
+        });
+        for (const child of button.querySelectorAll(
+          'span, .yt-spec-button-shape-next__button-text-content'
+        )) {
+          child.style.setProperty('color', '#ffffff', 'important');
+        }
+      } else {
+        delete button.dataset.vmSubscribeAction;
+        owner?.removeAttribute('data-vm-subscribe-action');
+        for (const child of button.querySelectorAll(
+          'span, .yt-spec-button-shape-next__button-text-content'
+        )) {
+          child.style.removeProperty('color');
+        }
+        if (button.dataset.vmSubscribeOriginalStyle) {
+          try {
+            const originalStyles = JSON.parse(
+              button.dataset.vmSubscribeOriginalStyle
+            );
+            for (const [property, value, priority] of originalStyles) {
+              if (value) button.style.setProperty(property, value, priority);
+              else button.style.removeProperty(property);
+            }
+          } catch {
+            // A YouTube rerender will restore the native style.
+          }
+          delete button.dataset.vmSubscribeOriginalStyle;
+        }
+      }
+    }
+  }
+
+  function findNativeCommentAction(comment, selectors) {
+    return [...comment.querySelectorAll(selectors)].find(
+      (element) => !element.closest('.vm-yt-comment-actions')
+    );
+  }
+
+  function enhanceComments(root = document) {
+    const comments = [
+      ...root.querySelectorAll?.('ytd-comment-view-model') || [],
+      ...[...root.querySelectorAll?.('ytd-comment-renderer') || []].filter(
+        (comment) => !comment.querySelector('ytd-comment-view-model')
+      ),
+    ];
+
+    for (const comment of comments) {
+      if (comment.dataset.vmCommentEnhanced === 'true') continue;
+
+      const likeSelectors = [
+        '#like-button button',
+        'like-button-view-model button',
+        'button[aria-label^="Like"]',
+        '[role="button"][aria-label^="Like"]',
+      ].join(',');
+      const replySelectors = [
+        '#reply-button-end button',
+        'ytd-button-renderer#reply-button button',
+        'button[aria-label^="Reply"]',
+        '[role="button"][aria-label^="Reply"]',
+      ].join(',');
+      if (
+        !findNativeCommentAction(comment, likeSelectors) &&
+        !findNativeCommentAction(comment, replySelectors)
+      ) {
+        continue;
+      }
+
+      comment.dataset.vmCommentEnhanced = 'true';
+      setImportantStyles(comment, {
+        'box-sizing': 'border-box',
+        width: '100%',
+        'min-width': '0',
+        'max-width': '100%',
+        padding: '12px 10px',
+        'border-bottom': '1px solid rgba(127, 127, 127, .2)',
+        'touch-action': 'manipulation',
+      });
+
+      for (const toolbar of comment.querySelectorAll('#toolbar')) {
+        setImportantStyles(toolbar, {
+          display: 'none',
+          visibility: 'hidden',
+        });
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'vm-yt-comment-actions';
+      setImportantStyles(actions, {
+        'box-sizing': 'border-box',
+        display: 'flex',
+        width: '100%',
+        'margin-top': '8px',
+        gap: '8px',
+      });
+
+      const createAction = (label, icon) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'vm-yt-comment-action';
+        button.setAttribute('aria-label', `${label} this comment`);
+        button.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>
+          <span>${label}</span>
+        `;
+        setImportantStyles(button, {
+          appearance: 'none',
+          display: 'inline-flex',
+          flex: '1 1 50%',
+          'min-width': '0',
+          'min-height': '44px',
+          padding: '10px 12px',
+          'align-items': 'center',
+          'justify-content': 'center',
+          gap: '6px',
+          color: 'inherit',
+          background: 'rgba(127, 127, 127, .12)',
+          border: '1px solid rgba(127, 127, 127, .22)',
+          'border-radius': '12px',
+          'font-family': 'Roboto, Arial, sans-serif',
+          'font-size': '14px',
+          'font-weight': '600',
+          'line-height': '1',
+          'touch-action': 'manipulation',
+        });
+        return button;
+      };
+
+      const like = createAction(
+        'Like',
+        '<path d="M7 10v11H3V10h4Zm0 9h10.2a2 2 0 0 0 1.9-1.4l1.7-5.5A2 2 0 0 0 18.9 9H14l.7-3.2A2.8 2.8 0 0 0 12 2.5L7 10Z"/>'
+      );
+      const reply = createAction(
+        'Reply',
+        '<path d="M9 17 4 12l5-5v3h5a6 6 0 0 1 6 6v3a7 7 0 0 0-6-6H9v4Z"/>'
+      );
+
+      const syncLikeState = () => {
+        const nativeLike = findNativeCommentAction(comment, likeSelectors);
+        const pressed = Boolean(
+          nativeLike?.getAttribute('aria-pressed') === 'true' ||
+          nativeLike?.closest('[aria-pressed="true"]')
+        );
+        like.dataset.pressed = String(pressed);
+        like.querySelector('span').textContent = pressed ? 'Liked' : 'Like';
+        like.style.setProperty(
+          'color',
+          pressed ? '#ff0033' : 'inherit',
+          'important'
+        );
+      };
+
+      like.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        findNativeCommentAction(comment, likeSelectors)?.click();
+        setTimeout(syncLikeState, 50);
+        setTimeout(syncLikeState, 350);
+      });
+
+      reply.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const nativeReply = findNativeCommentAction(comment, replySelectors);
+        nativeReply?.click();
+        setTimeout(() => {
+          const editor = comment.querySelector(
+            'ytd-commentbox textarea, #contenteditable-root, [contenteditable="true"]'
+          );
+          editor?.focus();
+          editor?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 120);
+      });
+
+      actions.append(like, reply);
+      const actionHost =
+        comment.querySelector('#body, #main, #content') || comment;
+      actionHost.appendChild(actions);
+      syncLikeState();
+    }
+  }
+
+  function ensureViewport() {
+    if (!document.head) return;
+    let viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) {
+      viewport = document.createElement('meta');
+      viewport.name = 'viewport';
+      document.head.appendChild(viewport);
+    }
+    viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+  }
+
+  function findLogoAnchor() {
+    const selectors = [
+      'ytm-mobile-topbar-renderer ytm-topbar-logo-renderer',
+      'ytm-mobile-topbar-renderer a[href="/"]',
+      'ytm-mobile-topbar-renderer a[aria-label*="YouTube"]',
+      'ytm-mobile-topbar-renderer .mobile-topbar-logo',
+      'ytm-topbar-logo-renderer',
+      'header a[href="/"]',
+      'header a[aria-label*="YouTube"]',
+      'a#logo',
+    ];
+    for (const selector of selectors) {
+      const match = document.querySelector(selector);
+      if (match) return match.closest('a') || match;
+    }
+    return null;
+  }
+
+  function positionStatusDot(dot) {
+    const logo = findLogoAnchor();
+    if (logo?.parentElement) {
+      if (dot.previousElementSibling !== logo) {
+        logo.insertAdjacentElement('afterend', dot);
+      }
+      setImportantStyles(dot, {
+        position: 'relative',
+        top: 'auto',
+        right: 'auto',
+        bottom: 'auto',
+        left: 'auto',
+      });
+      return;
+    }
+
+    if (document.body && dot.parentElement !== document.body) {
+      document.body.appendChild(dot);
+    }
+    setImportantStyles(dot, {
+      position: 'fixed',
+      top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+      right: '12px',
+      bottom: 'auto',
+      left: 'auto',
+    });
+  }
+
+  function ensureStatusDot() {
+    injectStyle();
+    const existingDot = document.getElementById(DOT_ID);
+    if (existingDot) {
+      positionStatusDot(existingDot);
+      updateDot();
+      return;
+    }
+    if (!document.body) return;
+
+    const dot = document.createElement('button');
+    dot.id = DOT_ID;
+    dot.type = 'button';
+    dot.dataset.playerState = 'waiting';
+    dot.innerHTML = '<span class="vm-yt-status-light" aria-hidden="true"></span>';
+    setImportantStyles(dot, {
+      appearance: 'none',
+      position: 'relative',
+      display: 'inline-flex',
+      flex: '0 0 auto',
+      width: '24px',
+      height: '28px',
+      margin: '0 0 0 2px',
+      padding: '0',
+      border: '0',
+      background: 'transparent',
+      'align-items': 'center',
+      'justify-content': 'center',
+      'vertical-align': 'middle',
+      'z-index': '2147483647',
+    });
+    dot.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const video = state.video || findVideo();
+      if (video) {
+        attachVideo(video);
+        requestPiP(video);
+      }
+    });
+    document.body.appendChild(dot);
+    positionStatusDot(dot);
+    updateDot();
+  }
+
+  function scanPage() {
+    ensureViewport();
+    if (location.pathname.startsWith('/shorts')) {
+      location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
+      return;
+    }
+    applyMobileShell();
+    ensureGuideButtonVisible();
+    hideUploadControls();
+    dismissMiniplayer();
+    removeFloatingPillNav();
+    ensureStatusDot();
+    showWelcomeOnce();
+    markSubscribeButtons();
+    hideAskGeminiControls();
+    arrangeWatchComments();
+    enhanceComments();
+    removeAdCards();
+    const video = findVideo();
+    if (video) attachVideo(video);
+  }
+
+  nativeDocumentAddEventListener('visibilitychange', () => {
+    if (isReallyHidden()) prepareForBackground();
+  }, true);
+  nativeDocumentAddEventListener('webkitvisibilitychange', () => {
+    if (isReallyHidden()) prepareForBackground();
+  }, true);
+  nativeDocumentAddEventListener('freeze', prepareForBackground, true);
+  nativeDocumentAddEventListener('yt-navigate-finish', () => {
+    if (location.pathname.startsWith('/shorts')) {
+      location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
+      return;
+    }
+    commentUiState.videoId = getWatchVideoId();
+    commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
+    removeFloatingPillNav();
+    updateMobileNavigation();
+    hideNativeNavigationAndShorts();
+    ensureGuideButtonVisible();
+    hideUploadControls();
+    dismissMiniplayer();
+    arrangeWatchComments();
+    enhanceComments();
+  }, true);
+  nativeDocumentAddEventListener(
+    'PointerEvent' in window ? 'pointerdown' : 'touchstart',
+    recordPlayerControlIntent,
+    { capture: true, passive: true }
+  );
+  nativeWindowAddEventListener('blur', () => {
+    if (state.video && !state.video.paused) prepareForBackground();
+  }, true);
+  nativeWindowAddEventListener('pagehide', prepareForBackground, true);
+  nativeWindowAddEventListener('popstate', () => {
+    removeFloatingPillNav();
+    dismissMiniplayer();
+    updateMobileNavigation();
+  }, true);
+
+  injectStyle();
+  applyMobileShell();
+
+  if (document.readyState === 'loading') {
+    nativeDocumentAddEventListener('DOMContentLoaded', scanPage, { once: true });
+  } else {
+    scanPage();
+  }
+
+  let scanQueued = false;
+  const observer = new MutationObserver(() => {
+    if (scanQueued) return;
+    scanQueued = true;
+    setTimeout(() => {
+      scanQueued = false;
+      scanPage();
+    }, 500);
+  });
+  observer.observe(document.documentElement || document, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Player ads change quickly, so poll only the small set of player controls here.
+  setInterval(skipPlayerAd, 300);
+  setInterval(() => {
+    markSubscribeButtons();
+    hideAskGeminiControls();
+    ensureGuideButtonVisible();
+    hideUploadControls();
+    hideNativeNavigationAndShorts();
+    dismissMiniplayer();
+    removeFloatingPillNav();
+    hideShortsGuideEntries(document);
+    for (const video of document.querySelectorAll('video')) {
+      enforceInlinePlayback(video);
+    }
+    if (state.video && !state.video.paused) {
+      exitAccidentalFullscreen(state.video);
+    }
+    if (location.pathname === '/watch') arrangeWatchComments();
+  }, 1200);
+  setInterval(updateDot, 1500);
+})();

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 2,
+  "name": "Fuck YouTube Premium",
+  "version": "2.0.7",
+  "description": "Desktop YouTube for Orion: inline play, mobile layout, burger navigation, no Shorts or miniplayer.",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "https://www.youtube.com/*",
+    "https://youtube.com/*",
+    "https://m.youtube.com/*",
+    "https://youtu.be/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://youtu.be/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    "page.js"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "youtube-mobile-orion@userscript.addon",
+      "strict_min_version": "78.0"
+    }
+  },
+  "applications": {
+    "gecko": {
+      "id": "youtube-mobile-orion@userscript.addon",
+      "strict_min_version": "78.0"
+    }
+  }
+}
