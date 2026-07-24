@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.0.16
+
+- Fixed: YouTube recommendations now appear before native comments, and the extension no longer force-opens the comment section, preventing its loader from blocking recommended videos.
+- Fixed: Comment and reply editors use a 16px minimum font so focusing them does not zoom the page on iPhone.
+- Changed: Player controls remain visible for eight seconds after a user interaction, then YouTube’s normal autohide resumes; autonomous playback events no longer restart the timer.
+- Fixed: When YouTube’s custom caption layer is present, Orion’s duplicate native WebVTT cue is hidden so closed captions appear once.
+- Notes: No playback semantics, inline/fullscreen/PiP handling, background audio, navigation, Shorts, miniplayer, ads, or extension-menu layout changed.
+
 ## v2.0.15
 
 - Removed: The custom first-three comment limiter and its **Show more**/**Show fewer** controls; YouTube’s complete native comment list remains below the description.

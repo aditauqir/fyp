@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.15');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.16');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -11,8 +11,8 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v215-comments-controls';
-  const PLAYER_CONTROLS_VISIBLE_MS = 4000;
+  const NAV_LAYOUT_VERSION = 'ext-v216-comments-after-recommendations';
+  const PLAYER_CONTROLS_VISIBLE_MS = 8000;
   /*
    * Orion's floating address bar overlays the bottom of the page (like Safari).
    * Keep floating controls above that chrome so they stay tappable.
@@ -327,7 +327,6 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
-    holdPlayerControlsVisible();
   }
 
   function onVideoPause() {
@@ -348,6 +347,13 @@
   function recordPlayerControlIntent(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (
+      target.closest(
+        '#movie_player, .html5-video-player, .html5-video-container'
+      )
+    ) {
+      holdPlayerControlsVisible();
+    }
     const control = target.closest([
       '.ytp-play-button',
       'button[aria-label^="Pause"]',
@@ -356,7 +362,6 @@
       'button[data-title-no-tooltip="Play"]',
     ].join(','));
     if (!control) return;
-    holdPlayerControlsVisible();
 
     const video = state.video || findVideo();
     if (!video) return;
@@ -977,13 +982,23 @@
         touch-action: manipulation;
       }
 
+      ytd-commentbox textarea,
+      ytd-commentbox input,
+      ytd-commentbox #contenteditable-root,
+      ytd-commentbox [contenteditable='true'],
+      ytd-comment-replies-renderer textarea,
+      ytd-comment-replies-renderer input,
+      ytd-comment-replies-renderer #contenteditable-root,
+      ytd-comment-replies-renderer [contenteditable='true'] {
+        font-size: 16px !important;
+      }
+
       ytd-comments#comments,
       ytd-comments {
-        display: block !important;
         width: 100% !important;
         max-width: 100% !important;
         margin: clamp(.35rem, 1.5vw, .75rem) 0 0 !important;
-        order: 2 !important;
+        order: 3 !important;
       }
 
       .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-bottom,
@@ -1003,6 +1018,21 @@
       .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-bottom,
       .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-top {
         pointer-events: none !important;
+      }
+
+      /*
+       * Orion/WebKit may render the native WebVTT cue at the same time as
+       * YouTube's custom caption DOM. Hide only the native cue while a custom
+       * YouTube caption segment exists, leaving YouTube's caption layer intact.
+       */
+      .html5-video-player:has(
+        .ytp-caption-window-container .ytp-caption-segment
+      ) video::cue {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        color: transparent !important;
+        background: transparent !important;
+        text-shadow: none !important;
       }
 
       @media (hover: none) {
@@ -1601,61 +1631,7 @@
     );
   }
 
-  function expandCommentsSection(watch, comments) {
-    if (!comments) return;
-
-    comments.removeAttribute('hidden');
-    comments.removeAttribute('aria-hidden');
-    setImportantStyles(comments, {
-      display: 'block',
-      visibility: 'visible',
-      height: 'auto',
-      'max-height': 'none',
-      opacity: '1',
-      'pointer-events': 'auto',
-    });
-
-    // Expand common collapsed comment entry points / teasers.
-    const teasers = watch?.querySelectorAll?.(
-      [
-        '#comment-teaser',
-        'ytd-comments-entry-point-header-renderer',
-        'ytd-watch-metadata #comments-button',
-        'ytd-watch-metadata button[aria-label*="comment"]',
-        'ytd-watch-metadata button[aria-label*="Comment"]',
-        '#comments-button',
-        'tp-yt-paper-button[aria-label*="comment"]',
-        'tp-yt-paper-button[aria-label*="Comment"]',
-      ].join(',')
-    ) || [];
-
-    for (const teaser of teasers) {
-      if (!(teaser instanceof HTMLElement)) continue;
-      if (teaser.dataset.vmCommentsOpened === '1') continue;
-      teaser.dataset.vmCommentsOpened = '1';
-      try {
-        teaser.click();
-      } catch {
-        // Opening the teaser is best-effort.
-      }
-    }
-
-    // Engagement panel comments (some layouts park comments there).
-    const panel = watch?.querySelector?.(
-      'ytd-engagement-panel-section-list-renderer[target-id*="comment"], ' +
-        'ytd-engagement-panel-section-list-renderer[target-id*="comments"]'
-    );
-    if (panel) {
-      panel.removeAttribute('visibility');
-      panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
-      setImportantStyles(panel, {
-        display: 'block',
-        visibility: 'visible',
-      });
-    }
-  }
-
-  function positionCommentsBelowDescription() {
+  function positionCommentsAfterRecommendations() {
     if (location.pathname !== '/watch') return;
 
     const watch = document.querySelector('ytd-watch-flexy');
@@ -1683,9 +1659,7 @@
         'ytd-watch-metadata, ytd-video-primary-info-renderer, ytd-video-secondary-info-renderer'
       );
 
-    let comments = findCommentsRoot();
-    expandCommentsSection(watch, comments);
-    comments = findCommentsRoot();
+    const comments = findCommentsRoot();
     if (!descriptionBlock || !comments) return;
 
     if (descriptionBlock.parentElement !== below) {
@@ -1699,48 +1673,48 @@
       'min-width': '0',
     });
     setImportantStyles(descriptionBlock, { order: '1' });
+
+    // Recommendations must stay before comments so a comment loader cannot
+    // block access to YouTube's related-video feed.
+    const recommendations =
+      watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+      watch.querySelector('#secondary');
+    let insertionAnchor = descriptionBlock;
+    if (recommendations && !recommendations.contains(comments)) {
+      setImportantStyles(recommendations, {
+        order: '2',
+        width: '100%',
+        'max-width': '100%',
+        'margin-left': '0',
+      });
+      if (
+        recommendations.parentElement !== below ||
+        descriptionBlock.nextElementSibling !== recommendations
+      ) {
+        descriptionBlock.insertAdjacentElement('afterend', recommendations);
+      }
+      insertionAnchor = recommendations;
+    }
+
     setImportantStyles(comments, {
-      order: '2',
-      display: 'block',
-      visibility: 'visible',
+      order: '3',
       width: '100%',
       'min-width': '0',
       'max-width': '100%',
       margin: '8px 0 0',
     });
-
-    if (comments.parentElement !== below) {
-      descriptionBlock.insertAdjacentElement('afterend', comments);
-    } else if (descriptionBlock.nextElementSibling !== comments) {
-      descriptionBlock.insertAdjacentElement('afterend', comments);
-    }
-
-    // Push related / secondary content after comments.
-    const related =
-      watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
-      watch.querySelector('#secondary');
-    if (related && related !== comments) {
-      setImportantStyles(related, {
-        order: '3',
-        width: '100%',
-        'max-width': '100%',
-        'margin-left': '0',
-      });
-      if (related.parentElement === below && comments.nextElementSibling !== related) {
-        comments.insertAdjacentElement('afterend', related);
-      } else if (
-        related.parentElement !== below &&
-        related.matches('ytd-watch-next-secondary-results-renderer')
-      ) {
-        comments.insertAdjacentElement('afterend', related);
-      }
+    if (
+      comments.parentElement !== below ||
+      insertionAnchor.nextElementSibling !== comments
+    ) {
+      insertionAnchor.insertAdjacentElement('afterend', comments);
     }
 
     for (const sibling of below.children) {
       if (
         sibling === descriptionBlock ||
         sibling === comments ||
-        sibling === related
+        sibling === recommendations
       ) {
         continue;
       }
@@ -1766,7 +1740,7 @@
   }
 
   function arrangeWatchComments() {
-    positionCommentsBelowDescription();
+    positionCommentsAfterRecommendations();
     removeLegacyCommentPagination();
   }
 

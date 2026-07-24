@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.0.15`
+**Current shipped version:** `2.0.16`
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -48,8 +48,10 @@ flowchart TD
 | Drawer state | Leave YouTube’s drawer attributes and Polymer properties alone. |
 | Shorts | Hide Shorts links, shelves, and drawer entries; redirect `/shorts` to Home. |
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
-| Comments | Place YouTube’s complete native comment list below the description; do not add custom limiting or pagination controls. |
-| Player controls | Keep controls visible for four seconds after Play, then return autohide ownership to YouTube. |
+| Comments | Order the watch page as description, recommendations, then YouTube’s native comments. Do not force-open or custom-paginate comments. |
+| Reply editor | Use a 16px minimum editor font to avoid iOS focus zoom. |
+| Player controls | Keep controls visible for eight seconds after user interaction, then return autohide ownership to YouTube. |
+| Captions | Keep YouTube’s custom captions and hide only the duplicate native WebVTT cue when both layers exist. |
 | Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
 | Ads | Expect uBlock Origin to handle network ad blocking. |
 
@@ -87,7 +89,7 @@ The page runtime owns:
 - inline and background playback behavior;
 - mobile breakpoint CSS;
 - Shorts, miniplayer, upload, and navigation cleanup;
-- comments placement and four-second player-control visibility;
+- recommendations-before-comments placement, reply focus sizing, eight-second player controls, and caption deduplication;
 - repeated DOM reconciliation after YouTube SPA navigation.
 
 Never edit `chrome-extension/page.js` or `firefox-extension/page.js` directly. They are generated files.
@@ -216,8 +218,8 @@ Required edit flow:
 
 Current package names:
 
-- `fuck-youtube-premium-chrome-2.0.15.zip`
-- `fuck-youtube-premium-firefox-2.0.15.zip`
+- `fuck-youtube-premium-chrome-2.0.16.zip`
+- `fuck-youtube-premium-firefox-2.0.16.zip`
 
 ## Verification contract
 
@@ -229,6 +231,7 @@ node tests/background-update.test.cjs
 node tests/content-fallback.test.cjs
 node tests/inline-playback-layout.test.cjs
 node tests/comments-layout.test.cjs
+node tests/captions-deduplication.test.cjs
 node tests/player-controls-delay.test.cjs
 git diff --check
 ```

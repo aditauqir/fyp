@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.15`** (2026-07-23)
+> **Current ship version: `2.0.16`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 >
@@ -40,8 +40,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.15.zip
-└── fuck-youtube-premium-firefox-2.0.15.zip
+├── fuck-youtube-premium-chrome-2.0.16.zip
+└── fuck-youtube-premium-firefox-2.0.16.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -82,12 +82,19 @@ In `youtube-mobile-background.user.js`:
 - `BACKEND_HOST = 'www.youtube.com'` — forces desktop host + `app=desktop&persist_app=1`.
 - `NAV_LAYOUT_VERSION` — bump when CSS/layout injection version must refresh (`style.dataset.layoutVersion`).
 - `ORION_NAV_GAP = '72px'` — bottom clearance for Orion’s floating URL bar.
-- `PLAYER_CONTROLS_VISIBLE_MS = 4000`.
+- `PLAYER_CONTROLS_VISIBLE_MS = 8000`.
 - Floating pill `#${NAV_ID}` is **intentionally removed** at runtime (`removeFloatingPillNav` / CSS `display:none`).
 
 ---
 
-## Latest changes (through 2.0.15)
+## Latest changes (through 2.0.16)
+
+### 2.0.16 — recommendations first + reply/caption/control polish
+- Places YouTube recommendations before native comments and removes forced comment expansion.
+- Sets comment/reply editors to 16px so iOS does not zoom on focus.
+- Holds controls for eight seconds from user interaction only; `play`/`playing` events do not refresh the timer.
+- Hides WebKit’s native `video::cue` only while YouTube’s custom caption segments exist.
+- Updates the global `fyp-comments-menu` skill with these contracts.
 
 ### 2.0.15 — native comments + four-second player controls
 - Removes custom comment limiting and pagination controls while keeping comments below the description.
@@ -258,9 +265,11 @@ After reinstall + hard refresh on Orion:
 3. [ ] No left mini-guide icon rail; no floating pill.
 4. [ ] One Play tap starts video inline with no presentation transition; tapping the fullscreen control still enters fullscreen.
 5. [ ] Leave video → no miniplayer on Home.
-6. [ ] Watch page: YouTube’s complete native comments remain below the description.
-7. [ ] Player controls remain visible for four seconds after Play.
-8. [ ] Feed/player not clipped at left/right edges.
+6. [ ] Watch page: recommendations appear before native comments.
+7. [ ] Replying to a comment does not zoom the page.
+8. [ ] Player controls hide eight seconds after the last player interaction.
+9. [ ] Captions appear once, using YouTube’s caption layer.
+10. [ ] Feed/player not clipped at left/right edges.
 
 ---
 

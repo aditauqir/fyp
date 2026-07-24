@@ -24,8 +24,21 @@ for (const removedPaginationFeature of [
 
 assert.doesNotMatch(source, /dataset\.vmCommentHidden =/);
 assert.doesNotMatch(source, /dataset\.vmContinuationHidden =/);
-assert.match(source, /function positionCommentsBelowDescription\(\)/);
-assert.match(source, /descriptionBlock\.insertAdjacentElement\('afterend', comments\)/);
+assert.match(source, /function positionCommentsAfterRecommendations\(\)/);
+assert.doesNotMatch(source, /function expandCommentsSection\(/);
+assert.doesNotMatch(
+  source,
+  /ytd-comments#comments,\s*ytd-comments\s*\{\s*display: block !important;/
+);
+assert.match(
+  source,
+  /setImportantStyles\(recommendations, \{\s*order: '2'/
+);
+assert.match(source, /setImportantStyles\(comments, \{\s*order: '3'/);
+assert.match(
+  source,
+  /insertionAnchor\.insertAdjacentElement\('afterend', comments\)/
+);
 assert.match(source, /function removeLegacyCommentPagination\(\)/);
 assert.match(
   source,
@@ -33,7 +46,11 @@ assert.match(
 );
 assert.match(
   source,
-  /function arrangeWatchComments\(\) \{\s*positionCommentsBelowDescription\(\);\s*removeLegacyCommentPagination\(\);/
+  /function arrangeWatchComments\(\) \{\s*positionCommentsAfterRecommendations\(\);\s*removeLegacyCommentPagination\(\);/
+);
+assert.match(
+  source,
+  /ytd-commentbox #contenteditable-root,[\s\S]*font-size: 16px !important;/
 );
 
-console.log('comments keep native list at bottom: ok');
+console.log('recommendations precede native comments without focus zoom: ok');

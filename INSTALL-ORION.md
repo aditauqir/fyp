@@ -1,16 +1,16 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.15
+# Install Fuck YouTube Premium on Orion iOS — v2.0.16
 
-Version **2.0.15** restores YouTube’s complete native comment list below the description and keeps player controls visible for four seconds after Play.
+Version **2.0.16** puts recommendations before native comments, prevents reply-editor focus zoom, keeps controls visible for eight seconds after interaction, and removes duplicate WebKit captions.
 
 ## Install this
 
 **Prefer Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.15.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.16.zip`
 
 Firefox fallback:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.15.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.16.zip`
 
 ## Steps
 
@@ -45,8 +45,10 @@ If an update is available, download the offered zip, uninstall the current exten
 - Watch content has a small mobile gutter and does not extend beyond either edge.
 - Home and recommendation feeds use a phone-friendly single column.
 - The extension icon opens a bottom-center panel with three priority changes and two large buttons.
-- Comments use YouTube’s complete native list below the description.
-- Player controls stay visible for four seconds after Play.
+- Recommendations appear before YouTube’s native comments.
+- Replying to a comment does not zoom the page.
+- Player controls hide eight seconds after the last player interaction.
+- Closed captions appear once.
 - uBlock Origin handles network ad blocking.
 
 If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
