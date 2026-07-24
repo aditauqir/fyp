@@ -25,14 +25,23 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Only one subtitle track stays active\./);
-assert.match(popup, /Authored English is preferred automatically\./);
-assert.match(popup, /Player controls remain for 10 seconds\./);
+assert.match(popup, /Toolbar buttons open again in Orion\./);
+assert.match(popup, /The Chrome package is preferred on iPhone\./);
+assert.match(popup, /Background play and 10-second controls remain\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
   popupScript,
+  /fuck-youtube-premium-chrome-\$\{latestVersion\}\.zip/
+);
+assert.match(
+  popupScript,
   /fuck-youtube-premium-orion-\$\{latestVersion\}\.xpi/
+);
+assert.ok(
+  popupScript.indexOf('fuck-youtube-premium-chrome-') <
+    popupScript.indexOf('fuck-youtube-premium-orion-'),
+  'Chrome package must be preferred before the XPI fallback'
 );
 assert.doesNotMatch(popupScript, /toggleActionCard/);
 assert.match(popupStyle, /left: 50%/);
@@ -43,6 +52,6 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
-assert.match(patchNotes, /## v2\.0\.19/);
+assert.match(patchNotes, /## v2\.0\.20/);
 
 console.log('bottom-center extension popup: ok');

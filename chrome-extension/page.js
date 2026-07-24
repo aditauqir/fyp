@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.19');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.20');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -11,7 +11,7 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v219-single-caption-track';
+  const NAV_LAYOUT_VERSION = 'ext-v220-toolbar-popup-package';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',

@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.0.20
+
+- Fixed: Orion’s toolbar action opens the packaged bottom-center popup again when the extension is installed from the recommended Chrome Manifest V3 zip.
+- Changed: Manual installs and in-extension update checks now prefer the Chrome zip; the Firefox zip and XPI remain available as fallback packages.
+- Changed: The popup’s three priority lines now identify the toolbar fix, the preferred iPhone package, and preserved background playback/control timing.
+- Added: The README demo now includes the supplied iPhone lock-screen screenshot showing background playback.
+- Notes: Player behavior, inline/fullscreen/PiP handling, background audio, captions, controls delay, comments, recommendations, search, navigation, Shorts, miniplayer, ads, and popup sizing are unchanged.
+
 ## v2.0.19
 
 - Fixed: Orion’s native subtitle menu can activate several TextTracks simultaneously; the extension now keeps exactly one caption/subtitle track active.

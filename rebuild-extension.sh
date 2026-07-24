@@ -128,12 +128,13 @@ with zipfile.ZipFile("$ORION_XPI") as archive:
     manifest = json.loads(archive.read("manifest.json"))
     assert manifest.get("manifest_version") == 2, manifest
     assert manifest.get("version") == "$VERSION", manifest
-print("Validated", "$ORION_XPI", "as Orion-first Firefox XPI")
+print("Validated", "$ORION_XPI", "as Firefox/XPI fallback")
 PY
 
 echo
-echo "Install on Orion iOS (prefer Orion XPI):"
-echo "  $ORION_XPI"
+echo "Install on Orion iOS (prefer Chrome zip for toolbar popup support):"
 echo "  $CH_ZIP"
+echo "Fallback packages:"
+echo "  $ORION_XPI"
 echo "  $FF_ZIP"
 ls -la "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"

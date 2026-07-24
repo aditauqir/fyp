@@ -105,14 +105,14 @@ function requestUpdate() {
   assert.equal(chromeUpdate.updateAvailable, true);
   assert.equal(
     chromeUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-orion-2.1.0.xpi'
+    'https://example.test/fuck-youtube-premium-chrome-2.1.0.zip'
   );
 
   manifestVersion = 2;
   const firefoxUpdate = await requestUpdate();
   assert.equal(
     firefoxUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-orion-2.1.0.xpi'
+    'https://example.test/fuck-youtube-premium-chrome-2.1.0.zip'
   );
 
   assert.equal(badgeCalls.at(-1)[0], 'text');

@@ -1,33 +1,33 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.19
+# Install Fuck YouTube Premium on Orion iOS — v2.0.20
 
-Version **2.0.19** enforces one subtitle track, prefers authored English with an auto-generated fallback, and keeps player controls visible for ten seconds.
+Version **2.0.20** restores the extension-icon popup by making the Chrome Manifest V3 package Orion’s primary installer. Subtitle normalization and the ten-second player-control delay remain unchanged.
 
 ## Install this
 
-**Prefer the Orion XPI:**
+**Prefer the Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.19.xpi`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.20.zip`
 
-Zip fallbacks:
+Fallback packages:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.19.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.20.xpi`
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.19.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.20.zip`
 
 ## Steps
 
-1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download the XPI from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
+1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download the Chrome zip from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
 2. Open Orion → Settings → Extensions and enable both **Chrome Extensions** and **Firefox Extensions**.
 3. **Uninstall** every older “YouTube Mobile for Orion” or “Fuck YouTube Premium” entry.
 4. In Orion’s Extensions screen, tap **+** → **Install from File**.
-5. Open **On My iPhone → Downloads** and select the Orion XPI.
+5. Open **On My iPhone → Downloads** and select the Chrome zip.
 6. Enable **Fuck YouTube Premium** in Orion.
 7. Install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) in Orion, then enable it.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
 9. Open `https://www.youtube.com`, open Orion’s website settings, and enable **Request Desktop Website**.
 10. Hard-refresh, or close the tab and reopen it.
 
-If the XPI does not install, repeat the same steps with the Chrome zip, then the Firefox zip.
+If the Chrome zip does not install after the local-file retries below, repeat the same steps with the Orion XPI, then the Firefox zip.
 
 **uBlock Origin is required.** Keep it enabled alongside this extension. uBlock Origin handles network ad blocking, while Fuck YouTube Premium handles Orion playback and the mobile-friendly YouTube layout. Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
@@ -41,7 +41,7 @@ If the XPI does not install, repeat the same steps with the Chrome zip, then the
 
 Tap the **Fuck YouTube Premium** extension icon and choose **Check for updates**. The extension also checks GitHub every six hours and shows an **UP** badge when a newer version exists. This provides “OTA” update detection and downloads.
 
-Orion’s extension policies do not allow a manually installed extension to replace itself silently. If an update is available, download the offered XPI, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new XPI from local device storage:
+Orion’s extension policies do not allow a manually installed extension to replace itself silently. If an update is available, download the offered Chrome zip, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new zip from local device storage:
 
 <p align="center">
   <img src="docs/images/orion-install-from-file.png" alt="Install from File option for a manual Fuck YouTube Premium OTA update" width="420">
@@ -74,6 +74,10 @@ If these changes are missing, confirm the extension is enabled and allowed on yo
 
 Orion may leave multiple subtitle tracks selected in its native **Languages** menu. Version 2.0.19 normalizes this to one track: authored English first, English auto-generated second, then the best remaining option. A language you deliberately select afterward replaces the default instead of being added alongside it.
 
+## If the extension icon does not open the buttons
+
+Uninstall the Firefox/XPI copy, then install `fuck-youtube-premium-chrome-2.0.20.zip`. The recommended Chrome Manifest V3 build uses Orion’s supported `action.default_popup` path and should show three changelog lines plus **Go to YouTube** and **Check for updates**. Re-enable YouTube access after reinstalling.
+
 ## If Orion says the extension could not be installed
 
-Close the YouTube tab first and uninstall every older **Fuck YouTube Premium** entry. In Files, move the downloaded XPI from iCloud Drive to **On My iPhone → Downloads**. Return to **Orion → Settings → Extensions**, tap **+** → **Install from File**, and select the local XPI. If Orion repeats the error, keep retrying the install button and selecting the XPI until Orion confirms that installation succeeded. Do not unzip or rename the file.
+Close the YouTube tab first and uninstall every older **Fuck YouTube Premium** entry. In Files, move the downloaded Chrome zip from iCloud Drive to **On My iPhone → Downloads**. Return to **Orion → Settings → Extensions**, tap **+** → **Install from File**, and select the local zip. If Orion repeats the error, keep retrying the install button and selecting the zip until Orion confirms that installation succeeded. Do not unzip or rename the file.

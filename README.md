@@ -34,14 +34,14 @@ The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfu
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-orion-2.0.19.xpi](fuck-youtube-premium-orion-2.0.19.xpi). This Firefox-format XPI is the recommended Orion installer. The [Chrome zip](fuck-youtube-premium-chrome-2.0.19.zip) and [Firefox zip](fuck-youtube-premium-firefox-2.0.19.zip) remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-chrome-2.0.20.zip](fuck-youtube-premium-chrome-2.0.20.zip). This Chrome Manifest V3 zip is the recommended Orion installer because its toolbar popup opens correctly on iPhone. The [Orion XPI](fuck-youtube-premium-orion-2.0.20.xpi) and [Firefox zip](fuck-youtube-premium-firefox-2.0.20.zip) remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
-6. Select the downloaded XPI. Do not unzip or rename it.
+6. Select the downloaded Chrome zip. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
 9. Open [youtube.com](https://www.youtube.com/), enable **Request Desktop Website** in Orion’s website settings, and refresh the page.
 
-The Orion XPI is recommended because [Orion supports Firefox, Chrome, and file-based extensions](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html), and its issue tracker confirms XPI support. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
+Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project therefore recommends the Chrome build, whose Manifest V3 toolbar action restores the two-button popup in Orion. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
 ## Final extension result
 
@@ -57,22 +57,30 @@ After the steps above, both **Fuck YouTube Premium** and **uBlock Origin** shoul
 | --- | --- |
 | <img src="docs/images/youtube-watch-page.png" alt="Fuck YouTube Premium inline watch page in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
 
+### Background playback demo
+
+The video keeps playing from the iPhone Lock Screen, including when the display is off:
+
+<p align="center">
+  <img src="docs/images/background-playback-lock-screen.png" alt="iPhone Lock Screen showing YouTube background playback controls for a video playing through Fuck YouTube Premium" width="390">
+</p>
+
 ## Extension menu and updates
 
 Tap the extension icon to open a bottom-center popup panel. It occupies roughly one-third of the phone screen, shows the three highest-priority release notes, and contains only two large buttons:
 
 - **Go to YouTube** opens desktop YouTube.
-- **Check for updates** compares the installed version with the latest GitHub Release. When an update is available, the button downloads the Orion-first XPI.
+- **Check for updates** compares the installed version with the latest GitHub Release. When an update is available, the button downloads the Chrome zip that preserves Orion’s toolbar popup.
 
 The extension provides “OTA” update detection and downloads: it checks GitHub periodically and shows an **UP** badge when a newer release exists. Manual checks first ask the background update service and automatically fall back to a direct GitHub request if Orion has suspended it.
 
-Due to Orion’s extension policies, a manually installed extension cannot silently replace itself. **Always uninstall the old version first, then install the downloaded XPI manually with `+` → `Install from File`**:
+Due to Orion’s extension policies, a manually installed extension cannot silently replace itself. **Always uninstall the old version first, then install the downloaded zip manually with `+` → `Install from File`**:
 
 <p align="center">
   <img src="docs/images/orion-install-from-file.png" alt="Orion Extensions menu with Install from File selected for a manual OTA update" width="420">
 </p>
 
-After downloading the update, remove the old extension, choose **Install from File**, and select the new XPI.
+After downloading the update, remove the old extension, choose **Install from File**, and select the new Chrome zip.
 
 ### Release history policy
 
@@ -80,7 +88,7 @@ Old GitHub Releases and their downloads are always preserved. Whenever a new ver
 
 ## Update
 
-Remove the older copy from Orion, download the newest XPI from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
+Remove the older copy from Orion, download the newest Chrome zip from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
 
 ## Troubleshooting
 
@@ -94,16 +102,20 @@ Orion’s native **Subtitles → Languages** menu can incorrectly leave more tha
 
 Version 2.0.19 keeps exactly one subtitle track active. When subtitles are on, it chooses an authored English track first, falls back to English auto-generated captions, and then uses the best remaining subtitle. If you manually choose another language afterward, that choice replaces the default instead of being added as a second simultaneous track.
 
+### Tapping the extension icon shows no buttons
+
+Uninstall the Firefox/XPI build and install the latest `fuck-youtube-premium-chrome-*.zip` instead. The XPI remains available for Orion versions that cannot install the Chrome package, but its Firefox `browser_action` popup may not open in Orion on iPhone. After installing the Chrome zip, enable the extension, allow YouTube access, then tap its toolbar icon again. It should show three changelog lines plus **Go to YouTube** and **Check for updates**.
+
 ### Orion says the extension could not be installed
 
 1. Close the YouTube tab in Orion first.
 2. Return to **Orion → Settings → Extensions**.
 3. Confirm that every older **Fuck YouTube Premium** entry has been uninstalled.
-4. In Files, move the downloaded XPI out of iCloud Drive and into **On My iPhone → Downloads**.
-5. Tap **+** → **Install from File** and select the local XPI again.
-6. If Orion repeats the error, keep retrying the install button and selecting the same XPI until Orion confirms that the extension was installed.
+4. In Files, move the downloaded Chrome zip out of iCloud Drive and into **On My iPhone → Downloads**.
+5. Tap **+** → **Install from File** and select the local zip again.
+6. If Orion repeats the error, keep retrying the install button and selecting the same zip until Orion confirms that the extension was installed.
 
-Do not unzip or rename the file. [Orion’s issue tracker](https://orionfeedback.org/d/936-install-from-file-for-extensions/15) recommends moving extension files to device storage when iCloud permissions interfere with installation. After installation succeeds, enable **Fuck YouTube Premium**, reopen YouTube, and confirm that both this extension and uBlock Origin are allowed to access the site.
+Do not unzip or rename the file. [Orion’s issue tracker](https://orionfeedback.org/d/936-install-from-file-for-extensions/15) recommends moving extension files to device storage when iCloud permissions interfere with installation. If the Chrome zip still cannot be installed, try the Orion XPI fallback. After installation succeeds, enable **Fuck YouTube Premium**, reopen YouTube, and confirm that both this extension and uBlock Origin are allowed to access the site.
 
 ## Build from source
 
@@ -113,7 +125,7 @@ Run:
 ./rebuild-extension.sh
 ```
 
-The build validates the generated JavaScript and writes the recommended Orion XPI plus Chrome and Firefox zip fallbacks to this folder.
+The build validates the generated JavaScript and writes the recommended Chrome zip plus Firefox zip and XPI fallbacks to this folder.
 
 Release history is maintained in [PATCH_NOTES.md](PATCH_NOTES.md). Agent and developer documentation is in [ARCHITECTURE.md](ARCHITECTURE.md), with current implementation history and handoff notes in [HANDOFF.md](HANDOFF.md).
 

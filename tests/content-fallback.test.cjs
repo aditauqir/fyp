@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.0\.19'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.0\.20'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.0\.19'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.0\.20'\)/);
 
 assert.match(content, /function markVideoInline\(video\)/);
 assert.match(content, /video\.setAttribute\('playsinline', ''\)/);

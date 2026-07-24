@@ -64,10 +64,10 @@
 
     const release = await fetchLatestRelease();
     const latestVersion = String(release.tag_name || '').replace(/^v/i, '');
-    const packageType = manifest.manifest_version === 3 ? 'chrome' : 'firefox';
     const expectedNames = [
+      `fuck-youtube-premium-chrome-${latestVersion}.zip`,
       `fuck-youtube-premium-orion-${latestVersion}.xpi`,
-      `fuck-youtube-premium-${packageType}-${latestVersion}.zip`,
+      `fuck-youtube-premium-firefox-${latestVersion}.zip`,
     ];
     const asset = expectedNames
       .map((name) =>
