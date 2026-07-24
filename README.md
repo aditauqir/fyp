@@ -34,7 +34,7 @@ The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfu
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-orion-2.0.18.xpi](fuck-youtube-premium-orion-2.0.18.xpi). This Firefox-format XPI is the recommended Orion installer. The [Chrome zip](fuck-youtube-premium-chrome-2.0.18.zip) and [Firefox zip](fuck-youtube-premium-firefox-2.0.18.zip) remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-orion-2.0.19.xpi](fuck-youtube-premium-orion-2.0.19.xpi). This Firefox-format XPI is the recommended Orion installer. The [Chrome zip](fuck-youtube-premium-chrome-2.0.19.zip) and [Firefox zip](fuck-youtube-premium-firefox-2.0.19.zip) remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
 6. Select the downloaded XPI. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
@@ -83,6 +83,16 @@ Old GitHub Releases and their downloads are always preserved. Whenever a new ver
 Remove the older copy from Orion, download the newest XPI from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
 
 ## Troubleshooting
+
+### Captions appear twice or multiple languages are selected
+
+Orion’s native **Subtitles → Languages** menu can incorrectly leave more than one subtitle track selected:
+
+<p align="center">
+  <img src="docs/images/orion-multiple-subtitle-tracks.png" alt="Orion subtitle Languages menu showing duplicate English tracks" width="420">
+</p>
+
+Version 2.0.19 keeps exactly one subtitle track active. When subtitles are on, it chooses an authored English track first, falls back to English auto-generated captions, and then uses the best remaining subtitle. If you manually choose another language afterward, that choice replaces the default instead of being added as a second simultaneous track.
 
 ### Orion says the extension could not be installed
 

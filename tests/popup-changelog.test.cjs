@@ -25,9 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Duplicate WebKit captions are suppressed\./);
-assert.match(popup, /An Orion-first XPI installer is included\./);
-assert.match(popup, /Failed installs get a local-file fallback\./);
+assert.match(popup, /Only one subtitle track stays active\./);
+assert.match(popup, /Authored English is preferred automatically\./);
+assert.match(popup, /Player controls remain for 10 seconds\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
@@ -43,6 +43,6 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
-assert.match(patchNotes, /## v2\.0\.18/);
+assert.match(patchNotes, /## v2\.0\.19/);
 
 console.log('bottom-center extension popup: ok');

@@ -20,7 +20,19 @@ assert.match(
   /video\[data-fyp-native-captions-hidden='true'\]::cue \{[\s\S]*?color: transparent !important;/
 );
 assert.match(source, /function suppressDuplicateNativeCaptions\(video/);
-assert.match(source, /track\.mode = 'hidden'/);
+assert.match(source, /function chooseBestCaptionTrack\(tracks\)/);
+assert.match(source, /if \(english && !automatic\) score \+= 400/);
+assert.match(source, /else if \(english && automatic\) score \+= 300/);
+assert.match(
+  source,
+  /track\.mode = track === selectedTrack \? 'hidden' : 'disabled'/
+);
+assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedTrack\)/);
+assert.match(source, /const newlyActiveTracks = activeTracks\.filter/);
+assert.match(
+  source,
+  /previousTrack &&[\s\S]*?!activeTracks\.length[\s\S]*?selectedCaptionTrackByVideo\.delete\(video\)/
+);
 assert.match(source, /video\.dataset\.fypNativeCaptionsHidden = 'true'/);
 assert.match(
   source,

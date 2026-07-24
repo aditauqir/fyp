@@ -7,7 +7,7 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /const PLAYER_CONTROLS_VISIBLE_MS = 8000;/);
+assert.match(source, /const PLAYER_CONTROLS_VISIBLE_MS = 10000;/);
 assert.match(source, /function holdPlayerControlsVisible\(\)/);
 assert.match(source, /player\.dataset\.fypControlsVisible = 'true';/);
 assert.match(
@@ -29,4 +29,4 @@ assert.match(
 assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 
-console.log('player controls hide 8 seconds after user interaction: ok');
+console.log('player controls hide 10 seconds after user interaction: ok');

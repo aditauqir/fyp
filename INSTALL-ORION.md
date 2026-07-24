@@ -1,18 +1,18 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.18
+# Install Fuck YouTube Premium on Orion iOS — v2.0.19
 
-Version **2.0.18** suppresses WebKit’s duplicate native caption layer and adds an Orion-first XPI installer.
+Version **2.0.19** enforces one subtitle track, prefers authored English with an auto-generated fallback, and keeps player controls visible for ten seconds.
 
 ## Install this
 
 **Prefer the Orion XPI:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.18.xpi`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.19.xpi`
 
 Zip fallbacks:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.18.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.19.zip`
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.18.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.19.zip`
 
 ## Steps
 
@@ -60,11 +60,19 @@ Orion’s extension policies do not allow a manually installed extension to repl
 - The extension icon opens a bottom-center panel with three priority changes and two large buttons.
 - Recommendations appear before YouTube’s native comments.
 - Replying to a comment does not zoom the page.
-- Player controls hide eight seconds after the last player interaction.
+- Player controls hide ten seconds after the last player interaction.
 - Closed captions appear once.
 - uBlock Origin handles network ad blocking.
 
 If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
+
+## If captions appear twice
+
+<p align="center">
+  <img src="docs/images/orion-multiple-subtitle-tracks.png" alt="Duplicate English options in Orion's native subtitle Languages menu" width="420">
+</p>
+
+Orion may leave multiple subtitle tracks selected in its native **Languages** menu. Version 2.0.19 normalizes this to one track: authored English first, English auto-generated second, then the best remaining option. A language you deliberately select afterward replaces the default instead of being added alongside it.
 
 ## If Orion says the extension could not be installed
 

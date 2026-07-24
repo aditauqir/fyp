@@ -32,13 +32,15 @@ assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion first/);
 assert.match(readme, /keep retrying the install button/);
-assert.match(readme, /fuck-youtube-premium-orion-2\.0\.18\.xpi/);
+assert.match(readme, /fuck-youtube-premium-orion-2\.0\.19\.xpi/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstalled/);
 assert.ok(
-  fs.existsSync(path.join(root, 'fuck-youtube-premium-orion-2.0.18.xpi')),
+  fs.existsSync(path.join(root, 'fuck-youtube-premium-orion-2.0.19.xpi')),
   'Orion XPI'
 );
+assert.match(readme, /orion-multiple-subtitle-tracks\.png/);
+assert.match(readme, /authored English track first/);
 
 for (const image of [
   'final-extension-result.png',

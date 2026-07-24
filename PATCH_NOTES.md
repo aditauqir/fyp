@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.0.19
+
+- Fixed: Orion’s native subtitle menu can activate several TextTracks simultaneously; the extension now keeps exactly one caption/subtitle track active.
+- Changed: When captions are enabled, authored English is preferred, English auto-generated captions are the fallback, and then the best remaining subtitle is used.
+- Fixed: A later manual language choice replaces the automatic default instead of remaining active beside it.
+- Changed: Player controls remain visible for ten seconds after a user interaction before YouTube’s normal autohide resumes.
+- Notes: Playback semantics, inline/fullscreen/PiP handling, background audio, comments, recommendations, navigation, Shorts, miniplayer, ads, and popup sizing are unchanged.
+
 ## v2.0.18
 
 - Fixed: WebKit’s native text-track renderer is forced into hidden mode whenever YouTube’s custom caption layer is active, preventing the same caption from appearing twice while keeping YouTube’s cues working.

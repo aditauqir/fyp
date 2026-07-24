@@ -9,7 +9,7 @@ Firefox WebExtension fallback build for **Orion on iPhone only**.
 
 ## Install
 
-1. [Install Orion Browser](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `fuck-youtube-premium-orion-2.0.18.xpi` from the [latest release](https://github.com/aditauqir/fyp/releases/latest).
+1. [Install Orion Browser](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `fuck-youtube-premium-orion-2.0.19.xpi` from the [latest release](https://github.com/aditauqir/fyp/releases/latest).
 2. In Orion Settings, enable both Firefox and Chrome extensions.
 3. Open Extensions, tap **+**, choose **Install from File**, and select the zip.
 4. Install [uBlock Origin](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) and allow both extensions to access YouTube.

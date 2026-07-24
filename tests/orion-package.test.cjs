@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const version = '2.0.18';
+const version = '2.0.19';
 const xpiPath = path.join(
   root,
   `fuck-youtube-premium-orion-${version}.xpi`
