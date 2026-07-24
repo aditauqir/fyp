@@ -1,31 +1,33 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.17
+# Install Fuck YouTube Premium on Orion iOS — v2.0.18
 
-Version **2.0.17** fixes the phone search field and adds a clearer iOS, Orion, and manual update guide.
+Version **2.0.18** suppresses WebKit’s duplicate native caption layer and adds an Orion-first XPI installer.
 
 ## Install this
 
-**Prefer Chrome zip:**
+**Prefer the Orion XPI:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.17.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.18.xpi`
 
-Firefox fallback:
+Zip fallbacks:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.17.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.18.zip`
+
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.18.zip`
 
 ## Steps
 
-1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download the zip from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to the **Downloads** folder in the iOS Files app. Do not unzip it.
+1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download the XPI from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
 2. Open Orion → Settings → Extensions and enable both **Chrome Extensions** and **Firefox Extensions**.
 3. **Uninstall** every older “YouTube Mobile for Orion” or “Fuck YouTube Premium” entry.
 4. In Orion’s Extensions screen, tap **+** → **Install from File**.
-5. Open **Downloads** and select the **Chrome** zip.
+5. Open **On My iPhone → Downloads** and select the Orion XPI.
 6. Enable **Fuck YouTube Premium** in Orion.
 7. Install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) in Orion, then enable it.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
 9. Open `https://www.youtube.com`, open Orion’s website settings, and enable **Request Desktop Website**.
 10. Hard-refresh, or close the tab and reopen it.
 
-If the Chrome zip does not install, repeat the same steps with the Firefox zip.
+If the XPI does not install, repeat the same steps with the Chrome zip, then the Firefox zip.
 
 **uBlock Origin is required.** Keep it enabled alongside this extension. uBlock Origin handles network ad blocking, while Fuck YouTube Premium handles Orion playback and the mobile-friendly YouTube layout. Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
@@ -39,7 +41,7 @@ If the Chrome zip does not install, repeat the same steps with the Firefox zip.
 
 Tap the **Fuck YouTube Premium** extension icon and choose **Check for updates**. The extension also checks GitHub every six hours and shows an **UP** badge when a newer version exists. This provides “OTA” update detection and downloads.
 
-Orion’s extension policies do not allow a manually installed zip to replace itself silently. If an update is available, download the offered zip, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new zip from Downloads:
+Orion’s extension policies do not allow a manually installed extension to replace itself silently. If an update is available, download the offered XPI, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new XPI from local device storage:
 
 <p align="center">
   <img src="docs/images/orion-install-from-file.png" alt="Install from File option for a manual Fuck YouTube Premium OTA update" width="420">
@@ -66,4 +68,4 @@ If these changes are missing, confirm the extension is enabled and allowed on yo
 
 ## If Orion says the extension could not be installed
 
-Close the YouTube tab first. Return to **Orion → Settings → Extensions**, tap **+** → **Install from File**, and select the same downloaded zip again. If Orion repeats the error, keep retrying the install button and selecting the zip until Orion confirms that installation succeeded. Do not unzip the file.
+Close the YouTube tab first and uninstall every older **Fuck YouTube Premium** entry. In Files, move the downloaded XPI from iCloud Drive to **On My iPhone → Downloads**. Return to **Orion → Settings → Extensions**, tap **+** → **Install from File**, and select the local XPI. If Orion repeats the error, keep retrying the install button and selecting the XPI until Orion confirms that installation succeeded. Do not unzip or rename the file.

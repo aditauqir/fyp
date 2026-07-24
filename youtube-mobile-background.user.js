@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.17
+// @version      2.0.18
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -17,7 +17,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.17');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.18');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -25,7 +25,7 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v217-mobile-search';
+  const NAV_LAYOUT_VERSION = 'ext-v218-native-caption-suppression';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
@@ -634,7 +634,10 @@
 
   function attachVideo(video) {
     if (!video || video === state.video) {
-      if (video) enforceInlinePlayback(video);
+      if (video) {
+        enforceInlinePlayback(video);
+        suppressDuplicateNativeCaptions(video);
+      }
       return;
     }
     if (state.video) {
@@ -648,6 +651,7 @@
     state.video = video;
     state.wantsPlayback = !video.paused && !video.ended;
     enforceInlinePlayback(video);
+    suppressDuplicateNativeCaptions(video);
     video.addEventListener('play', onVideoPlay, true);
     video.addEventListener('playing', onVideoPlay, true);
     video.addEventListener('pause', onVideoPause, true);
@@ -664,6 +668,35 @@
       videos[0] ||
       null
     );
+  }
+
+  function suppressDuplicateNativeCaptions(video = state.video || findVideo()) {
+    if (!(video instanceof HTMLVideoElement)) return;
+    const player = video.closest('#movie_player, .html5-video-player');
+    if (
+      !player?.querySelector(
+        '.ytp-caption-window-container .ytp-caption-segment'
+      )
+    ) {
+      return;
+    }
+
+    /*
+     * WebKit can render the same WebVTT track natively while YouTube renders
+     * its own caption DOM. "hidden" keeps cues active for YouTube's renderer
+     * but prevents WebKit from drawing the second native caption layer.
+     */
+    const tracks = video.textTracks;
+    for (let index = 0; index < tracks.length; index += 1) {
+      const track = tracks[index];
+      if (track.mode !== 'showing') continue;
+      try {
+        track.mode = 'hidden';
+      } catch {
+        // The WebKit pseudo-element fallback below handles locked tracks.
+      }
+    }
+    video.dataset.fypNativeCaptionsHidden = 'true';
   }
 
   function installMediaSessionHandlers() {
@@ -1119,12 +1152,26 @@
        */
       .html5-video-player:has(
         .ytp-caption-window-container .ytp-caption-segment
-      ) video::cue {
+      ) video::cue,
+      video[data-fyp-native-captions-hidden='true']::cue {
         visibility: hidden !important;
         opacity: 0 !important;
         color: transparent !important;
         background: transparent !important;
         text-shadow: none !important;
+      }
+
+      .html5-video-player:has(
+        .ytp-caption-window-container .ytp-caption-segment
+      ) video::-webkit-media-text-track-container,
+      .html5-video-player:has(
+        .ytp-caption-window-container .ytp-caption-segment
+      ) video::-webkit-media-text-track-display,
+      video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-container,
+      video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-display {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
       }
 
       @media (hover: none) {
@@ -2396,8 +2443,11 @@
     subtree: true,
   });
 
-  // Player ads change quickly, so poll only the small set of player controls here.
-  setInterval(skipPlayerAd, 300);
+  // Player overlays and WebKit caption tracks can change between DOM scans.
+  setInterval(() => {
+    skipPlayerAd();
+    suppressDuplicateNativeCaptions();
+  }, 300);
   setInterval(() => {
     markSubscribeButtons();
     hideAskGeminiControls();

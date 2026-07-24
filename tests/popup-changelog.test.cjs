@@ -25,11 +25,15 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Search opens in a phone-width field\./);
-assert.match(popup, /iOS and Orion setup steps are clearer\./);
-assert.match(popup, /Manual OTA installation is documented\./);
+assert.match(popup, /Duplicate WebKit captions are suppressed\./);
+assert.match(popup, /An Orion-first XPI installer is included\./);
+assert.match(popup, /Failed installs get a local-file fallback\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
+assert.match(
+  popupScript,
+  /fuck-youtube-premium-orion-\$\{latestVersion\}\.xpi/
+);
 assert.doesNotMatch(popupScript, /toggleActionCard/);
 assert.match(popupStyle, /left: 50%/);
 assert.match(
@@ -39,6 +43,6 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
-assert.match(patchNotes, /## v2\.0\.17/);
+assert.match(patchNotes, /## v2\.0\.18/);
 
 console.log('bottom-center extension popup: ok');

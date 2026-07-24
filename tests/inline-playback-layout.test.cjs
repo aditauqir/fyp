@@ -7,7 +7,7 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /@version\s+2\.0\.17/);
+assert.match(source, /@version\s+2\.0\.18/);
 assert.match(source, /function installInlinePlaybackGuard\(\)/);
 assert.match(source, /video\.disablePictureInPicture = true/);
 assert.match(source, /ytd-watch-flexy #primary[\s\S]*?min-width: 0 !important/);

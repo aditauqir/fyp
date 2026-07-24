@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.0.18
+
+- Fixed: WebKit’s native text-track renderer is forced into hidden mode whenever YouTube’s custom caption layer is active, preventing the same caption from appearing twice while keeping YouTube’s cues working.
+- Added: An Orion-first Firefox-format XPI package is now included and preferred by manual and in-extension update downloads.
+- Fixed: Installation guidance now requires uninstalling the old version and moving the installer from iCloud Drive to **On My iPhone** before retrying, avoiding Orion file-permission and duplicate-extension failures.
+- Notes: Player behavior, inline/fullscreen/PiP handling, background audio, comments, recommendations, controls delay, navigation, Shorts, miniplayer, ads, and popup sizing are unchanged.
+
 ## v2.0.17
 
 - Fixed: Tapping YouTube Search on iPhone now expands the native desktop search form into a usable phone-width field, while preserving YouTube’s own query and results flow.

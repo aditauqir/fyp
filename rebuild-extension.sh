@@ -111,6 +111,7 @@ PY
 
 FF_ZIP="$ROOT/fuck-youtube-premium-firefox-${VERSION}.zip"
 CH_ZIP="$ROOT/fuck-youtube-premium-chrome-${VERSION}.zip"
+ORION_XPI="$ROOT/fuck-youtube-premium-orion-${VERSION}.xpi"
 
 pack "$FF" "$FF_ZIP" \
   manifest.json content.js page.js background.js popup.html popup.css popup.js \
@@ -120,8 +121,19 @@ pack "$CH" "$CH_ZIP" \
   manifest.json content.js page.js background.js popup.html popup.css popup.js \
   icons/icon-48.png icons/icon-96.png icons/icon-128.png
 
+cp "$FF_ZIP" "$ORION_XPI"
+python3 - <<PY
+import json, zipfile
+with zipfile.ZipFile("$ORION_XPI") as archive:
+    manifest = json.loads(archive.read("manifest.json"))
+    assert manifest.get("manifest_version") == 2, manifest
+    assert manifest.get("version") == "$VERSION", manifest
+print("Validated", "$ORION_XPI", "as Orion-first Firefox XPI")
+PY
+
 echo
-echo "Install on Orion iOS (prefer Chrome zip):"
+echo "Install on Orion iOS (prefer Orion XPI):"
+echo "  $ORION_XPI"
 echo "  $CH_ZIP"
 echo "  $FF_ZIP"
-ls -la "$CH_ZIP" "$FF_ZIP"
+ls -la "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"

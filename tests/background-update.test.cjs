@@ -56,6 +56,11 @@ const context = {
         html_url: 'https://github.com/aditauqir/fyp/releases/tag/v2.1.0',
         assets: [
           {
+            name: 'fuck-youtube-premium-orion-2.1.0.xpi',
+            browser_download_url:
+              'https://example.test/fuck-youtube-premium-orion-2.1.0.xpi',
+          },
+          {
             name: 'fuck-youtube-premium-chrome-2.1.0.zip',
             browser_download_url:
               'https://example.test/fuck-youtube-premium-chrome-2.1.0.zip',
@@ -100,14 +105,14 @@ function requestUpdate() {
   assert.equal(chromeUpdate.updateAvailable, true);
   assert.equal(
     chromeUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-chrome-2.1.0.zip'
+    'https://example.test/fuck-youtube-premium-orion-2.1.0.xpi'
   );
 
   manifestVersion = 2;
   const firefoxUpdate = await requestUpdate();
   assert.equal(
     firefoxUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-firefox-2.1.0.zip'
+    'https://example.test/fuck-youtube-premium-orion-2.1.0.xpi'
   );
 
   assert.equal(badgeCalls.at(-1)[0], 'text');

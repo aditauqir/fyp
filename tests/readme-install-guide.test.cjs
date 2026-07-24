@@ -25,13 +25,20 @@ assert.match(readme, /docs\/images\/youtube-watch-page\.png/);
 assert.match(readme, /docs\/images\/youtube-mobile-feed\.png/);
 assert.match(readme, /docs\/images\/orion-install-from-file\.png/);
 assert.match(readme, /“OTA” update detection and downloads/);
-assert.match(readme, /Always install the downloaded update manually/);
+assert.match(readme, /Always uninstall the old version first/);
 assert.match(install, /always choose `\+` → `Install from File`/);
 assert.match(readme, /send a pull request/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion first/);
 assert.match(readme, /keep retrying the install button/);
+assert.match(readme, /fuck-youtube-premium-orion-2\.0\.18\.xpi/);
+assert.match(readme, /On My iPhone → Downloads/);
+assert.match(readme, /uninstalled/);
+assert.ok(
+  fs.existsSync(path.join(root, 'fuck-youtube-premium-orion-2.0.18.xpi')),
+  'Orion XPI'
+);
 
 for (const image of [
   'final-extension-result.png',

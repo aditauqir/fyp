@@ -44,11 +44,15 @@
       Boolean(latestVersion) &&
       compareVersions(latestVersion, manifest.version) > 0;
     const packageType = manifest.manifest_version === 3 ? 'chrome' : 'firefox';
-    const expectedName =
-      `fuck-youtube-premium-${packageType}-${latestVersion}.zip`;
-    const asset = (release.assets || []).find(
-      (candidate) => candidate.name === expectedName
-    );
+    const expectedNames = [
+      `fuck-youtube-premium-orion-${latestVersion}.xpi`,
+      `fuck-youtube-premium-${packageType}-${latestVersion}.zip`,
+    ];
+    const asset = expectedNames
+      .map((name) =>
+        (release.assets || []).find((candidate) => candidate.name === name)
+      )
+      .find(Boolean);
 
     setUpdateBadge(updateAvailable);
     return {
