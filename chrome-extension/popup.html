@@ -3,11 +3,23 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Opening Fuck YouTube Premium controls</title>
+    <title>Fuck YouTube Premium</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
-    <span class="status" role="status">Opening controls…</span>
+    <main class="popup-shell" aria-label="Fuck YouTube Premium actions">
+      <ul class="release-highlights" aria-label="Highest-priority changes">
+        <li>Comments show 3, then 5 more.</li>
+        <li>Extension menu restored without page injection.</li>
+        <li>Playback and page layout stay unchanged.</li>
+      </ul>
+      <button id="open-youtube" class="action action-primary" type="button">
+        Go to YouTube
+      </button>
+      <button id="check-updates" class="action action-secondary" type="button">
+        Check for updates
+      </button>
+    </main>
     <script src="popup.js"></script>
   </body>
 </html>

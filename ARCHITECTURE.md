@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.0.13`
+**Current shipped version:** `2.0.14`
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -27,8 +27,7 @@ flowchart TD
     P --> M["Mobile layout shell"]
     P --> V["Inline and background playback layer"]
     W["background.js"] --> G["GitHub Releases update check"]
-    R["Zero-UI toolbar popup relay"] --> X["Large in-page action card"]
-    X --> O
+    X["Bottom-center extension popup"] --> O
     X --> W
     A["uBlock Origin"] --> O
 ```
@@ -50,7 +49,7 @@ flowchart TD
 | Shorts | Hide Shorts links, shelves, and drawer entries; redirect `/shorts` to Home. |
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
 | Comments | Place comments below the description; initially show three with Load more/Load less controls. |
-| Extension action | A zero-UI `default_popup` relays the toolbar tap directly to the YouTube content script, closes, and toggles a visible in-page card with three changelog lines and two large buttons. |
+| Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
 | Ads | Expect uBlock Origin to handle network ad blocking. |
 
 ## Runtime layers
@@ -94,9 +93,9 @@ Never edit `chrome-extension/page.js` or `firefox-extension/page.js` directly. T
 
 ### 4. Popup and update service
 
-Orion iOS did not reliably fire the v2.0.12 background `action.onClicked` handler. Both manifests now assign `popup.html`, but this surface is a one-pixel transparent relay with no controls of its own. It queries the active tab, sends `toggleActionCard` directly to the YouTube content script, and closes. This avoids Orion’s unreliable popup-to-background path and prevents a full-page popup UI.
+Both manifests assign `popup.html`. The popup renders its own controls and never messages the YouTube content script merely to create UI; the v2.0.13 relay/closed-Shadow-DOM action card crashed Orion and was removed.
 
-The in-page action card is isolated in a closed Shadow DOM, is at most 22rem wide, and shows three short release-note lines with exactly two large actions:
+The popup panel is bottom-centered, uses `width: min(92vw, 24rem)` and `max-height: min(38svh, 21rem)`, and shows three short release-note lines with exactly two large actions:
 
 1. Open desktop YouTube.
 2. Check the latest GitHub Release.
@@ -216,8 +215,8 @@ Required edit flow:
 
 Current package names:
 
-- `fuck-youtube-premium-chrome-2.0.13.zip`
-- `fuck-youtube-premium-firefox-2.0.13.zip`
+- `fuck-youtube-premium-chrome-2.0.14.zip`
+- `fuck-youtube-premium-firefox-2.0.14.zip`
 
 ## Verification contract
 
@@ -228,7 +227,7 @@ Before publishing:
 node tests/background-update.test.cjs
 node tests/content-fallback.test.cjs
 node tests/inline-playback-layout.test.cjs
-node tests/popup-bridge.test.cjs
+node tests/comments-pagination.test.cjs
 git diff --check
 ```
 
@@ -243,7 +242,7 @@ Then test at an iPhone-sized viewport and, when possible, on Orion iOS:
 7. Home and recommendation feeds are one column.
 8. Hamburger opens the native drawer once.
 9. No mini-guide column or Shorts entry appears.
-10. The extension icon toggles a visible, non-fullscreen in-page card with three changelog lines and two large buttons.
+10. The extension icon opens a bottom-center popup panel with three changelog lines and two large buttons.
 
 Browser-based desktop testing cannot prove Orion’s app-level `WKWebView` configuration. Treat an actual Orion iPhone test as the final authority for playback presentation behavior.
 
@@ -273,7 +272,7 @@ Rules:
 | `rebuild-extension.sh` | Build, synchronization, validation, and packaging. |
 | `firefox-extension/content.template.js` | Stable page-context injection bridge template. |
 | `firefox-extension/background.js` | Update checker shared with Chrome. |
-| `firefox-extension/popup.*` | One-pixel `default_popup` compatibility relay that forwards toolbar taps to the active YouTube tab and closes. |
+| `firefox-extension/popup.*` | Visible bottom-center `default_popup` panel; owns the menu UI and update fallback. |
 | `chrome-extension/page.js` | Generated; do not edit directly. |
 | `firefox-extension/page.js` | Generated; do not edit directly. |
 | `tests/` | Regression tests. |

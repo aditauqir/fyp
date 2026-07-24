@@ -1,16 +1,16 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.13
+# Install Fuck YouTube Premium on Orion iOS — v2.0.14
 
-Version **2.0.13** adds an Orion-compatible toolbar relay, verifies that the page playback patch actually starts, keeps critical inline/viewport/Shorts fallbacks active in the content layer, and enlarges the in-page controls.
+Version **2.0.14** shows three comments initially and five more per tap, and restores the extension popup as a bottom-center panel without changing playback or page layout.
 
 ## Install this
 
 **Prefer Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.13.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.14.zip`
 
 Firefox fallback:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.13.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.14.zip`
 
 ## Steps
 
@@ -44,7 +44,8 @@ If an update is available, download the offered zip, uninstall the current exten
 - Upload/Create is hidden.
 - Watch content has a small mobile gutter and does not extend beyond either edge.
 - Home and recommendation feeds use a phone-friendly single column.
-- The extension icon toggles a prominent but non-fullscreen in-page card with three priority changes and two large buttons.
+- The extension icon opens a bottom-center panel with three priority changes and two large buttons.
+- Comments initially show three top-level comments; every **Show more** tap reveals five more.
 - uBlock Origin handles network ad blocking.
 
-If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play still invokes the native fullscreen controller after reinstalling 2.0.13, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
+If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.

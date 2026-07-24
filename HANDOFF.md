@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.13`** (2026-07-23)
+> **Current ship version: `2.0.14`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 >
@@ -40,8 +40,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.13.zip
-└── fuck-youtube-premium-firefox-2.0.13.zip
+├── fuck-youtube-premium-chrome-2.0.14.zip
+└── fuck-youtube-premium-firefox-2.0.14.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -82,12 +82,19 @@ In `youtube-mobile-background.user.js`:
 - `BACKEND_HOST = 'www.youtube.com'` — forces desktop host + `app=desktop&persist_app=1`.
 - `NAV_LAYOUT_VERSION` — bump when CSS/layout injection version must refresh (`style.dataset.layoutVersion`).
 - `ORION_NAV_GAP = '72px'` — bottom clearance for Orion’s floating URL bar.
-- `COMMENT_PREVIEW_COUNT = 3`, `COMMENT_LOAD_STEP = 10`.
+- `COMMENT_PREVIEW_COUNT = 3`, `COMMENT_LOAD_STEP = 5`.
 - Floating pill `#${NAV_ID}` is **intentionally removed** at runtime (`removeFloatingPillNav` / CSS `display:none`).
 
 ---
 
-## Latest changes (through 2.0.13)
+## Latest changes (through 2.0.14)
+
+### 2.0.14 — progressive comments + restored extension popup
+- Shows three top-level comments initially and exactly five more per **Show more** tap.
+- Removes the in-page Shadow DOM action card and toolbar relay that crashed Orion.
+- Restores a real bottom-center extension popup with three release lines and two buttons.
+- Makes no changes to playback, navigation, Shorts, miniplayer, ads, or general page layout.
+- Future agents must use the global `fyp-comments-menu` skill for these two areas.
 
 ### 2.0.13 — Orion toolbar relay + verified page startup
 - Restores `default_popup` only as a one-pixel transparent toolbar relay; it messages the active YouTube tab directly and closes.

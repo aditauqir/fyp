@@ -16,6 +16,14 @@ const source = fs.readFileSync(
   path.join(__dirname, '..', 'youtube-mobile-background.user.js'),
   'utf8'
 );
+const content = fs.readFileSync(
+  path.join(__dirname, '..', 'firefox-extension', 'content.template.js'),
+  'utf8'
+);
+const background = fs.readFileSync(
+  path.join(__dirname, '..', 'firefox-extension', 'background.js'),
+  'utf8'
+);
 assert.match(source, /__ytMobileOrionInlinePlaybackGuardV2/);
 assert.match(source, /patchVideoCreation\(Document\.prototype, 'createElement'\)/);
 assert.match(source, /function inlineBeforeVideoSource\(name\)/);
@@ -27,5 +35,8 @@ assert.doesNotMatch(
   source,
   /\.ytp-fullscreen-button,[\s\S]{0,180}display: none !important/
 );
+assert.doesNotMatch(content, /toggleActionCard/);
+assert.doesNotMatch(content, /attachShadow/);
+assert.doesNotMatch(background, /toggleActionCard/);
 
-console.log('popup bridge and explicit fullscreen manifest: ok');
+console.log('direct popup and explicit fullscreen manifest: ok');

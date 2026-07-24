@@ -28,22 +28,6 @@
     }
   }
 
-  function sendActionCardToggle(tabId) {
-    if (typeof tabId !== 'number' || !api.tabs?.sendMessage) return;
-    if (typeof browser !== 'undefined') {
-      const result = api.tabs.sendMessage(tabId, {
-        type: 'toggleActionCard',
-      });
-      result?.catch?.(() => {});
-      return;
-    }
-    api.tabs.sendMessage(
-      tabId,
-      { type: 'toggleActionCard' },
-      () => void api.runtime.lastError
-    );
-  }
-
   async function checkForUpdates() {
     const response = await fetch(RELEASE_API, {
       headers: { Accept: 'application/vnd.github+json' },
@@ -92,11 +76,6 @@
 
   api.alarms?.onAlarm.addListener((alarm) => {
     if (alarm.name === ALARM_NAME) checkForUpdates().catch(() => {});
-  });
-
-  const action = api.action || api.browserAction;
-  action?.onClicked?.addListener((tab) => {
-    sendActionCardToggle(tab?.id);
   });
 
   api.runtime.onMessage.addListener((message, _sender, sendResponse) => {

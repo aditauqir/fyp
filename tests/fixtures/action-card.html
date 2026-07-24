@@ -24,12 +24,10 @@
             return 'data:text/javascript,void%200';
           },
           getManifest() {
-            return { manifest_version: 3, version: '2.0.13' };
+            return { manifest_version: 3, version: '2.0.14' };
           },
           onMessage: {
-            addListener(listener) {
-              window.sendExtensionMessage = listener;
-            },
+            addListener() {},
           },
         },
       };
@@ -41,8 +39,5 @@
       <h1>YouTube page remains visible</h1>
       <p>The extension action card should cover only its own compact area.</p>
     </main>
-    <script>
-      window.sendExtensionMessage({ type: 'toggleActionCard' });
-    </script>
   </body>
 </html>

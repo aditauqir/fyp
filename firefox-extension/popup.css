@@ -1,22 +1,88 @@
-:root,
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  width: 100vw;
+  height: 100svh;
+  min-height: 100vh;
+  background: transparent;
+  color: #f7f7f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  width: 1px;
-  min-width: 1px;
-  height: 1px;
-  min-height: 1px;
+  width: 100vw;
+  height: 100svh;
+  min-height: 100vh;
   margin: 0;
   overflow: hidden;
   background: transparent;
 }
 
-.status {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
+.popup-shell {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(1rem, 4svh, 2rem));
+  display: grid;
+  width: min(92vw, 24rem);
+  max-height: min(38svh, 21rem);
+  gap: clamp(0.65rem, 2svh, 0.85rem);
+  padding: clamp(0.875rem, 3vw, 1.125rem);
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: clamp(1rem, 4vw, 1.25rem);
+  background: rgba(15, 15, 15, 0.97);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.46);
+  transform: translateX(-50%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.release-highlights {
+  display: grid;
+  gap: clamp(0.35rem, 1svh, 0.5rem);
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  color: #d6d6d6;
+  font: 600 clamp(0.82rem, 3.6vw, 0.95rem)/1.3 -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.release-highlights li::marker {
+  color: #ff0033;
+}
+
+.action {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.8rem 1rem;
   border: 0;
+  border-radius: 0.8rem;
+  font: 700 clamp(0.95rem, 4vw, 1.05rem)/1.1 -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.action-primary {
+  background: #ff0033;
+  color: #ffffff;
+}
+
+.action-secondary {
+  background: #292929;
+  color: #f7f7f7;
+  border: 1px solid #3a3a3a;
+}
+
+.action:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }

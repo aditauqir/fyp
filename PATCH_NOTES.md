@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.0.14
+
+- Fixed: Comments now show the first three top-level comments, then reveal exactly five more per **Show more** tap.
+- Fixed: Removed the toolbar-to-content in-page menu path that crashed Orion and restored a real extension popup.
+- Changed: The popup panel sits at the bottom center, uses up to 92% of the viewport width and 38% of its height, and contains three priority lines plus **Go to YouTube** and **Check for updates**.
+- Notes: No playback, inline/fullscreen, background-audio, navigation, Shorts, miniplayer, ad-blocking, or general page-layout behavior changed.
+
 ## v2.0.13
 
 - Fixed: The Orion toolbar tap now uses a zero-UI `default_popup` bridge that sends the action directly to the active YouTube tab and closes immediately.

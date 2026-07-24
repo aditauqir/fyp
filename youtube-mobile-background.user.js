@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.13
+// @version      2.0.14
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -17,7 +17,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.13');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.14');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -27,7 +27,7 @@
   const BACKEND_HOST = 'www.youtube.com';
   const NAV_LAYOUT_VERSION = 'ext-v213-orion-bridge';
   const COMMENT_PREVIEW_COUNT = 3;
-  const COMMENT_LOAD_STEP = 10;
+  const COMMENT_LOAD_STEP = 5;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
   const LOAD_LESS_COMMENTS_ID = `${SCRIPT_ID}-load-less-comments`;
   /*
@@ -1882,7 +1882,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m18 15-6-6-6 6"/>
         </svg>
-        <span>Load less</span>
+        <span>Show fewer</span>
       `;
       button.addEventListener('click', (event) => {
         event.preventDefault();
@@ -1945,7 +1945,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m6 9 6 6 6-6"/>
         </svg>
-        <span>Load more</span>
+        <span>Show more</span>
       `;
       button.addEventListener('click', (event) => {
         event.preventDefault();
@@ -2059,7 +2059,9 @@
       if (moreLabel) {
         const remaining = threads.length - visibleCount;
         moreLabel.textContent =
-          remaining > 0 ? `Load more (${remaining}+)` : 'Load more';
+          remaining > 0
+            ? `Show more (${Math.min(COMMENT_LOAD_STEP, remaining)})`
+            : 'Show more';
       }
     } else {
       moreButton.hidden = true;
