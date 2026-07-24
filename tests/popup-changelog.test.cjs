@@ -25,9 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Recommendations load before native comments\./);
-assert.match(popup, /Player controls hide after 8 seconds\./);
-assert.match(popup, /Duplicate WebKit captions are removed\./);
+assert.match(popup, /Search opens in a phone-width field\./);
+assert.match(popup, /iOS and Orion setup steps are clearer\./);
+assert.match(popup, /Manual OTA installation is documented\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.doesNotMatch(popupScript, /toggleActionCard/);
@@ -39,6 +39,6 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
-assert.match(patchNotes, /## v2\.0\.16/);
+assert.match(patchNotes, /## v2\.0\.17/);
 
 console.log('bottom-center extension popup: ok');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.16
+// @version      2.0.17
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -17,7 +17,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.16');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.17');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -25,7 +25,16 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v216-comments-after-recommendations';
+  const NAV_LAYOUT_VERSION = 'ext-v217-mobile-search';
+  const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
+  const MOBILE_SEARCH_TRIGGER_SELECTOR = [
+    'ytd-masthead #search-button',
+    'ytd-masthead #search-button-narrow',
+    'ytd-masthead #search-icon-legacy',
+    'ytd-masthead button[aria-label="Search"]',
+    'ytd-masthead [role="button"][aria-label="Search"]',
+    'ytd-masthead yt-icon-button[aria-label="Search"]',
+  ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 8000;
   /*
    * Orion's floating address bar overlays the bottom of the page (like Safari).
@@ -926,6 +935,75 @@
           margin-left: 0 !important;
           margin-right: 0 !important;
         }
+
+        /*
+         * Keep YouTube's native desktop search form, but present it as a
+         * phone-width overlay after the search icon is tapped. A 16px input
+         * also prevents WebKit from zooming the page when the keyboard opens.
+         */
+        ytd-masthead,
+        ytd-masthead #container,
+        ytd-masthead #start,
+        ytd-masthead #center,
+        ytd-masthead #end {
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+          max-width: 100vw !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
+          position: fixed !important;
+          top: calc(env(safe-area-inset-top, 0px) + 8px) !important;
+          right: 12px !important;
+          left: 12px !important;
+          z-index: 2147483646 !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          height: 48px !important;
+          margin: 0 !important;
+          padding: 4px !important;
+          align-items: center !important;
+          background: rgb(15, 15, 15) !important;
+          border: 1px solid rgba(255, 255, 255, .22) !important;
+          border-radius: 24px !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] form {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          height: 40px !important;
+          align-items: center !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
+          box-sizing: border-box !important;
+          display: block !important;
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          height: 40px !important;
+          padding: 0 12px !important;
+          color: #fff !important;
+          background: transparent !important;
+          font-size: 16px !important;
+          line-height: 40px !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+        }
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -1418,6 +1496,63 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
+  }
+
+  function closeMobileSearch() {
+    const masthead = document.querySelector('ytd-masthead');
+    if (!masthead) return;
+    masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
+    masthead
+      .querySelectorAll(
+        '#search-button, #search-icon-legacy, button[aria-label="Search"], ' +
+          '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
+      )
+      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+  }
+
+  function handleMobileSearchClick(event) {
+    if (!window.matchMedia?.('(max-width: 700px)').matches) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
+    const masthead = target.closest('ytd-masthead');
+    if (!trigger || !masthead) {
+      const openMasthead = document.querySelector(
+        `ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true']`
+      );
+      if (openMasthead && !target.closest('ytd-masthead #center')) {
+        closeMobileSearch();
+      }
+      return;
+    }
+
+    const alreadyOpen =
+      masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
+    if (alreadyOpen && trigger.closest('#center')) {
+      return;
+    }
+
+    const input = masthead.querySelector(
+      'input#search, input[name="search_query"], .yt-searchbox-input'
+    );
+    if (!(input instanceof HTMLInputElement)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
+    trigger.setAttribute('aria-expanded', 'true');
+    requestAnimationFrame(() => {
+      input.removeAttribute('hidden');
+      input.setAttribute('aria-hidden', 'false');
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
+      const end = input.value.length;
+      input.setSelectionRange?.(end, end);
+    });
   }
 
   function dismissMiniplayer() {
@@ -2210,6 +2345,24 @@
     { capture: true, passive: true }
   );
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
+  nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
+  nativeDocumentAddEventListener(
+    'submit',
+    (event) => {
+      if (event.target?.closest?.('ytd-masthead')) {
+        setTimeout(closeMobileSearch, 0);
+      }
+    },
+    true
+  );
+  nativeDocumentAddEventListener(
+    'keydown',
+    (event) => {
+      if (event.key !== 'Escape') return;
+      closeMobileSearch();
+    },
+    true
+  );
   nativeWindowAddEventListener('blur', () => {
     if (state.video && !state.video.paused) prepareForBackground();
   }, true);

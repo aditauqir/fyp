@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.0.17
+
+- Fixed: Tapping YouTube Search on iPhone now expands the native desktop search form into a usable phone-width field, while preserving YouTube’s own query and results flow.
+- Fixed: Search inputs use a 16px font so opening the keyboard does not zoom or clip the page in Orion.
+- Changed: The README now clearly identifies iOS and Orion Browser, links the official Orion App Store listing, includes platform/download badges, and shows the supplied installation and product screenshots.
+- Documented: The extension provides “OTA” update detection and downloads, but Orion policy requires every downloaded zip update to be installed manually with **Install from File**.
+- Notes: No player, fullscreen/PiP, background audio, comments, recommendations, controls delay, captions, navigation, Shorts, miniplayer, ads, or popup sizing behavior changed.
+
 ## v2.0.16
 
 - Fixed: YouTube recommendations now appear before native comments, and the extension no longer force-opens the comment section, preventing its loader from blocking recommended videos.

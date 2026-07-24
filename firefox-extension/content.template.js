@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.0.16';
+  const EXPECTED_PAGE_VERSION = '2.0.17';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
 
   function markVideoInline(video) {
