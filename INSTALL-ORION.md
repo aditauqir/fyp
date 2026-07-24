@@ -1,16 +1,16 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.11
+# Install Fuck YouTube Premium on Orion iOS — v2.0.12
 
-Version **2.0.11** keeps the inline playback and phone-layout fixes, adds three prioritized changelog lines to the compact two-button popup, and adds a permanent architecture handoff for future agents.
+Version **2.0.12** marks videos inline at creation time, permits fullscreen only from YouTube’s fullscreen control, replaces Orion’s full-page extension popup with a compact in-page card, and expands Shorts removal.
 
 ## Install this
 
 **Prefer Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.11.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.12.zip`
 
 Firefox fallback:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.11.zip`
+`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.12.zip`
 
 ## Steps
 
@@ -22,7 +22,7 @@ Firefox fallback:
 6. Enable **Fuck YouTube Premium** in Orion.
 7. Install or enable **uBlock Origin** in Orion.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
-9. Open `https://www.youtube.com`.
+9. Open `https://www.youtube.com`, open Orion’s website settings, and enable **Request Desktop Website**.
 10. Hard-refresh, or close the tab and reopen it.
 
 If the Chrome zip does not install, repeat the same steps with the Firefox zip.
@@ -38,13 +38,13 @@ If an update is available, download the offered zip, uninstall the current exten
 ## What should be true after install
 
 - Tap Play and the video remains inline above the title and comments.
-- One tap on Play starts the video; the extension does not force fullscreen or PiP.
+- One tap on Play starts the video inline; fullscreen occurs only after tapping the player’s fullscreen control.
 - The hamburger opens YouTube’s native drawer.
 - There is no permanent Home/Shorts/Subscriptions icon column.
 - Upload/Create is hidden.
 - Watch content has a small mobile gutter and does not extend beyond either edge.
 - Home and recommendation feeds use a phone-friendly single column.
-- The extension popup shows three priority changes above a compact two-button menu.
+- The extension icon toggles a compact in-page card with three priority changes and two buttons.
 - uBlock Origin handles network ad blocking.
 
-If these changes are missing, confirm the extension is enabled and allowed on youtube.com.
+If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play still invokes the native fullscreen controller after reinstalling 2.0.12, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.

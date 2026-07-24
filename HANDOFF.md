@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.11`** (2026-07-23)
+> **Current ship version: `2.0.12`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 >
@@ -40,8 +40,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.11.zip
-└── fuck-youtube-premium-firefox-2.0.11.zip
+├── fuck-youtube-premium-chrome-2.0.12.zip
+└── fuck-youtube-premium-firefox-2.0.12.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -87,7 +87,13 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.11)
+## Latest changes (through 2.0.12)
+
+### 2.0.12 — creation-time inline playback + compact action card
+- Marks every video inline at DOM creation time and repeats the attributes before native Play.
+- Gates fullscreen entry until YouTube’s real fullscreen control is tapped; removes CSS that hid that control.
+- Removes `default_popup`; the extension icon now toggles a compact Shadow DOM card inside YouTube.
+- Expands Shorts selectors and blocks `/shorts` link navigation.
 
 ### 2.0.11 — popup changelog + architecture handoff
 - Added three highest-priority changelog lines above the existing two popup buttons.
@@ -230,7 +236,7 @@ After reinstall + hard refresh on Orion:
 1. [ ] Burger opens guide on **one** tap and stays open.
 2. [ ] Guide has **no Shorts** row.
 3. [ ] No left mini-guide icon rail; no floating pill.
-4. [ ] One Play tap starts video inline; no fullscreen or PiP transition.
+4. [ ] One Play tap starts video inline with no presentation transition; tapping the fullscreen control still enters fullscreen.
 5. [ ] Leave video → no miniplayer on Home.
 6. [ ] Watch page: comments under description, 3 visible, Load more / Load less.
 7. [ ] Feed/player not clipped at left/right edges.

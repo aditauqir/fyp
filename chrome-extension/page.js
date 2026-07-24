@@ -9,7 +9,7 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v210-mobile-shell';
+  const NAV_LAYOUT_VERSION = 'ext-v212-inline-action-card';
   const COMMENT_PREVIEW_COUNT = 3;
   const COMMENT_LOAD_STEP = 10;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
@@ -273,6 +273,7 @@
     wantsPlayback: false,
     recoveryTimers: new Set(),
     userPauseUntil: 0,
+    fullscreenIntentUntil: 0,
   };
 
   const nativeMediaPause = HTMLMediaElement.prototype.pause;
@@ -382,6 +383,9 @@
       video.playsInline = true;
     } catch {}
     try {
+      video.webkitPlaysInline = true;
+    } catch {}
+    try {
       video.disablePictureInPicture = true;
     } catch {}
   }
@@ -390,29 +394,177 @@
     enforceInlinePlayback(state.video);
   }
 
+  function hasExplicitFullscreenIntent() {
+    return Date.now() <= state.fullscreenIntentUntil;
+  }
+
+  function isVideoFullscreenTarget(target) {
+    if (target instanceof HTMLVideoElement) return true;
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.matches?.(
+        '#movie_player, .html5-video-player, .html5-video-container, ytd-player'
+      ) || target.querySelector?.('video')
+    );
+  }
+
+  function recordFullscreenIntent(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const control = target.closest([
+      '.ytp-fullscreen-button',
+      'button[aria-label="Full screen"]',
+      'button[aria-label="Fullscreen"]',
+      'button[title="Full screen"]',
+      'button[title="Fullscreen"]',
+      '[data-tooltip-target-id="ytp-fullscreen-button"]',
+    ].join(','));
+    if (!control) return;
+    state.fullscreenIntentUntil = Date.now() + 2000;
+  }
+
   /*
-   * WebKit decides whether playback is inline at the instant play() begins.
-   * Mark the video before delegating to the native method. Do not call
-   * presentation-mode or fullscreen-exit APIs after the tap: those transitions
-   * consume the user gesture in Orion and were the reason the first tap failed.
+   * WebKit can choose native fullscreen before a late play() patch takes
+   * effect. Mark video elements at creation time, then repeat immediately
+   * before native play(). Fullscreen entry remains available only for the two
+   * seconds following a real tap on YouTube's fullscreen control.
    */
   function installInlinePlaybackGuard() {
-    const flag = '__ytMobileOrionInlinePlaybackGuardV1';
+    const flag = '__ytMobileOrionInlinePlaybackGuardV2';
     if (window[flag]) return;
     Object.defineProperty(window, flag, { value: true });
 
-    try {
-      const nativePlay = HTMLMediaElement.prototype.play;
-      HTMLMediaElement.prototype.play = function inlinePlay() {
-        if (this instanceof HTMLVideoElement) {
-          enforceInlinePlayback(this);
-          if (this.classList?.contains('html5-main-video') || this === state.video) {
-            attachVideo(this);
+    const replacePrototypeMethod = (prototype, method, createReplacement) => {
+      const nativeMethod = prototype?.[method];
+      if (typeof nativeMethod !== 'function') return;
+      const replacement = createReplacement(nativeMethod);
+      try {
+        const descriptor = Object.getOwnPropertyDescriptor(prototype, method);
+        Object.defineProperty(prototype, method, {
+          configurable: descriptor?.configurable ?? true,
+          enumerable: descriptor?.enumerable ?? false,
+          writable: descriptor?.writable ?? true,
+          value: replacement,
+        });
+      } catch {
+        try {
+          prototype[method] = replacement;
+        } catch {}
+      }
+    };
+
+    const patchVideoCreation = (prototype, method) => {
+      replacePrototypeMethod(
+        prototype,
+        method,
+        (nativeMethod) =>
+          function inlineVideoCreation(name) {
+            const element = nativeMethod.apply(this, arguments);
+            if (
+              element instanceof HTMLVideoElement ||
+              String(name).toLowerCase() === 'video'
+            ) {
+              enforceInlinePlayback(element);
+            }
+            return element;
           }
+      );
+    };
+
+    patchVideoCreation(Document.prototype, 'createElement');
+    patchVideoCreation(Document.prototype, 'createElementNS');
+
+    replacePrototypeMethod(
+      Element.prototype,
+      'setAttribute',
+      (nativeSetAttribute) =>
+        function inlineBeforeVideoSource(name) {
+          if (
+            this instanceof HTMLVideoElement &&
+            String(name).toLowerCase() === 'src'
+          ) {
+            enforceInlinePlayback(this);
+          }
+          return nativeSetAttribute.apply(this, arguments);
         }
-        return nativePlay.apply(this, arguments);
-      };
+    );
+
+    try {
+      const srcDescriptor = Object.getOwnPropertyDescriptor(
+        HTMLMediaElement.prototype,
+        'src'
+      );
+      if (srcDescriptor?.set && srcDescriptor.configurable) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+          ...srcDescriptor,
+          set(value) {
+            if (this instanceof HTMLVideoElement) enforceInlinePlayback(this);
+            return srcDescriptor.set.call(this, value);
+          },
+        });
+      }
     } catch {}
+
+    replacePrototypeMethod(
+      HTMLMediaElement.prototype,
+      'play',
+      (nativePlay) =>
+        function inlinePlay() {
+          if (this instanceof HTMLVideoElement) {
+            enforceInlinePlayback(this);
+            if (
+              this.classList?.contains('html5-main-video') ||
+              this === state.video
+            ) {
+              attachVideo(this);
+            }
+          }
+          return nativePlay.apply(this, arguments);
+        }
+    );
+
+    const guardFullscreenMethod = (prototype, method, promiseResult = false) => {
+      replacePrototypeMethod(
+        prototype,
+        method,
+        (nativeMethod) =>
+          function explicitFullscreenOnly() {
+            if (
+              isVideoFullscreenTarget(this) &&
+              !hasExplicitFullscreenIntent()
+            ) {
+              return promiseResult ? Promise.resolve(undefined) : undefined;
+            }
+            return nativeMethod.apply(this, arguments);
+          }
+      );
+    };
+
+    guardFullscreenMethod(HTMLVideoElement.prototype, 'webkitEnterFullscreen');
+    guardFullscreenMethod(HTMLVideoElement.prototype, 'webkitEnterFullScreen');
+    guardFullscreenMethod(Element.prototype, 'requestFullscreen', true);
+    guardFullscreenMethod(Element.prototype, 'webkitRequestFullscreen');
+    guardFullscreenMethod(Element.prototype, 'webkitRequestFullScreen');
+
+    replacePrototypeMethod(
+      HTMLVideoElement.prototype,
+      'webkitSetPresentationMode',
+      (nativePresentationMode) =>
+        function explicitPresentationModeOnly(mode) {
+          if (mode === 'picture-in-picture') return undefined;
+          if (mode === 'fullscreen' && !hasExplicitFullscreenIntent()) {
+            return undefined;
+          }
+          return nativePresentationMode.apply(this, arguments);
+        }
+    );
+
+    nativeDocumentAddEventListener(
+      'PointerEvent' in window ? 'pointerdown' : 'touchstart',
+      recordFullscreenIntent,
+      { capture: true, passive: true }
+    );
+    nativeDocumentAddEventListener('click', recordFullscreenIntent, true);
 
     const enforceVideoTree = (root) => {
       if (root instanceof HTMLVideoElement) enforceInlinePlayback(root);
@@ -597,8 +749,14 @@
       ytd-rich-section-renderer:has(a[href*='/shorts']),
       ytm-reel-shelf-renderer,
       ytm-shorts-lockup-view-model,
+      ytm-shorts-lockup-view-model-v2,
+      ytd-reel-item-renderer,
+      ytm-reel-item-renderer,
+      ytd-rich-item-renderer:has(a[href*='/shorts']),
+      yt-lockup-view-model:has(a[href*='/shorts']),
       grid-shelf-view-model:has(a[href*='/shorts']),
       a[href^='/shorts'],
+      a[href*='youtube.com/shorts/'],
       [is-shorts],
       ytd-thumbnail[href*='/shorts'] {
         display: none !important;
@@ -672,14 +830,6 @@
         margin: 0 !important;
         padding: 0 !important;
         overflow: hidden !important;
-      }
-
-      .ytp-fullscreen-button,
-      button[aria-label='Full screen'],
-      button[aria-label='Fullscreen'] {
-        display: none !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
       }
 
       /*
@@ -1227,6 +1377,9 @@
         'ytd-reel-shelf-renderer',
         'ytm-reel-shelf-renderer',
         'ytm-shorts-lockup-view-model',
+        'ytm-shorts-lockup-view-model-v2',
+        'ytd-reel-item-renderer',
+        'ytm-reel-item-renderer',
       ].join(',')
     )) {
       setImportantStyles(element, {
@@ -1274,7 +1427,9 @@
             'ytd-mini-guide-entry-renderer, yt-tab-shape, [role="tab"], ' +
             'ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer, ' +
             'ytd-rich-shelf-renderer, ytd-reel-shelf-renderer, ytd-rich-section-renderer, ' +
-            'tp-yt-paper-item'
+            'ytd-reel-item-renderer, ytm-reel-item-renderer, ' +
+            'ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, ' +
+            'yt-lockup-view-model, tp-yt-paper-item'
         ) || control;
       setImportantStyles(item, {
         display: 'none',
@@ -1286,6 +1441,16 @@
     }
 
     hideShortsGuideEntries(document);
+  }
+
+  function blockShortsNavigation(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const link = target.closest('a[href*="/shorts"]');
+    if (!link) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
   function dismissMiniplayer() {
@@ -2353,6 +2518,7 @@
     recordPlayerControlIntent,
     { capture: true, passive: true }
   );
+  nativeDocumentAddEventListener('click', blockShortsNavigation, true);
   nativeWindowAddEventListener('blur', () => {
     if (state.video && !state.video.paused) prepareForBackground();
   }, true);

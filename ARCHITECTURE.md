@@ -2,8 +2,8 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.0.11`  
-**Repository:** `https://github.com/aditauqir/fyp.git`  
+**Current shipped version:** `2.0.12`
+**Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
 ## Product model
@@ -26,7 +26,7 @@ flowchart TD
     P --> M["Mobile layout shell"]
     P --> V["Inline and background playback layer"]
     W["background.js"] --> G["GitHub Releases update check"]
-    X["Two-button popup"] --> O
+    X["Compact in-page action card"] --> O
     X --> W
     A["uBlock Origin"] --> O
 ```
@@ -38,7 +38,7 @@ flowchart TD
 | Host | Use `www.youtube.com` with `app=desktop&persist_app=1`. |
 | Player | Full-width, inline video above metadata and comments. |
 | Play | The first user tap must call the native `play()` path and start playback. |
-| Fullscreen | Starting playback must not trigger or force fullscreen. |
+| Fullscreen | Starting playback must not trigger fullscreen; only a tap on YouTube’s fullscreen control grants a two-second entry window. |
 | PiP | Disabled. Starting playback must not enter PiP. |
 | Background audio | Continue playing when Orion is backgrounded or the phone is locked when WebKit permits it. |
 | Layout | No content clipped beyond the left or right viewport edge. |
@@ -48,7 +48,7 @@ flowchart TD
 | Shorts | Hide Shorts links, shelves, and drawer entries; redirect `/shorts` to Home. |
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
 | Comments | Place comments below the description; initially show three with Load more/Load less controls. |
-| Popup | Three priority changelog lines plus only **Go to YouTube** and **Check for updates** as buttons. |
+| Extension action | No `default_popup`; clicking the icon toggles a compact in-page card with three changelog lines and two buttons. |
 | Ads | Expect uBlock Origin to handle network ad blocking. |
 
 ## Runtime layers
@@ -60,7 +60,7 @@ Two packages are produced because Orion’s support can vary:
 - `chrome-extension/manifest.json`: Manifest V3; preferred Orion install.
 - `firefox-extension/manifest.json`: Manifest V2; fallback Orion install.
 
-Both packages run `content.js` at `document_start`, expose `page.js`, provide the two-button popup, and run the update checker.
+Both packages run `content.js` at `document_start`, expose `page.js`, provide the extension-icon action card, and run the update checker.
 
 ### 2. Isolated-world bridge
 
@@ -85,12 +85,14 @@ Never edit `chrome-extension/page.js` or `firefox-extension/page.js` directly. T
 
 ### 4. Popup and update service
 
-`popup.html`, `popup.css`, and `popup.js` show three short release-note lines and implement exactly two actions:
+Orion iOS expands a normal WebExtension `default_popup` into a full-page sheet. Both manifests therefore omit `default_popup`. `background.js` handles the extension icon click and tells `content.js` to toggle an isolated compact card over YouTube.
+
+The action card shows three short release-note lines and implements exactly two actions:
 
 1. Open desktop YouTube.
 2. Ask `background.js` to check the latest GitHub Release.
 
-`background.js` checks the GitHub Releases API every six hours and on demand. It selects the Chrome or Firefox asset based on the installed manifest and shows an `UP` badge when a newer version exists.
+`background.js` checks the GitHub Releases API every six hours and shows an `UP` badge when a newer version exists. The action card also performs an on-demand GitHub check directly, avoiding Orion popup-to-background messaging limitations.
 
 This is an update notification and download flow, not silent OTA installation. Orion requires the downloaded ZIP to be installed manually.
 
@@ -100,7 +102,7 @@ Playback code must be conservative because the user gesture is valuable on iOS.
 
 ### Inline start
 
-Immediately before delegating to the native `HTMLMediaElement.prototype.play()`:
+When a video is created through `Document.createElement` or `createElementNS`, and again immediately before delegating to native `HTMLMediaElement.prototype.play()`:
 
 1. Add `playsinline`.
 2. Add `webkit-playsinline`.
@@ -108,7 +110,7 @@ Immediately before delegating to the native `HTMLMediaElement.prototype.play()`:
 4. Set `video.disablePictureInPicture = true`.
 5. Call the untouched native `play()` method and return its result.
 
-`installInlinePlaybackGuard()` performs this work. It must not swallow the Play promise or manufacture a replacement result.
+`installInlinePlaybackGuard()` performs this work. It must not swallow the Play promise or manufacture a replacement result. It gates video/player fullscreen APIs until `recordFullscreenIntent()` observes the real fullscreen control.
 
 ### Prohibited playback techniques
 
@@ -116,7 +118,7 @@ Do not:
 
 - call `webkitSetPresentationMode()` during Play;
 - call `webkitEnterFullscreen()` or `webkitExitFullscreen()`;
-- patch `requestFullscreen()` or WebKit fullscreen methods;
+- permanently disable `requestFullscreen()` or WebKit fullscreen methods; they must remain available after explicit fullscreen intent;
 - remove YouTube fullscreen classes after Play;
 - intercept the user’s Play click and attempt a second synthetic click;
 - request PiP from a visibility, blur, freeze, or background event.
@@ -198,15 +200,15 @@ Required edit flow:
 
 1. Edit `youtube-mobile-background.user.js`.
 2. Bump its `@version`.
-3. Edit shared popup/background source under `firefox-extension/` when needed.
+3. Edit the action-card source in `firefox-extension/content.template.js` and shared background source under `firefox-extension/` when needed.
 4. Run `./rebuild-extension.sh`.
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
 Current package names:
 
-- `fuck-youtube-premium-chrome-2.0.11.zip`
-- `fuck-youtube-premium-firefox-2.0.11.zip`
+- `fuck-youtube-premium-chrome-2.0.12.zip`
+- `fuck-youtube-premium-firefox-2.0.12.zip`
 
 ## Verification contract
 
@@ -222,7 +224,7 @@ git diff --check
 Then test at an iPhone-sized viewport and, when possible, on Orion iOS:
 
 1. One Play tap starts video inline.
-2. No fullscreen or PiP transition occurs.
+2. No fullscreen or PiP transition occurs from Play; the fullscreen control still works.
 3. Video keeps playing while the user scrolls through metadata and comments.
 4. Background audio resumes when the page is hidden.
 5. Left and right edges remain inside the viewport.
@@ -230,7 +232,7 @@ Then test at an iPhone-sized viewport and, when possible, on Orion iOS:
 7. Home and recommendation feeds are one column.
 8. Hamburger opens the native drawer once.
 9. No mini-guide column or Shorts entry appears.
-10. Popup shows three priority changelog lines and only the two required buttons.
+10. The extension icon toggles a compact in-page card with three changelog lines and two buttons.
 
 Browser-based desktop testing cannot prove Orion’s app-level `WKWebView` configuration. Treat an actual Orion iPhone test as the final authority for playback presentation behavior.
 
@@ -260,7 +262,7 @@ Rules:
 | `rebuild-extension.sh` | Build, synchronization, validation, and packaging. |
 | `firefox-extension/content.template.js` | Stable page-context injection bridge template. |
 | `firefox-extension/background.js` | Update checker shared with Chrome. |
-| `firefox-extension/popup.*` | Popup source shared with Chrome. |
+| `firefox-extension/popup.*` | Packaged fallback/reference UI; not assigned as `default_popup`. |
 | `chrome-extension/page.js` | Generated; do not edit directly. |
 | `firefox-extension/page.js` | Generated; do not edit directly. |
 | `tests/` | Regression tests. |

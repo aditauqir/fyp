@@ -6,6 +6,10 @@ const popup = fs.readFileSync(
   path.join(__dirname, '..', 'firefox-extension', 'popup.html'),
   'utf8'
 );
+const actionCard = fs.readFileSync(
+  path.join(__dirname, '..', 'firefox-extension', 'content.template.js'),
+  'utf8'
+);
 const patchNotes = fs.readFileSync(
   path.join(__dirname, '..', 'PATCH_NOTES.md'),
   'utf8'
@@ -13,9 +17,13 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Inline Play stays on the page\./);
-assert.match(popup, /Phone layout no longer clips\./);
-assert.match(popup, /Update notes now appear here\./);
-assert.match(patchNotes, /## v2\.0\.11/);
+assert.match(popup, /Inline Play; fullscreen only on request\./);
+assert.match(popup, /Extension menu stays compact on-page\./);
+assert.match(popup, /Shorts are removed across YouTube\./);
+assert.match(actionCard, /Inline Play; fullscreen only on request\./);
+assert.match(actionCard, /Extension menu stays compact on-page\./);
+assert.match(actionCard, /Shorts are removed across YouTube\./);
+assert.equal((actionCard.match(/document\.createElement\('button'\)/g) || []).length, 2);
+assert.match(patchNotes, /## v2\.0\.12/);
 
 console.log('compact popup changelog: ok');

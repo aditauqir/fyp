@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 const listeners = {};
 const badgeCalls = [];
+const tabMessages = [];
 let manifestVersion = 3;
 const fakeApi = {
   action: {
@@ -13,6 +14,11 @@ const fakeApi = {
     },
     setBadgeText(value) {
       badgeCalls.push(['text', value]);
+    },
+    onClicked: {
+      addListener(listener) {
+        listeners.actionClicked = listener;
+      },
     },
   },
   alarms: {
@@ -25,7 +31,7 @@ const fakeApi = {
   },
   runtime: {
     getManifest() {
-      return { manifest_version: manifestVersion, version: '2.0.11' };
+      return { manifest_version: manifestVersion, version: '2.0.12' };
     },
     onInstalled: {
       addListener(listener) {
@@ -41,6 +47,12 @@ const fakeApi = {
       addListener(listener) {
         listeners.startup = listener;
       },
+    },
+  },
+  tabs: {
+    sendMessage(tabId, message) {
+      tabMessages.push([tabId, message]);
+      return Promise.resolve();
     },
   },
 };
@@ -80,6 +92,8 @@ const backgroundPath = path.join(
 vm.runInNewContext(fs.readFileSync(backgroundPath, 'utf8'), context);
 
 assert.equal(typeof listeners.message, 'function');
+assert.equal(typeof listeners.actionClicked, 'function');
+listeners.actionClicked({ id: 42 });
 
 function requestUpdate() {
   return new Promise((resolve) => {
@@ -95,7 +109,7 @@ function requestUpdate() {
 (async () => {
   const chromeUpdate = await requestUpdate();
   assert.equal(chromeUpdate.ok, true);
-  assert.equal(chromeUpdate.currentVersion, '2.0.11');
+  assert.equal(chromeUpdate.currentVersion, '2.0.12');
   assert.equal(chromeUpdate.latestVersion, '2.1.0');
   assert.equal(chromeUpdate.updateAvailable, true);
   assert.equal(
@@ -112,5 +126,8 @@ function requestUpdate() {
 
   assert.equal(badgeCalls.at(-1)[0], 'text');
   assert.equal(badgeCalls.at(-1)[1].text, 'UP');
+  assert.equal(tabMessages.length, 1);
+  assert.equal(tabMessages[0][0], 42);
+  assert.equal(tabMessages[0][1].type, 'toggleActionCard');
   console.log('background update check: ok');
 })();
