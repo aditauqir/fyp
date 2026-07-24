@@ -3,13 +3,15 @@
 (() => {
   'use strict';
 
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.13');
+
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v212-inline-action-card';
+  const NAV_LAYOUT_VERSION = 'ext-v213-orion-bridge';
   const COMMENT_PREVIEW_COUNT = 3;
   const COMMENT_LOAD_STEP = 10;
   const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;

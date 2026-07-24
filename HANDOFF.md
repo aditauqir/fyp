@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.12`** (2026-07-23)
+> **Current ship version: `2.0.13`** (2026-07-23)
 >
 > Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
 >
@@ -40,8 +40,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.12.zip
-└── fuck-youtube-premium-firefox-2.0.12.zip
+├── fuck-youtube-premium-chrome-2.0.13.zip
+└── fuck-youtube-premium-firefox-2.0.13.zip
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -87,7 +87,14 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.12)
+## Latest changes (through 2.0.13)
+
+### 2.0.13 — Orion toolbar relay + verified page startup
+- Restores `default_popup` only as a one-pixel transparent toolbar relay; it messages the active YouTube tab directly and closes.
+- Replaces the broken “script element exists” injection check with a versioned page-readiness handshake and nonce-aware retry.
+- Runs DOM-level inline video marking, Shorts filtering, and viewport containment even if page-world JavaScript is blocked.
+- Makes the in-page card up to 22rem wide with 3.5rem buttons and larger release-note text.
+- Manual update checks use background messaging first and direct GitHub access as an Orion fallback.
 
 ### 2.0.12 — creation-time inline playback + compact action card
 - Marks every video inline at DOM creation time and repeats the attributes before native Play.

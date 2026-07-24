@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Fuck YouTube Premium",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "description": "Desktop YouTube for Orion: inline play, mobile layout, burger navigation, no Shorts or miniplayer.",
   "icons": {
     "48": "icons/icon-48.png",
@@ -14,6 +14,7 @@
     "https://m.youtube.com/*",
     "https://youtu.be/*",
     "https://api.github.com/*",
+    "activeTab",
     "alarms"
   ],
   "background": {
@@ -24,6 +25,7 @@
   },
   "browser_action": {
     "default_title": "Fuck YouTube Premium",
+    "default_popup": "popup.html",
     "default_icon": {
       "48": "icons/icon-48.png",
       "96": "icons/icon-96.png",

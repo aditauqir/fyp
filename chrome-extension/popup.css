@@ -1,77 +1,22 @@
-:root {
-  color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  width: 16rem;
-  height: auto;
-  min-height: 0;
-  background: transparent;
-  color: #f7f7f7;
-}
-
-* {
-  box-sizing: border-box;
-}
-
+:root,
 body {
-  width: 16rem;
-  height: auto;
-  min-height: 0;
+  width: 1px;
+  min-width: 1px;
+  height: 1px;
+  min-height: 1px;
   margin: 0;
   overflow: hidden;
   background: transparent;
 }
 
-.popup-shell {
-  display: grid;
-  width: 100%;
-  gap: clamp(0.45rem, 2vw, 0.55rem);
-  padding: clamp(0.625rem, 3vw, 0.75rem);
-  border-radius: 0.9rem;
-  background: #0f0f0f;
-}
-
-.release-highlights {
-  display: grid;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0 0 0 1.1rem;
-  color: #d6d6d6;
-  font: 600 clamp(0.72rem, 3.2vw, 0.78rem)/1.25 -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-.release-highlights li::marker {
-  color: #ff0033;
-}
-
-.action {
-  width: 100%;
-  min-height: 2.7rem;
-  padding: 0.65rem 0.8rem;
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
   border: 0;
-  border-radius: 0.75rem;
-  font: 700 0.9rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.action:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
-.action-primary {
-  background: #ff0033;
-  color: #ffffff;
-}
-
-.action-secondary {
-  background: #292929;
-  color: #f7f7f7;
-  border: 1px solid #3a3a3a;
-}
-
-.action:focus-visible {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
 }

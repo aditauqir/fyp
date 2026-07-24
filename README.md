@@ -4,7 +4,7 @@ Fuck YouTube Premium is an Orion extension for iPhone and iPad. It loads desktop
 
 ## Install on Orion for iOS
 
-1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.12.zip](fuck-youtube-premium-chrome-2.0.12.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.12.zip](fuck-youtube-premium-firefox-2.0.12.zip).
+1. Download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.13.zip](fuck-youtube-premium-chrome-2.0.13.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.13.zip](fuck-youtube-premium-firefox-2.0.13.zip).
 2. Open **Orion → Settings → Extensions**.
 3. Enable support for both **Chrome Extensions** and **Firefox Extensions**.
 4. In Orion’s Extensions screen, tap **+**, then **Install from File**.
@@ -17,12 +17,12 @@ The Chrome zip is recommended. The Firefox zip is provided as a fallback because
 
 ## Extension menu and updates
 
-Tap the extension icon in Orion to toggle a compact card over the current YouTube page. It shows the three highest-priority release notes and only two buttons:
+Tap the extension icon while viewing YouTube to toggle a clearly visible card over the page. The invisible one-pixel WebExtension popup is only a compatibility relay: it sends the toolbar tap into the YouTube tab and closes immediately. The in-page card is up to 22rem wide, shows the three highest-priority release notes, and contains only two large buttons:
 
 - **Go to YouTube** opens desktop YouTube.
 - **Check for updates** compares the installed version with the latest GitHub Release. When an update is available, the button downloads the correct Chrome or Firefox zip.
 
-The extension checks GitHub periodically and shows an **UP** badge when a newer release exists. The icon deliberately has no WebExtension `default_popup`, because Orion iOS presents that surface as a full-page sheet. Orion does not permit a manually installed zip to silently replace itself, so the final installation step remains manual: download the new zip, remove the old extension, and install the new file.
+The extension checks GitHub periodically and shows an **UP** badge when a newer release exists. Manual checks first ask the background update service and automatically fall back to a direct GitHub request if Orion has suspended it. Orion does not permit a manually installed zip to silently replace itself, so the final installation step remains manual: download the new zip, remove the old extension, and install the new file.
 
 ### Release history policy
 

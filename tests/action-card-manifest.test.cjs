@@ -8,7 +8,8 @@ for (const folder of ['chrome-extension', 'firefox-extension']) {
   );
   const action = manifest.action || manifest.browser_action;
   assert.ok(action, `${folder} action`);
-  assert.equal('default_popup' in action, false, `${folder} default_popup`);
+  assert.equal(action.default_popup, 'popup.html', `${folder} default_popup`);
+  assert.ok(manifest.permissions.includes('activeTab'), `${folder} activeTab`);
 }
 
 const source = fs.readFileSync(
@@ -27,4 +28,4 @@ assert.doesNotMatch(
   /\.ytp-fullscreen-button,[\s\S]{0,180}display: none !important/
 );
 
-console.log('action card and explicit fullscreen manifest: ok');
+console.log('popup bridge and explicit fullscreen manifest: ok');

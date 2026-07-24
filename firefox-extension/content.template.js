@@ -26,13 +26,141 @@
   }
 
   const ACTION_CARD_ID = 'fyp-orion-action-card';
+  const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
+  const PAGE_READY_ATTR = 'data-fyp-page-ready';
+  const EXPECTED_PAGE_VERSION = '2.0.13';
+  const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const RELEASE_API =
     'https://api.github.com/repos/aditauqir/fyp/releases/latest';
   const RELEASE_HIGHLIGHTS = [
-    'Inline Play; fullscreen only on request.',
-    'Extension menu stays compact on-page.',
-    'Shorts are removed across YouTube.',
+    'Toolbar tap now opens these controls.',
+    'Inline fallback runs without page injection.',
+    'Shorts stay removed across YouTube.',
   ];
+
+  function markVideoInline(video) {
+    if (!video || String(video.tagName).toLowerCase() !== 'video') return;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+    video.setAttribute('x-webkit-airplay', 'deny');
+    try {
+      video.playsInline = true;
+      video.webkitPlaysInline = true;
+      video.disablePictureInPicture = true;
+    } catch {
+      // Attribute enforcement above remains effective in Orion's isolated world.
+    }
+  }
+
+  function markVideoTree(root = document) {
+    if (String(root?.tagName).toLowerCase() === 'video') {
+      markVideoInline(root);
+    }
+    root?.querySelectorAll?.('video').forEach(markVideoInline);
+  }
+
+  function redirectShorts() {
+    if (!location.pathname.startsWith('/shorts')) return false;
+    location.replace('https://www.youtube.com/?app=desktop&persist_app=1');
+    return true;
+  }
+
+  function installDomFallbacks() {
+    redirectShorts();
+    markVideoTree(document);
+
+    const videoObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) markVideoTree(node);
+      }
+    });
+    videoObserver.observe(document, { childList: true, subtree: true });
+
+    const prepareInlinePlayback = (event) => {
+      const target = event.target;
+      if (
+        String(target?.tagName).toLowerCase() === 'video' ||
+        target?.closest?.('#movie_player, ytd-player, #player-container')
+      ) {
+        markVideoTree(document);
+      }
+    };
+    document.addEventListener('pointerdown', prepareInlinePlayback, true);
+    document.addEventListener('touchstart', prepareInlinePlayback, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener('click', prepareInlinePlayback, true);
+    document.addEventListener(
+      'play',
+      (event) => markVideoInline(event.target),
+      true
+    );
+
+    document.addEventListener(
+      'click',
+      (event) => {
+        const link = event.target?.closest?.('a[href*="/shorts"]');
+        if (!link) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        location.assign('https://www.youtube.com/?app=desktop&persist_app=1');
+      },
+      true
+    );
+
+    const installFallbackStyle = () => {
+      const root = document.documentElement || document.head || document.body;
+      if (!root || document.getElementById(DOM_FALLBACK_STYLE_ID)) return false;
+      const style = document.createElement('style');
+      style.id = DOM_FALLBACK_STYLE_ID;
+      style.textContent = `
+        ytd-mini-guide-renderer,
+        ytd-mini-guide-entry-renderer,
+        ytd-guide-entry-renderer:has(a[href^="/shorts"]),
+        ytd-rich-shelf-renderer:has(a[href*="/shorts"]),
+        ytd-reel-shelf-renderer,
+        ytm-reel-shelf-renderer,
+        ytm-shorts-lockup-view-model,
+        ytm-shorts-lockup-view-model-v2,
+        ytd-rich-item-renderer:has(a[href*="/shorts"]),
+        yt-lockup-view-model:has(a[href*="/shorts"]),
+        a[href^="/shorts"],
+        a[href*="youtube.com/shorts/"],
+        [is-shorts] {
+          display: none !important;
+        }
+
+        ytd-app,
+        ytd-page-manager,
+        ytd-watch-flexy,
+        ytd-watch-flexy #columns,
+        ytd-watch-flexy #primary,
+        ytd-watch-flexy #secondary {
+          box-sizing: border-box !important;
+          max-width: 100vw !important;
+          min-width: 0 !important;
+        }
+
+        html,
+        body {
+          max-width: 100vw !important;
+          overflow-x: clip !important;
+        }
+      `;
+      root.appendChild(style);
+      return true;
+    };
+
+    if (!installFallbackStyle()) {
+      const styleObserver = new MutationObserver(() => {
+        if (installFallbackStyle()) styleObserver.disconnect();
+      });
+      styleObserver.observe(document, { childList: true, subtree: true });
+    }
+  }
+
+  installDomFallbacks();
 
   function compareVersions(left, right) {
     const a = String(left).replace(/^v/i, '').split('.').map(Number);
@@ -45,6 +173,48 @@
     return 0;
   }
 
+  function sendRuntimeMessage(message, timeoutMs = 1800) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        callback(value);
+      };
+      const timer = setTimeout(
+        () => finish(reject, new Error('Extension messaging timed out')),
+        timeoutMs
+      );
+
+      try {
+        if (typeof browser !== 'undefined') {
+          Promise.resolve(api.runtime.sendMessage(message)).then(
+            (value) => finish(resolve, value),
+            (error) => finish(reject, error)
+          );
+          return;
+        }
+        api.runtime.sendMessage(message, (response) => {
+          const error = api.runtime.lastError;
+          if (error) finish(reject, new Error(error.message));
+          else finish(resolve, response);
+        });
+      } catch (error) {
+        finish(reject, error);
+      }
+    });
+  }
+
+  async function fetchLatestRelease() {
+    const response = await fetch(RELEASE_API, {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
+    return response.json();
+  }
+
   async function checkForUpdatesFromCard(button) {
     const downloadUrl = button.dataset.downloadUrl;
     if (downloadUrl) {
@@ -55,14 +225,24 @@
     button.disabled = true;
     button.textContent = 'Checking…';
     try {
-      const response = await fetch(RELEASE_API, {
-        headers: { Accept: 'application/vnd.github+json' },
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
-
-      const release = await response.json();
       const manifest = api.runtime.getManifest();
+      let result = null;
+      try {
+        result = await sendRuntimeMessage({ type: 'checkForUpdates' });
+      } catch {
+        // Orion may suspend or omit the background page. Fetch directly below.
+      }
+
+      const release =
+        result?.ok
+          ? {
+              tag_name: `v${result.latestVersion}`,
+              html_url: result.releaseUrl,
+              assets: result.downloadUrl
+                ? [{ browser_download_url: result.downloadUrl }]
+                : [],
+            }
+          : await fetchLatestRelease();
       const latestVersion = String(release.tag_name || '').replace(/^v/i, '');
       const updateAvailable =
         Boolean(latestVersion) &&
@@ -71,7 +251,9 @@
       const expectedName =
         `fuck-youtube-premium-${packageType}-${latestVersion}.zip`;
       const asset = (release.assets || []).find(
-        (candidate) => candidate.name === expectedName
+        (candidate) =>
+          candidate.name === expectedName ||
+          (!candidate.name && candidate.browser_download_url)
       );
 
       if (updateAvailable && (asset?.browser_download_url || release.html_url)) {
@@ -106,11 +288,11 @@
       :host {
         all: initial;
         position: fixed;
-        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        top: calc(env(safe-area-inset-top, 0px) + 16px);
         right: 12px;
         z-index: 2147483647;
         display: block;
-        width: min(16rem, calc(100vw - 24px));
+        width: min(22rem, calc(100vw - 24px));
         color-scheme: dark;
       }
 
@@ -121,10 +303,10 @@
       .card {
         display: grid;
         width: 100%;
-        gap: clamp(0.45rem, 2vw, 0.55rem);
-        padding: clamp(0.625rem, 3vw, 0.75rem);
+        gap: 0.75rem;
+        padding: 1rem;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 0.9rem;
+        border-radius: 1rem;
         background: rgba(15, 15, 15, 0.97);
         box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.38);
         -webkit-backdrop-filter: blur(18px) saturate(1.2);
@@ -133,11 +315,11 @@
 
       ul {
         display: grid;
-        gap: 0.35rem;
+        gap: 0.5rem;
         margin: 0;
-        padding: 0 0 0 1.1rem;
+        padding: 0 0 0 1.25rem;
         color: #d6d6d6;
-        font: 600 clamp(0.72rem, 3.2vw, 0.78rem)/1.25 -apple-system,
+        font: 600 clamp(0.88rem, 3.8vw, 1rem)/1.35 -apple-system,
           BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
@@ -148,13 +330,13 @@
       button {
         appearance: none;
         width: 100%;
-        min-height: 2.75rem;
-        padding: 0.65rem 0.8rem;
+        min-height: 3.5rem;
+        padding: 0.85rem 1rem;
         border: 0;
         border-radius: 0.75rem;
         color: #f7f7f7;
         background: #292929;
-        font: 700 0.9rem/1 -apple-system, BlinkMacSystemFont,
+        font: 700 1rem/1.1 -apple-system, BlinkMacSystemFont,
           "Segoe UI", sans-serif;
         cursor: pointer;
         touch-action: manipulation;
@@ -213,15 +395,31 @@
 
   const src = api.runtime.getURL('page.js');
 
+  function pageRuntimeReady() {
+    return (
+      document.documentElement?.getAttribute(PAGE_READY_ATTR) ===
+      EXPECTED_PAGE_VERSION
+    );
+  }
+
   function injectWithSrc() {
     const root = document.documentElement || document.head || document.body;
     if (!root) return false;
-    if (document.getElementById('yt-mobile-orion-page-script')) return true;
+    if (pageRuntimeReady()) return true;
+    document.getElementById(PAGE_SCRIPT_ID)?.remove();
 
     const script = document.createElement('script');
-    script.id = 'yt-mobile-orion-page-script';
+    script.id = PAGE_SCRIPT_ID;
     script.src = src;
     script.async = false;
+    script.addEventListener(
+      'error',
+      () => {
+        script.remove();
+        injectWithText();
+      },
+      { once: true }
+    );
     root.appendChild(script);
     return true;
   }
@@ -229,19 +427,24 @@
   async function injectWithText() {
     const root = document.documentElement || document.head || document.body;
     if (!root) return false;
-    if (document.getElementById('yt-mobile-orion-page-script')) return true;
+    if (pageRuntimeReady()) return true;
+    document.getElementById(PAGE_SCRIPT_ID)?.remove();
 
     try {
       const response = await fetch(src);
+      if (!response.ok) throw new Error(`page.js returned ${response.status}`);
       const code = await response.text();
       const script = document.createElement('script');
-      script.id = 'yt-mobile-orion-page-script';
+      script.id = PAGE_SCRIPT_ID;
+      const nonceSource = document.querySelector('script[nonce]');
+      const nonce = nonceSource?.nonce || nonceSource?.getAttribute('nonce');
+      if (nonce) script.setAttribute('nonce', nonce);
       script.textContent = code;
       root.appendChild(script);
       script.remove();
-      return true;
+      return pageRuntimeReady();
     } catch {
-      return injectWithSrc();
+      return false;
     }
   }
 
@@ -252,10 +455,12 @@
     observer.observe(document, { childList: true, subtree: true });
   }
 
-  // Fallback if src injection is blocked by Orion.
+  // A tag can exist without executing in Orion. Verify a PAGE-world handshake.
   setTimeout(() => {
-    if (!document.getElementById('yt-mobile-orion-page-script')) {
-      injectWithText();
-    }
-  }, 0);
+    if (!pageRuntimeReady()) injectWithText();
+  }, 200);
+
+  setTimeout(() => {
+    if (!pageRuntimeReady()) injectWithText();
+  }, 1200);
 })();

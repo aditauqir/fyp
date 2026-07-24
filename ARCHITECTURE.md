@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.0.12`
+**Current shipped version:** `2.0.13`
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -21,12 +21,14 @@ This is not a replacement YouTube client, proxy, scraper, or embedded player. No
 flowchart TD
     U["User in Orion iOS"] --> O["www.youtube.com desktop mode"]
     E["Fuck YouTube Premium WebExtension"] --> C["content.js at document_start"]
-    C --> P["page.js in YouTube page context"]
+    C --> F["DOM-level inline, viewport, and Shorts fallback"]
+    C --> P["page.js with readiness handshake"]
     P --> B["Desktop YouTube behavior and account session"]
     P --> M["Mobile layout shell"]
     P --> V["Inline and background playback layer"]
     W["background.js"] --> G["GitHub Releases update check"]
-    X["Compact in-page action card"] --> O
+    R["Zero-UI toolbar popup relay"] --> X["Large in-page action card"]
+    X --> O
     X --> W
     A["uBlock Origin"] --> O
 ```
@@ -48,7 +50,7 @@ flowchart TD
 | Shorts | Hide Shorts links, shelves, and drawer entries; redirect `/shorts` to Home. |
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
 | Comments | Place comments below the description; initially show three with Load more/Load less controls. |
-| Extension action | No `default_popup`; clicking the icon toggles a compact in-page card with three changelog lines and two buttons. |
+| Extension action | A zero-UI `default_popup` relays the toolbar tap directly to the YouTube content script, closes, and toggles a visible in-page card with three changelog lines and two large buttons. |
 | Ads | Expect uBlock Origin to handle network ad blocking. |
 
 ## Runtime layers
@@ -66,7 +68,14 @@ Both packages run `content.js` at `document_start`, expose `page.js`, provide th
 
 `content.js` runs in the extension’s isolated world. It injects the packaged `page.js` file into the document so playback and page API patches affect YouTube’s own JavaScript environment.
 
-Keep this file small and stable. Orion iOS previously failed when the project moved too much logic into the isolated content script.
+The page runtime sets `data-fyp-page-ready` with its exact version. The content bridge checks that signal instead of assuming that an appended script executed. If external script loading fails, it removes the stale node, fetches the packaged source, copies YouTube’s script nonce when available, and retries inline.
+
+Critical DOM behavior is intentionally duplicated at this boundary because DOM changes cross isolated-world boundaries even when prototype patches do not. The content layer always:
+
+- marks existing and newly inserted videos `playsinline` and `webkit-playsinline`;
+- repeats inline marking before pointer, touch, click, and Play events;
+- hides Shorts surfaces and blocks Shorts navigation;
+- constrains top-level watch containers to `100vw`.
 
 ### 3. Page-context runtime
 
@@ -85,14 +94,14 @@ Never edit `chrome-extension/page.js` or `firefox-extension/page.js` directly. T
 
 ### 4. Popup and update service
 
-Orion iOS expands a normal WebExtension `default_popup` into a full-page sheet. Both manifests therefore omit `default_popup`. `background.js` handles the extension icon click and tells `content.js` to toggle an isolated compact card over YouTube.
+Orion iOS did not reliably fire the v2.0.12 background `action.onClicked` handler. Both manifests now assign `popup.html`, but this surface is a one-pixel transparent relay with no controls of its own. It queries the active tab, sends `toggleActionCard` directly to the YouTube content script, and closes. This avoids Orion’s unreliable popup-to-background path and prevents a full-page popup UI.
 
-The action card shows three short release-note lines and implements exactly two actions:
+The in-page action card is isolated in a closed Shadow DOM, is at most 22rem wide, and shows three short release-note lines with exactly two large actions:
 
 1. Open desktop YouTube.
-2. Ask `background.js` to check the latest GitHub Release.
+2. Check the latest GitHub Release.
 
-`background.js` checks the GitHub Releases API every six hours and shows an `UP` badge when a newer version exists. The action card also performs an on-demand GitHub check directly, avoiding Orion popup-to-background messaging limitations.
+`background.js` checks the GitHub Releases API every six hours and shows an `UP` badge when a newer version exists. The action card first messages that service. If Orion suspends or omits it, the card performs the same request directly.
 
 This is an update notification and download flow, not silent OTA installation. Orion requires the downloaded ZIP to be installed manually.
 
@@ -207,8 +216,8 @@ Required edit flow:
 
 Current package names:
 
-- `fuck-youtube-premium-chrome-2.0.12.zip`
-- `fuck-youtube-premium-firefox-2.0.12.zip`
+- `fuck-youtube-premium-chrome-2.0.13.zip`
+- `fuck-youtube-premium-firefox-2.0.13.zip`
 
 ## Verification contract
 
@@ -217,7 +226,9 @@ Before publishing:
 ```bash
 ./rebuild-extension.sh
 node tests/background-update.test.cjs
+node tests/content-fallback.test.cjs
 node tests/inline-playback-layout.test.cjs
+node tests/popup-bridge.test.cjs
 git diff --check
 ```
 
@@ -232,7 +243,7 @@ Then test at an iPhone-sized viewport and, when possible, on Orion iOS:
 7. Home and recommendation feeds are one column.
 8. Hamburger opens the native drawer once.
 9. No mini-guide column or Shorts entry appears.
-10. The extension icon toggles a compact in-page card with three changelog lines and two buttons.
+10. The extension icon toggles a visible, non-fullscreen in-page card with three changelog lines and two large buttons.
 
 Browser-based desktop testing cannot prove Orion’s app-level `WKWebView` configuration. Treat an actual Orion iPhone test as the final authority for playback presentation behavior.
 
@@ -262,7 +273,7 @@ Rules:
 | `rebuild-extension.sh` | Build, synchronization, validation, and packaging. |
 | `firefox-extension/content.template.js` | Stable page-context injection bridge template. |
 | `firefox-extension/background.js` | Update checker shared with Chrome. |
-| `firefox-extension/popup.*` | Packaged fallback/reference UI; not assigned as `default_popup`. |
+| `firefox-extension/popup.*` | One-pixel `default_popup` compatibility relay that forwards toolbar taps to the active YouTube tab and closes. |
 | `chrome-extension/page.js` | Generated; do not edit directly. |
 | `firefox-extension/page.js` | Generated; do not edit directly. |
 | `tests/` | Regression tests. |

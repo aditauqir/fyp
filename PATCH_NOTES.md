@@ -1,5 +1,14 @@
 # Patch Notes
 
+## v2.0.13
+
+- Fixed: The Orion toolbar tap now uses a zero-UI `default_popup` bridge that sends the action directly to the active YouTube tab and closes immediately.
+- Fixed: Page injection now proves that `page.js` executed with a versioned readiness signal; failed external injection retries with a nonce-aware inline fallback.
+- Fixed: Inline video attributes, phone-width overflow constraints, Shorts hiding, and Shorts route blocking now also run in the isolated content layer when page-world injection is unavailable.
+- Changed: The in-page controls are enlarged to a maximum width of 22rem, with 3.5rem tap targets and more legible three-line release notes.
+- Fixed: Manual update checks try the background service first, then fall back to a direct GitHub Release request when Orion suspends extension background messaging.
+- Notes: A WebExtension can request inline playback at every page layer, but only Orion can change the native `WKWebViewConfiguration.allowsInlineMediaPlayback` setting.
+
 ## v2.0.12
 
 - Fixed: Videos are marked for inline WebKit playback when they are created and again before native Play.

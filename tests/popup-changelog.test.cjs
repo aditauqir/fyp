@@ -6,6 +6,14 @@ const popup = fs.readFileSync(
   path.join(__dirname, '..', 'firefox-extension', 'popup.html'),
   'utf8'
 );
+const popupScript = fs.readFileSync(
+  path.join(__dirname, '..', 'firefox-extension', 'popup.js'),
+  'utf8'
+);
+const popupStyle = fs.readFileSync(
+  path.join(__dirname, '..', 'firefox-extension', 'popup.css'),
+  'utf8'
+);
 const actionCard = fs.readFileSync(
   path.join(__dirname, '..', 'firefox-extension', 'content.template.js'),
   'utf8'
@@ -15,15 +23,17 @@ const patchNotes = fs.readFileSync(
   'utf8'
 );
 
-assert.equal((popup.match(/<button\b/g) || []).length, 2);
-assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Inline Play; fullscreen only on request\./);
-assert.match(popup, /Extension menu stays compact on-page\./);
-assert.match(popup, /Shorts are removed across YouTube\./);
-assert.match(actionCard, /Inline Play; fullscreen only on request\./);
-assert.match(actionCard, /Extension menu stays compact on-page\./);
-assert.match(actionCard, /Shorts are removed across YouTube\./);
+assert.equal((popup.match(/<button\b/g) || []).length, 0);
+assert.match(popupScript, /tabs\.query/);
+assert.match(popupScript, /tabs\.sendMessage/);
+assert.match(popupScript, /window\.close\(\)/);
+assert.match(popupStyle, /width: 1px/);
+assert.match(actionCard, /Toolbar tap now opens these controls\./);
+assert.match(actionCard, /Inline fallback runs without page injection\./);
+assert.match(actionCard, /Shorts stay removed across YouTube\./);
 assert.equal((actionCard.match(/document\.createElement\('button'\)/g) || []).length, 2);
-assert.match(patchNotes, /## v2\.0\.12/);
+assert.match(actionCard, /width: min\(22rem, calc\(100vw - 24px\)\)/);
+assert.match(actionCard, /min-height: 3\.5rem/);
+assert.match(patchNotes, /## v2\.0\.13/);
 
-console.log('compact popup changelog: ok');
+console.log('popup relay and enlarged action card: ok');
