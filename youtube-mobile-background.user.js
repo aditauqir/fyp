@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.14
+// @version      2.0.15
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -17,7 +17,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.14');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.15');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -25,20 +25,14 @@
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v213-orion-bridge';
-  const COMMENT_PREVIEW_COUNT = 3;
-  const COMMENT_LOAD_STEP = 5;
-  const LOAD_MORE_COMMENTS_ID = `${SCRIPT_ID}-load-more-comments`;
-  const LOAD_LESS_COMMENTS_ID = `${SCRIPT_ID}-load-less-comments`;
+  const NAV_LAYOUT_VERSION = 'ext-v215-comments-controls';
+  const PLAYER_CONTROLS_VISIBLE_MS = 4000;
   /*
    * Orion's floating address bar overlays the bottom of the page (like Safari).
    * Keep floating controls above that chrome so they stay tappable.
    */
   const ORION_NAV_GAP = '72px';
-  const commentUiState = {
-    videoId: null,
-    visibleCount: COMMENT_PREVIEW_COUNT,
-  };
+  let playerControlsHideTimer = null;
   /*
    * Normalize every normal and short YouTube link onto the desktop host.
    * Orion can then use the full desktop player underneath the mobile-only UI
@@ -347,6 +341,7 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
+    holdPlayerControlsVisible();
   }
 
   function onVideoPause() {
@@ -375,6 +370,7 @@
       'button[data-title-no-tooltip="Play"]',
     ].join(','));
     if (!control) return;
+    holdPlayerControlsVisible();
 
     const video = state.video || findVideo();
     if (!video) return;
@@ -387,6 +383,20 @@
       state.userPauseUntil = Date.now() + 3000;
       clearRecoveryTimers();
     }
+  }
+
+  function holdPlayerControlsVisible() {
+    const player = document.querySelector(
+      '#movie_player, .html5-video-player'
+    );
+    if (!(player instanceof HTMLElement)) return;
+
+    player.dataset.fypControlsVisible = 'true';
+    if (playerControlsHideTimer) clearTimeout(playerControlsHideTimer);
+    playerControlsHideTimer = setTimeout(() => {
+      delete player.dataset.fypControlsVisible;
+      playerControlsHideTimer = null;
+    }, PLAYER_CONTROLS_VISIBLE_MS);
   }
 
   function enforceInlinePlayback(video) {
@@ -990,112 +1000,23 @@
         order: 2 !important;
       }
 
-      ytd-comment-thread-renderer[data-vm-comment-hidden='true'] {
-        display: none !important;
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-bottom,
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-top,
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-bottom,
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-top {
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translateY(0) !important;
       }
 
-      ytd-comments ytd-continuation-item-renderer[data-vm-continuation-hidden='true'] {
-        display: none !important;
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-bottom,
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-top {
+        pointer-events: auto !important;
       }
 
-      #${LOAD_MORE_COMMENTS_ID} {
-        appearance: none;
-        -webkit-appearance: none;
-        box-sizing: border-box;
-        display: flex;
-        width: calc(100% - 1.5rem);
-        min-height: 46px;
-        margin: .65rem .75rem 1rem;
-        padding: .75rem 1rem;
-        align-items: center;
-        justify-content: center;
-        gap: .45rem;
-        color: inherit;
-        background: rgba(127, 127, 127, .14);
-        border: 1px solid rgba(127, 127, 127, .24);
-        border-radius: 999px;
-        font: 600 .9rem/1 "SF Pro Text", Roboto, system-ui, sans-serif;
-        cursor: pointer;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-      }
-
-      #${LOAD_MORE_COMMENTS_ID}:active {
-        background: rgba(127, 127, 127, .22);
-      }
-
-      #${LOAD_MORE_COMMENTS_ID} svg {
-        width: 1rem;
-        height: 1rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 2;
-      }
-
-      #${LOAD_MORE_COMMENTS_ID}[hidden] {
-        display: none !important;
-      }
-
-      #${LOAD_LESS_COMMENTS_ID} {
-        appearance: none;
-        -webkit-appearance: none;
-        box-sizing: border-box;
-        position: fixed;
-        right: auto;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + ${ORION_NAV_GAP} + 4.35rem);
-        left: 50%;
-        z-index: 2147483645;
-        display: flex;
-        width: auto;
-        min-height: 2.65rem;
-        margin: 0;
-        padding: .7rem 1.15rem;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        color: #f1f1f1;
-        background: rgba(28, 28, 28, .92);
-        border: 1px solid rgba(255, 255, 255, .16);
-        border-radius: 999px;
-        box-shadow: 0 .35rem 1.1rem rgba(0, 0, 0, .35);
-        font: 600 .85rem/1 "SF Pro Text", Roboto, system-ui, sans-serif;
-        cursor: pointer;
-        pointer-events: auto;
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        -webkit-backdrop-filter: saturate(1.3) blur(1rem);
-        backdrop-filter: saturate(1.3) blur(1rem);
-        transform: translate3d(-50%, 0, 0);
-        -webkit-transform: translate3d(-50%, 0, 0);
-        -webkit-user-select: none;
-        user-select: none;
-      }
-
-      html:not([dark]):not([dark-theme]) #${LOAD_LESS_COMMENTS_ID} {
-        color: #0f0f0f;
-        background: rgba(255, 255, 255, .94);
-        border-color: rgba(0, 0, 0, .12);
-        box-shadow: 0 .35rem 1.1rem rgba(0, 0, 0, .16);
-      }
-
-      #${LOAD_LESS_COMMENTS_ID}:active {
-        opacity: .88;
-      }
-
-      #${LOAD_LESS_COMMENTS_ID} svg {
-        width: 1rem;
-        height: 1rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 2.2;
-      }
-
-      #${LOAD_LESS_COMMENTS_ID}[hidden] {
-        display: none !important;
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-bottom,
+      .html5-video-player[data-fyp-controls-visible='true'] .ytp-gradient-top {
+        pointer-events: none !important;
       }
 
       @media (hover: none) {
@@ -1682,10 +1603,6 @@
     }
   }
 
-  function getWatchVideoId() {
-    return new URLSearchParams(location.search).get('v');
-  }
-
   function findCommentsRoot() {
     const watch = document.querySelector('ytd-watch-flexy');
     return (
@@ -1750,25 +1667,6 @@
         visibility: 'visible',
       });
     }
-  }
-
-  function getTopLevelCommentThreads(commentsRoot) {
-    if (!commentsRoot) return [];
-    return [...commentsRoot.querySelectorAll('ytd-comment-thread-renderer')].filter(
-      (thread) => !thread.closest('ytd-comment-replies-renderer')
-    );
-  }
-
-  function findNativeCommentContinuation(commentsRoot) {
-    if (!commentsRoot) return null;
-    return (
-      commentsRoot.querySelector(
-        'ytd-continuation-item-renderer button, ' +
-          'ytd-continuation-item-renderer tp-yt-paper-button, ' +
-          'ytd-continuation-item-renderer [role="button"], ' +
-          '#continuations ytd-button-renderer button'
-      ) || commentsRoot.querySelector('ytd-continuation-item-renderer')
-    );
   }
 
   function positionCommentsBelowDescription() {
@@ -1864,223 +1762,26 @@
     }
   }
 
-  function collapseCommentsToPreview() {
-    commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
-    limitVisibleComments();
-    const commentsRoot = findCommentsRoot();
-    commentsRoot?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function ensureLoadLessCommentsButton() {
-    let button = document.getElementById(LOAD_LESS_COMMENTS_ID);
-    if (!button) {
-      button = document.createElement('button');
-      button.id = LOAD_LESS_COMMENTS_ID;
-      button.type = 'button';
-      button.setAttribute('aria-label', 'Show fewer comments');
-      button.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m18 15-6-6-6 6"/>
-        </svg>
-        <span>Show fewer</span>
-      `;
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        collapseCommentsToPreview();
-      });
-      document.body?.appendChild(button);
-    }
-
-    if (document.body && button.parentElement !== document.body) {
-      document.body.appendChild(button);
-    }
-
-    const dark = isDarkTheme();
-    setImportantStyles(button, {
-      appearance: 'none',
-      position: 'fixed',
-      top: 'auto',
-      right: 'auto',
-      bottom: `calc(env(safe-area-inset-bottom, 0px) + ${ORION_NAV_GAP} + 70px)`,
-      left: '50%',
-      'z-index': '2147483645',
-      'min-height': '42px',
-      margin: '0',
-      padding: '11px 18px',
-      'align-items': 'center',
-      'justify-content': 'center',
-      gap: '6px',
-      color: dark ? '#f1f1f1' : '#0f0f0f',
-      background: dark ? 'rgba(28, 28, 28, .92)' : 'rgba(255, 255, 255, .94)',
-      border: dark
-        ? '1px solid rgba(255, 255, 255, .16)'
-        : '1px solid rgba(0, 0, 0, .12)',
-      'border-radius': '999px',
-      'box-shadow': dark
-        ? '0 6px 18px rgba(0, 0, 0, .35)'
-        : '0 6px 18px rgba(0, 0, 0, .16)',
-      'font-family': '"SF Pro Text", Roboto, system-ui, sans-serif',
-      'font-size': '14px',
-      'font-weight': '600',
-      'line-height': '1',
-      cursor: 'pointer',
-      'pointer-events': 'auto',
-      'touch-action': 'manipulation',
-      transform: 'translate3d(-50%, 0, 0)',
-      '-webkit-transform': 'translate3d(-50%, 0, 0)',
-      '-webkit-backdrop-filter': 'saturate(1.3) blur(16px)',
-      'backdrop-filter': 'saturate(1.3) blur(16px)',
-    });
-    return button;
-  }
-
-  function ensureLoadMoreCommentsButton(commentsRoot) {
-    let button = document.getElementById(LOAD_MORE_COMMENTS_ID);
-    if (!button) {
-      button = document.createElement('button');
-      button.id = LOAD_MORE_COMMENTS_ID;
-      button.type = 'button';
-      button.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m6 9 6 6 6-6"/>
-        </svg>
-        <span>Show more</span>
-      `;
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const root = findCommentsRoot();
-        commentUiState.visibleCount += COMMENT_LOAD_STEP;
-        const threads = getTopLevelCommentThreads(root);
-        if (commentUiState.visibleCount > threads.length) {
-          const continuation = findNativeCommentContinuation(root);
-          if (continuation instanceof HTMLElement) {
-            const clickable =
-              continuation.matches('button, [role="button"], tp-yt-paper-button')
-                ? continuation
-                : continuation.querySelector(
-                    'button, tp-yt-paper-button, [role="button"]'
-                  );
-            (clickable || continuation).click();
-          }
-        }
-        limitVisibleComments();
-      });
-    }
-
-    setImportantStyles(button, {
-      appearance: 'none',
-      width: 'calc(100% - 24px)',
-      'min-height': '46px',
-      margin: '10px 12px 16px',
-      padding: '12px 16px',
-      'align-items': 'center',
-      'justify-content': 'center',
-      gap: '8px',
-      color: 'inherit',
-      background: 'rgba(127, 127, 127, .14)',
-      border: '1px solid rgba(127, 127, 127, .24)',
-      'border-radius': '999px',
-      'font-family': '"SF Pro Text", Roboto, system-ui, sans-serif',
-      'font-size': '14px',
-      'font-weight': '600',
-      'line-height': '1',
-      cursor: 'pointer',
-      'touch-action': 'manipulation',
-    });
-
-    const contents =
-      commentsRoot.querySelector('#contents') ||
-      commentsRoot.querySelector('ytd-item-section-renderer #contents') ||
-      commentsRoot;
-    if (button.parentElement !== contents) {
-      contents.appendChild(button);
-    }
-    return button;
-  }
-
-  function limitVisibleComments() {
-    const loadMoreExisting = document.getElementById(LOAD_MORE_COMMENTS_ID);
-    const loadLessExisting = document.getElementById(LOAD_LESS_COMMENTS_ID);
-    if (location.pathname !== '/watch') {
-      loadMoreExisting?.remove();
-      loadLessExisting?.remove();
-      return;
-    }
-
-    const commentsRoot = findCommentsRoot();
-    if (!commentsRoot) {
-      loadMoreExisting?.remove();
-      loadLessExisting?.remove();
-      return;
-    }
-
-    const videoId = getWatchVideoId();
-    if (videoId && videoId !== commentUiState.videoId) {
-      commentUiState.videoId = videoId;
-      commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
-    }
-
-    const threads = getTopLevelCommentThreads(commentsRoot);
-    const visibleCount = Math.max(
-      COMMENT_PREVIEW_COUNT,
-      commentUiState.visibleCount
-    );
-    const isExpanded = visibleCount > COMMENT_PREVIEW_COUNT;
-
-    threads.forEach((thread, index) => {
-      if (index >= visibleCount) {
-        thread.dataset.vmCommentHidden = 'true';
-        setImportantStyles(thread, { display: 'none' });
-      } else {
+  function removeLegacyCommentPagination() {
+    document.getElementById(`${SCRIPT_ID}-load-more-comments`)?.remove();
+    document.getElementById(`${SCRIPT_ID}-load-less-comments`)?.remove();
+    document
+      .querySelectorAll('[data-vm-comment-hidden="true"]')
+      .forEach((thread) => {
         delete thread.dataset.vmCommentHidden;
         thread.style.removeProperty('display');
-      }
-    });
-
-    const continuationItems = commentsRoot.querySelectorAll(
-      'ytd-continuation-item-renderer'
-    );
-    const hasMoreLoaded = threads.length > visibleCount;
-    const hasContinuation = continuationItems.length > 0;
-    const shouldShowLoadMore = hasMoreLoaded || hasContinuation;
-
-    for (const item of continuationItems) {
-      item.dataset.vmContinuationHidden = 'true';
-      setImportantStyles(item, { display: 'none' });
-    }
-
-    const moreButton = ensureLoadMoreCommentsButton(commentsRoot);
-    const moreLabel = moreButton.querySelector('span');
-    if (shouldShowLoadMore) {
-      moreButton.hidden = false;
-      setImportantStyles(moreButton, { display: 'flex' });
-      if (moreLabel) {
-        const remaining = threads.length - visibleCount;
-        moreLabel.textContent =
-          remaining > 0
-            ? `Show more (${Math.min(COMMENT_LOAD_STEP, remaining)})`
-            : 'Show more';
-      }
-    } else {
-      moreButton.hidden = true;
-      setImportantStyles(moreButton, { display: 'none' });
-    }
-
-    const lessButton = ensureLoadLessCommentsButton();
-    if (isExpanded) {
-      lessButton.hidden = false;
-      setImportantStyles(lessButton, { display: 'flex' });
-    } else {
-      lessButton.hidden = true;
-      setImportantStyles(lessButton, { display: 'none' });
-    }
+      });
+    document
+      .querySelectorAll('[data-vm-continuation-hidden="true"]')
+      .forEach((continuation) => {
+        delete continuation.dataset.vmContinuationHidden;
+        continuation.style.removeProperty('display');
+      });
   }
 
   function arrangeWatchComments() {
     positionCommentsBelowDescription();
-    limitVisibleComments();
+    removeLegacyCommentPagination();
   }
 
   function hideAskGeminiControls() {
@@ -2520,8 +2221,6 @@
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
     }
-    commentUiState.videoId = getWatchVideoId();
-    commentUiState.visibleCount = COMMENT_PREVIEW_COUNT;
     removeFloatingPillNav();
     updateMobileNavigation();
     hideNativeNavigationAndShorts();

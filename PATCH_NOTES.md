@@ -1,5 +1,11 @@
 # Patch Notes
 
+## v2.0.15
+
+- Removed: The custom first-three comment limiter and its **Show more**/**Show fewer** controls; YouTube’s complete native comment list remains below the description.
+- Changed: Player controls remain visible for four seconds after Play or a Play/Pause control interaction before YouTube’s normal autohide resumes.
+- Notes: No playback semantics, inline/fullscreen/PiP handling, background audio, navigation, Shorts, miniplayer, ads, extension-menu layout, or unrelated page layout changed.
+
 ## v2.0.14
 
 - Fixed: Comments now show the first three top-level comments, then reveal exactly five more per **Show more** tap.
