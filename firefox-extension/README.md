@@ -1,11 +1,11 @@
 # Fuck YouTube Premium for Orion
 
-[![iOS 17+](https://img.shields.io/badge/iOS%2017%2B-iPhone%20%26%20iPad-000000?logo=apple&logoColor=white)](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200)
+[![iPhone only](https://img.shields.io/badge/iPhone-iOS%2017%2B-000000?logo=apple&logoColor=white)](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200)
 [![Orion Browser](https://img.shields.io/badge/Orion-Browser-14B86E?logo=safari&logoColor=white)](https://browser.kagi.com/)
 [![uBlock Origin required](https://img.shields.io/badge/Required-uBlock%20Origin-800000?logo=ublockorigin&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/)
 [![Download](https://img.shields.io/badge/Download-Latest%20Release-2EA44F?logo=github&logoColor=white)](https://github.com/aditauqir/fyp/releases/latest)
 
-Firefox WebExtension fallback build for **Orion on iOS and iPadOS**.
+Firefox WebExtension fallback build for **Orion on iPhone only**.
 
 ## Install
 

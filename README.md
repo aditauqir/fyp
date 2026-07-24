@@ -1,26 +1,44 @@
 # Fuck YouTube Premium
 
-## For iOS and Orion Browser
+### Basically free YouTube Premium for iPhone
 
-[![iOS 17+](https://img.shields.io/badge/iOS%2017%2B-iPhone%20%26%20iPad-000000?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200)
-[![Orion Browser](https://img.shields.io/badge/Orion-Browser-14B86E?style=for-the-badge&logo=safari&logoColor=white)](https://browser.kagi.com/)
-[![uBlock Origin required](https://img.shields.io/badge/Required-uBlock%20Origin-800000?style=for-the-badge&logo=ublockorigin&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/)
-[![Download latest release](https://img.shields.io/badge/Download-Latest%20Release-2EA44F?style=for-the-badge&logo=github&logoColor=white)](https://github.com/aditauqir/fyp/releases/latest)
+## What is this?
 
-Fuck YouTube Premium is built specifically for **Orion Browser on iPhone and iPad**. It loads desktop YouTube as the functional backend, then applies a phone-sized interface: a full-width inline player, a compact watch page, one-column feeds, a working mobile search field, and hamburger-only navigation. It also supports background audio and removes Shorts and the miniplayer. Use it alongside uBlock Origin for network ad blocking.
+I built **Fuck YouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a complete YouTube experience. Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
 
-The badges above are powered by [Shields.io](https://github.com/badges/shields) and [Simple Icons](https://github.com/simple-icons/simple-icons).
+The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, and screen-off audio. **uBlock Origin is mandatory for ad blocking**; this extension handles the player and mobile layout. The goal is a free, Premium-like YouTube experience that keeps playing without forcing you into fullscreen or Picture in Picture.
+
+This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
+
+<p align="center">
+  <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
+    <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
+  </a>
+  <a href="https://github.com/aditauqir/fyp" title="View the project on GitHub">
+    <img src="https://skillicons.dev/icons?i=github&theme=dark" alt="GitHub" height="48">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://browser.kagi.com/"><img src="https://img.shields.io/badge/Orion-Browser-14B86E?style=for-the-badge&logo=safari&logoColor=white" alt="Orion Browser"></a>
+  <a href="https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/"><img src="https://img.shields.io/badge/Mandatory-uBlock%20Origin-800000?style=for-the-badge&logo=ublockorigin&logoColor=white" alt="uBlock Origin is mandatory"></a>
+  <a href="https://github.com/aditauqir/fyp/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Download latest release"></a>
+</p>
+
+The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfun/skill-icons).
+
+## iPhone only — Orion Browser
 
 ## Install on Orion for iOS
 
-1. [Download Orion Browser for iOS from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS or iPadOS 17 or later.
-2. Tap the green **Download Latest Release** button above, then download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.17.zip](fuck-youtube-premium-chrome-2.0.17.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.17.zip](fuck-youtube-premium-firefox-2.0.17.zip).
-3. Open **Orion → Settings → Extensions**.
-4. Enable support for both **Chrome Extensions** and **Firefox Extensions**.
+1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
+2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
+3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
+4. Tap the green **Download Latest Release** button above, then download the latest zip to the **Downloads** folder in the Files app. Start with [fuck-youtube-premium-chrome-2.0.17.zip](fuck-youtube-premium-chrome-2.0.17.zip). If that build does not install, use [fuck-youtube-premium-firefox-2.0.17.zip](fuck-youtube-premium-firefox-2.0.17.zip).
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
 6. Open **Downloads** and select the zip. Do not unzip it first.
-7. Enable **Fuck YouTube Premium** and allow access to YouTube if Orion asks.
-8. Install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) in Orion, enable it, and allow it to run on YouTube. uBlock Origin handles network ad blocking; this extension handles playback and layout.
+7. Enable **Fuck YouTube Premium**.
+8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
 9. Open [youtube.com](https://www.youtube.com/), enable **Request Desktop Website** in Orion’s website settings, and refresh the page.
 
 The Chrome zip is recommended. The Firefox zip is provided as a fallback because extension installation behavior can vary between Orion releases. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
@@ -64,6 +82,17 @@ Old GitHub Releases and their downloads are always preserved. Whenever a new ver
 
 Remove the older copy from Orion, download the newest zip from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
 
+## Troubleshooting
+
+### Orion says the extension could not be installed
+
+1. Close the YouTube tab in Orion first.
+2. Return to **Orion → Settings → Extensions**.
+3. Tap **+** → **Install from File** and select the downloaded zip again.
+4. If Orion repeats the error, keep retrying the install button and selecting the same zip until Orion confirms that the extension was installed.
+
+Do not unzip the file. After installation succeeds, enable **Fuck YouTube Premium**, reopen YouTube, and confirm that both this extension and uBlock Origin are allowed to access the site.
+
 ## Build from source
 
 Run:
@@ -75,3 +104,7 @@ Run:
 The build validates the generated JavaScript and writes the Chrome and Firefox packages to this folder.
 
 Release history is maintained in [PATCH_NOTES.md](PATCH_NOTES.md). Agent and developer documentation is in [ARCHITECTURE.md](ARCHITECTURE.md), with current implementation history and handoff notes in [HANDOFF.md](HANDOFF.md).
+
+## Contributing
+
+Want to improve the extension or fix a bug? Fork the repository and [send a pull request](https://github.com/aditauqir/fyp/compare).

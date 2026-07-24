@@ -63,3 +63,7 @@ Orion’s extension policies do not allow a manually installed zip to replace it
 - uBlock Origin handles network ad blocking.
 
 If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
+
+## If Orion says the extension could not be installed
+
+Close the YouTube tab first. Return to **Orion → Settings → Extensions**, tap **+** → **Install from File**, and select the same downloaded zip again. If Orion repeats the error, keep retrying the install button and selecting the zip until Orion confirms that installation succeeded. Do not unzip the file.
