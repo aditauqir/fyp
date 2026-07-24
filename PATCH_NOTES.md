@@ -6,6 +6,7 @@
 - Changed: Manual installs and in-extension update checks now prefer the Chrome zip; the Firefox zip and XPI remain available as fallback packages.
 - Changed: The popup’s three priority lines now identify the toolbar fix, the preferred iPhone package, and preserved background playback/control timing.
 - Added: The README demo now includes the supplied iPhone lock-screen screenshot showing background playback.
+- Changed: Generated ZIP/XPI packages are distributed through GitHub Releases instead of being committed to the source tree; only the current build is retained locally.
 - Notes: Player behavior, inline/fullscreen/PiP handling, background audio, captions, controls delay, comments, recommendations, search, navigation, Shorts, miniplayer, ads, and popup sizing are unchanged.
 
 ## v2.0.19

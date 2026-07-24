@@ -34,7 +34,7 @@ The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfu
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-chrome-2.0.20.zip](fuck-youtube-premium-chrome-2.0.20.zip). This Chrome Manifest V3 zip is the recommended Orion installer because its toolbar popup opens correctly on iPhone. The [Orion XPI](fuck-youtube-premium-orion-2.0.20.xpi) and [Firefox zip](fuck-youtube-premium-firefox-2.0.20.zip) remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download [fuck-youtube-premium-chrome-2.0.20.zip](https://github.com/aditauqir/fyp/releases/download/v2.0.20/fuck-youtube-premium-chrome-2.0.20.zip). This Chrome Manifest V3 zip is the recommended Orion installer because its toolbar popup opens correctly on iPhone. The [Orion XPI](https://github.com/aditauqir/fyp/releases/download/v2.0.20/fuck-youtube-premium-orion-2.0.20.xpi) and [Firefox zip](https://github.com/aditauqir/fyp/releases/download/v2.0.20/fuck-youtube-premium-firefox-2.0.20.zip) remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
 6. Select the downloaded Chrome zip. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
@@ -125,7 +125,7 @@ Run:
 ./rebuild-extension.sh
 ```
 
-The build validates the generated JavaScript and writes the recommended Chrome zip plus Firefox zip and XPI fallbacks to this folder.
+The build validates the generated JavaScript and writes the recommended Chrome zip plus Firefox zip and XPI fallbacks locally. Generated packages are ignored by Git and published through [GitHub Releases](https://github.com/aditauqir/fyp/releases), keeping the source tree clean.
 
 Release history is maintained in [PATCH_NOTES.md](PATCH_NOTES.md). Agent and developer documentation is in [ARCHITECTURE.md](ARCHITECTURE.md), with current implementation history and handoff notes in [HANDOFF.md](HANDOFF.md).
 

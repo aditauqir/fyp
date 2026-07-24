@@ -6,13 +6,13 @@ Version **2.0.20** restores the extension-icon popup by making the Chrome Manife
 
 **Prefer the Chrome zip:**
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-chrome-2.0.20.zip`
+`fuck-youtube-premium-chrome-2.0.20.zip`
 
 Fallback packages:
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-orion-2.0.20.xpi`
+`fuck-youtube-premium-orion-2.0.20.xpi`
 
-`/Users/aditauqir/Downloads/userscript/fuck-youtube-premium-firefox-2.0.20.zip`
+`fuck-youtube-premium-firefox-2.0.20.zip`
 
 ## Steps
 

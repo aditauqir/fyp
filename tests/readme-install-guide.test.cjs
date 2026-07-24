@@ -36,10 +36,11 @@ assert.match(readme, /keep retrying the install button/);
 assert.match(readme, /fuck-youtube-premium-chrome-2\.0\.20\.zip/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstalled/);
-assert.ok(
-  fs.existsSync(path.join(root, 'fuck-youtube-premium-chrome-2.0.20.zip')),
-  'preferred Chrome zip'
+assert.match(
+  readme,
+  /releases\/download\/v2\.0\.20\/fuck-youtube-premium-chrome-2\.0\.20\.zip/
 );
+assert.match(readme, /Generated packages are ignored by Git/);
 assert.match(readme, /Tapping the extension icon shows no buttons/);
 assert.match(readme, /three changelog lines plus \*\*Go to YouTube\*\*/);
 assert.match(readme, /orion-multiple-subtitle-tracks\.png/);
