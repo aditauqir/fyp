@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.1.1
+
+- Fixed: Lock Screen, Dynamic Island, and Now Playing play/pause now control the active video instead of fighting the in-page toolbar and background-audio recovery.
+- Fixed: The isolated content fallback no longer steals Media Session handlers or restarts playback when the page runtime is already active.
+- Fixed: Intentional Now Playing pauses are honored across background/visibility events, and the in-page play/pause icon stays in sync with the real media state.
+- Packaging: The numeric manifest version is `2.1.1`, and the recommended Orion installer is `2.1.1_release_hotfix.zip`.
+
 ## v2.1.0 stable
 
 - Added: Clicking a channel name, avatar, or other channel-root link now opens that channel's Videos tab first; direct channel-root visits are normalized the same way.

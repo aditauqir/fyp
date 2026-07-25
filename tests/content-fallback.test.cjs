@@ -11,12 +11,25 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.0'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.1'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.0'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.1'\)/);
+assert.match(
+  content,
+  /function prepareFallbackBackgroundPlayback\(\) \{[\s\S]*?if \(pageRuntimeReady\(\)\) return;/
+);
+assert.match(
+  content,
+  /function recoverFallbackPlayback\(\) \{[\s\S]*?if \(pageRuntimeReady\(\)\) return;/
+);
+assert.match(page, /function handleMediaSessionPlay\(\)/);
+assert.match(page, /function handleMediaSessionPause\(\)/);
+assert.match(page, /nativeMediaPause\.call\(video\)/);
+assert.match(page, /Date\.now\(\) > state\.userPauseUntil/);
+assert.match(page, /installMediaSessionHandlers\(\);\s*updateMediaSessionMetadata\(\);/);
 assert.match(
   content,
   /PLAYER_CONTROLS_TOOLBAR_ID =\s*'yt-mobile-orion-ext-controls-toolbar'/

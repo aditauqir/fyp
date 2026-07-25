@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.1.0
-// @release-label 2.1.0
+// @version      2.1.1
+// @release-label 2.1.1
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.0');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.1');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -1506,20 +1506,87 @@
     }
   }
 
+  function mediaSessionVideo() {
+    const video = controllableVideo(true);
+    return video instanceof HTMLVideoElement ? video : null;
+  }
+
+  function syncMediaSessionPlayback(video = mediaSessionVideo()) {
+    try {
+      navigator.mediaSession.playbackState =
+        video && !video.paused && !video.ended ? 'playing' : 'paused';
+    } catch {
+      // playbackState is optional in older Orion/WebKit builds.
+    }
+    syncCustomPlayerControls();
+  }
+
+  function handleMediaSessionPlay() {
+    const video = mediaSessionVideo();
+    if (!video) return;
+    state.wantsPlayback = true;
+    state.userPauseUntil = 0;
+    configurePlaybackAudioSession();
+    try {
+      document.querySelector('#movie_player')?.playVideo?.();
+    } catch {
+      // Player API is optional; the media element path below remains authoritative.
+    }
+    safePlay(video);
+    syncMediaSessionPlayback(video);
+    setTimeout(() => syncMediaSessionPlayback(video), 0);
+    setTimeout(() => syncMediaSessionPlayback(video), 250);
+  }
+
+  function handleMediaSessionPause() {
+    const video = mediaSessionVideo();
+    if (!video) return;
+    state.wantsPlayback = false;
+    state.userPauseUntil = Date.now() + 5000;
+    clearRecoveryTimers();
+    try {
+      document.querySelector('#movie_player')?.pauseVideo?.();
+    } catch {
+      // Player API is optional; the native pause below remains authoritative.
+    }
+    // Bypass the background pause guard so Lock Screen / Dynamic Island
+    // pause always wins over background-audio recovery.
+    nativeMediaPause.call(video);
+    syncMediaSessionPlayback(video);
+    setTimeout(() => syncMediaSessionPlayback(video), 0);
+    setTimeout(() => syncMediaSessionPlayback(video), 250);
+  }
+
+  function handleMediaSessionSeek(offsetSeconds) {
+    const video = mediaSessionVideo();
+    if (!video || !Number.isFinite(offsetSeconds)) return;
+    const duration = Number.isFinite(video.duration)
+      ? video.duration
+      : Number.POSITIVE_INFINITY;
+    video.currentTime = Math.max(
+      0,
+      Math.min(duration, video.currentTime + offsetSeconds)
+    );
+    syncMediaSessionPlayback(video);
+  }
+
   function installMediaSessionHandlers() {
     if (!('mediaSession' in navigator)) return;
     updateMediaSessionMetadata();
     try {
-      navigator.mediaSession.setActionHandler('play', () => {
-        state.wantsPlayback = true;
-        state.userPauseUntil = 0;
-        safePlay();
+      navigator.mediaSession.setActionHandler('play', handleMediaSessionPlay);
+      navigator.mediaSession.setActionHandler('pause', handleMediaSessionPause);
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        handleMediaSessionSeek(-(details?.seekOffset || 10));
       });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        state.wantsPlayback = false;
-        state.userPauseUntil = Date.now() + 3000;
-        clearRecoveryTimers();
-        state.video?.pause();
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        handleMediaSessionSeek(details?.seekOffset || 10);
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        const video = mediaSessionVideo();
+        if (!video || details?.seekTime == null) return;
+        video.currentTime = details.seekTime;
+        syncMediaSessionPlayback(video);
       });
     } catch {
       // MediaSession or a particular action is optional in older iOS WebKit.
@@ -1532,8 +1599,16 @@
     attachVideo(video);
     installMediaSessionHandlers();
     configurePlaybackAudioSession();
-    if (!video.paused && !video.ended) state.wantsPlayback = true;
-    recoverPlayback(video);
+    // Respect an intentional Now Playing / toolbar pause window so background
+    // recovery cannot immediately undo Lock Screen or Dynamic Island pause.
+    if (
+      !video.paused &&
+      !video.ended &&
+      Date.now() > state.userPauseUntil
+    ) {
+      state.wantsPlayback = true;
+    }
+    if (state.wantsPlayback) recoverPlayback(video);
   }
 
   const SKIP_BUTTON_SELECTOR = [
@@ -3596,6 +3671,7 @@
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
     syncCustomPlayerControls();
+    installMediaSessionHandlers();
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     ensureGuideButtonVisible();

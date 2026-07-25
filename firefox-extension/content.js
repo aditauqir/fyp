@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.0';
+  const EXPECTED_PAGE_VERSION = '2.1.1';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
@@ -249,6 +249,8 @@
   }
 
   function recoverFallbackPlayback() {
+    // Page runtime owns Media Session and background recovery when ready.
+    if (pageRuntimeReady()) return;
     const video =
       fallbackPlaybackState.video || document.querySelector('video');
     if (!(video instanceof HTMLVideoElement) || video.ended) return;
@@ -278,6 +280,10 @@
     video.addEventListener(
       'play',
       () => {
+        if (pageRuntimeReady()) {
+          syncFallbackPlayerControls();
+          return;
+        }
         fallbackPlaybackState.video = video;
         fallbackPlaybackState.wantsPlayback = true;
         fallbackPlaybackState.userPauseUntil = 0;
@@ -291,6 +297,10 @@
     video.addEventListener(
       'pause',
       () => {
+        if (pageRuntimeReady()) {
+          syncFallbackPlayerControls();
+          return;
+        }
         if (fallbackPlaybackState.video !== video) return;
         if (
           Date.now() <= fallbackPlaybackState.userPauseUntil ||
@@ -309,11 +319,20 @@
   }
 
   function prepareFallbackBackgroundPlayback() {
+    // When page.js is alive, do not steal Media Session handlers or recover
+    // playback from the isolated world — that fights Lock Screen / Dynamic
+    // Island controls and the in-page play/pause strip.
+    if (pageRuntimeReady()) return;
     const video =
       fallbackPlaybackState.video || document.querySelector('video');
     if (!(video instanceof HTMLVideoElement) || video.ended) return;
     attachFallbackVideo(video);
-    if (!video.paused) fallbackPlaybackState.wantsPlayback = true;
+    if (
+      !video.paused &&
+      Date.now() > fallbackPlaybackState.userPauseUntil
+    ) {
+      fallbackPlaybackState.wantsPlayback = true;
+    }
     configureFallbackAudioSession();
     updateFallbackMediaSessionMetadata();
     if (fallbackPlaybackState.wantsPlayback) recoverFallbackPlayback();
@@ -322,12 +341,18 @@
         fallbackPlaybackState.wantsPlayback = true;
         fallbackPlaybackState.userPauseUntil = 0;
         fallbackSafePlay(video);
+        syncFallbackPlayerControls();
+        setTimeout(syncFallbackPlayerControls, 0);
+        setTimeout(syncFallbackPlayerControls, 250);
       });
       navigator.mediaSession?.setActionHandler('pause', () => {
         fallbackPlaybackState.wantsPlayback = false;
-        fallbackPlaybackState.userPauseUntil = Date.now() + 3000;
+        fallbackPlaybackState.userPauseUntil = Date.now() + 5000;
         clearFallbackRecoveryTimers();
         video.pause();
+        syncFallbackPlayerControls();
+        setTimeout(syncFallbackPlayerControls, 0);
+        setTimeout(syncFallbackPlayerControls, 250);
       });
     } catch {
       // Media Session handlers are optional in Orion.
