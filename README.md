@@ -1,4 +1,4 @@
-# Fuck YouTube Premium
+# Fuck YouTube Premium- Get Free YTPremium on iPhone
 
 ### Basically free YouTube Premium for iPhone
 
@@ -29,16 +29,14 @@ This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi,
   <a href="https://discord.gg/sd5Y8f7ukh"><img src="https://img.shields.io/badge/Discord-Join%20the%20server%20for%20support%20or%20help-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord server for support or help"></a>
 </p>
 
-The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfun/skill-icons).
-
 ## iPhone only — Orion Browser
-
-## Install on Orion for iOS
+> I havent made one for iPad, with enough interest I could make one
+## Install on Orion for iOS (iPhone only)
 
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download `2.1.1_release_hotfix.zip`. It is the Chrome Manifest V3 ZIP format used by the known-good 2.0.20 release and is packaged for Orion’s **Install from File** flow. Minimal Orion ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download `2.1.1_release_hotfix.zip` or whichever is the latest you mileage may vary with three versions, release (recommended), chrome and fireforx. Minimal Chrome ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
 6. Select `2.1.1_release_hotfix.zip`. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
@@ -58,11 +56,11 @@ After the steps above, both **Fuck YouTube Premium** and **uBlock Origin** shoul
 
 ## Screenshots
 
-| Inline YouTube watch page | Phone-friendly recommendation feed |
+| YouTube native app like experienc | Phone-friendly recommendation feed |
 | --- | --- |
 | <img src="docs/images/youtube-watch-page.png" alt="Fuck YouTube Premium inline watch page in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
 
-### Player options on iPhone
+### Background Player options on iPhone
 
 The built-in toolbar keeps playback controls and speed choices directly below the video title:
 
