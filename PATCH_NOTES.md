@@ -3,6 +3,9 @@
 ## v2.1.2
 
 - Fixed: History feed rows no longer appear zoomed or scrambled; the History page is contained to the phone viewport and each list item stacks thumbnail-over-text.
+- Fixed: History titles stay under the thumbnail (not cut off beside it), cards and filter chips are centered, and left/right gutters are equal Home-like 12px padding.
+- Fixed: History channel logos are shown again next to the channel name.
+- Preserved: History Clear / Pause / Manage / Search controls remain available above the list.
 - Preserved: Home, subscriptions, channel pages, watch layout, Now Playing sync, and player controls are unchanged.
 - Packaging: The numeric manifest version is `2.1.2`, and the recommended Orion installer is `2.1.2_release.zip`.
 

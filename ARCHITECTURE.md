@@ -206,14 +206,16 @@ Do not apply transforms, negative margins, fixed pixel widths, or document-wide 
 
 ### History feed layout
 
-`/feed/history` uses desktop list rows (`ytd-video-renderer` / `yt-lockup-view-model`) with wide min-widths. On Orion that looks zoomed and scrambled.
+`/feed/history` uses desktop list rows (`ytd-video-renderer` / `yt-lockup-view-model`) with wide min-widths. On Orion that looks zoomed and scrambled, and side-by-side titles get clipped.
 
 History-only rules (do not apply this stacking to channel pages):
 
 1. Mark `ytd-browse` with `data-fyp-feed="history"` when the path is `/feed/history` (also match `page-subtype='history'`).
-2. Contain History `#primary`, section lists, and grids to `100vw` with a 12px gutter.
-3. Stack each History row (`flex-direction: column`) and force thumbnails to `width: 100%`.
-4. Leave Home, subscriptions, and channel browse layouts on their existing rules.
+2. Contain History `#primary` / `#secondary` / section lists to `100vw` with Home-like minimal side padding.
+3. Stack the two-column History layout so Clear / Pause / Manage / Search stay visible above the list.
+4. Modern History `yt-lockup-view-model` cards use a multi-column CSS grid (`thumb | title`). Collapse that grid to `grid-template-columns: minmax(0, 1fr)`, target both BEM and camelCase host classes (`.ytLockupViewModelContentImage` / `.ytLockupViewModelMetadata`), and cap the content-image to full card width at 16:9 so the title sits under the thumbnail instead of beside an oversized image.
+5. Classic `ytd-video-renderer` rows still use `#dismissible { flex-direction: column }` with centered text (`white-space: normal`, no line-clamp cut-off).
+6. Leave Home, subscriptions, and channel browse layouts on their existing rules.
 
 ## Navigation architecture
 

@@ -1200,52 +1200,151 @@
             margin-left: 0 !important;
           }
 
-          ytd-browse[page-subtype='history'],
-          ytd-browse[${HISTORY_FEED_ATTR}='history'],
-          ytd-browse[page-subtype='history'] #primary,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] #primary,
           ytd-browse[page-subtype='history']
             ytd-two-column-browse-results-renderer,
           ytd-browse[${HISTORY_FEED_ATTR}='history']
-            ytd-two-column-browse-results-renderer,
-          ytd-browse[page-subtype='history'] ytd-section-list-renderer,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-section-list-renderer,
-          ytd-browse[page-subtype='history'] ytd-item-section-renderer,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-item-section-renderer {
-            box-sizing: border-box !important;
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100vw !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-            padding-left: 12px !important;
-            padding-right: 12px !important;
-            overflow-x: hidden !important;
-          }
-
-          ytd-browse[page-subtype='history'] ytd-video-renderer,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-video-renderer,
-          ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
-          ytd-browse[${HISTORY_FEED_ATTR}='history']
-            ytd-video-renderer #dismissible,
-          ytd-browse[page-subtype='history'] yt-lockup-view-model,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model {
+            ytd-two-column-browse-results-renderer {
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
+            align-items: center !important;
             width: 100% !important;
-            min-width: 0 !important;
+            max-width: 100vw !important;
+            margin: 0 auto !important;
+            padding: 0 12px !important;
+            overflow-x: hidden !important;
+          }
+
+          ytd-browse[page-subtype='history'] #secondary,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary,
+          ytd-browse[page-subtype='history'] ytd-browse-feed-actions-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            ytd-browse-feed-actions-renderer {
+            display: flex !important;
+            visibility: visible !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            order: -1 !important;
+            width: 100% !important;
             max-width: 100% !important;
+            position: static !important;
+            text-align: center !important;
+          }
+
+          ytd-browse[page-subtype='history'] yt-chip-cloud-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-chip-cloud-renderer,
+          ytd-browse[page-subtype='history'] #chips,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #chips {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            width: 100% !important;
+            margin: 0 auto 8px !important;
+          }
+
+          ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            ytd-video-renderer #dismissible {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          ytd-browse[page-subtype='history'] yt-lockup-view-model,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model,
+          ytd-browse[page-subtype='history']
+            :is(
+              .yt-lockup-view-model,
+              .ytLockupViewModelHost,
+              .ytLockupViewModelVertical
+            ),
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            :is(
+              .yt-lockup-view-model,
+              .ytLockupViewModelHost,
+              .ytLockupViewModelVertical
+            ) {
+            box-sizing: border-box !important;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto 12px !important;
+            text-align: center !important;
           }
 
           ytd-browse[page-subtype='history'] ytd-thumbnail,
           ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-thumbnail,
           ytd-browse[page-subtype='history'] #thumbnail,
-          ytd-browse[${HISTORY_FEED_ATTR}='history'] #thumbnail {
-            box-sizing: border-box !important;
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #thumbnail,
+          ytd-browse[page-subtype='history']
+            :is(
+              .yt-lockup-view-model__content-image,
+              .ytLockupViewModelContentImage
+            ),
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            :is(
+              .yt-lockup-view-model__content-image,
+              .ytLockupViewModelContentImage
+            ) {
+            display: block !important;
+            grid-column: 1 !important;
             width: 100% !important;
             min-width: 0 !important;
             max-width: 100% !important;
+            aspect-ratio: 16 / 9 !important;
+            height: auto !important;
+            overflow: hidden !important;
+          }
+
+          ytd-browse[page-subtype='history'] #details,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #details,
+          ytd-browse[page-subtype='history'] #meta,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #meta,
+          ytd-browse[page-subtype='history']
+            :is(
+              .yt-lockup-view-model__metadata,
+              .ytLockupViewModelMetadata
+            ),
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            :is(
+              .yt-lockup-view-model__metadata,
+              .ytLockupViewModelMetadata
+            ),
+          ytd-browse[page-subtype='history'] h3,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] h3,
+          ytd-browse[page-subtype='history'] #video-title,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #video-title {
+            display: block !important;
+            grid-column: 1 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: visible !important;
+            text-align: center !important;
+            white-space: normal !important;
+            -webkit-line-clamp: unset !important;
+          }
+
+          ytd-browse[page-subtype='history'] #channel-info,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #channel-info {
+            display: inline-flex !important;
+            visibility: visible !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            margin: 4px auto 0 !important;
+          }
+
+          ytd-browse[page-subtype='history'] yt-img-shadow#avatar,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-img-shadow#avatar,
+          ytd-browse[page-subtype='history'] yt-decorated-avatar-view-model,
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            yt-decorated-avatar-view-model {
+            display: inline-flex !important;
+            visibility: visible !important;
+            width: 36px !important;
+            height: 36px !important;
           }
         }
 

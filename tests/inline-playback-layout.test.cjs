@@ -24,6 +24,38 @@ assert.match(
   source,
   /ytd-browse\[page-subtype='history'\][\s\S]*flex-direction: column !important/
 );
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*grid-template-columns: minmax\(0, 1fr\) !important/
+);
+assert.match(
+  source,
+  /ytLockupViewModelContentImage/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*ytd-browse-feed-actions-renderer[\s\S]*order: -1 !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*#video-title[\s\S]*white-space: normal !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*align-items: center !important/
+);
+assert.match(
+  source,
+  /ytd-two-column-browse-results-renderer[\s\S]*padding: 0 12px !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*yt-chip-cloud-renderer[\s\S]*justify-content: center !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*yt-img-shadow#avatar[\s\S]*visibility: visible !important/
+);
 const channelLayoutStart = source.indexOf(
   "ytd-browse[page-subtype='channels']"
 );

@@ -15,7 +15,7 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-history-viewport';
+  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-history-stack';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -1933,17 +1933,39 @@
         }
 
         /*
-         * History keeps desktop list rows with wide min-widths, which looks
-         * zoomed/scrambled on Orion. Contain the page and stack each row.
+         * History: Home-like equal gutters, centered cards/chips, title under
+         * thumbnail, channel avatar restored, Clear/Pause/Manage/Search kept.
          */
         ytd-browse[page-subtype='history'],
-        ytd-browse[${HISTORY_FEED_ATTR}='history'],
-        ytd-browse[page-subtype='history'] #primary,
-        ytd-browse[${HISTORY_FEED_ATTR}='history'] #primary,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+          overflow-x: hidden !important;
+        }
+
         ytd-browse[page-subtype='history']
           ytd-two-column-browse-results-renderer,
         ytd-browse[${HISTORY_FEED_ATTR}='history']
-          ytd-two-column-browse-results-renderer,
+          ytd-two-column-browse-results-renderer {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100vw !important;
+          margin: 0 auto !important;
+          padding: 0 12px !important;
+          overflow-x: hidden !important;
+        }
+
+        ytd-browse[page-subtype='history'] #primary,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #primary,
+        ytd-browse[page-subtype='history'] #secondary,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary,
+        ytd-browse[page-subtype='history'] #secondary-inner,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary-inner,
         ytd-browse[page-subtype='history'] ytd-section-list-renderer,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-section-list-renderer,
         ytd-browse[page-subtype='history'] ytd-item-section-renderer,
@@ -1956,12 +1978,78 @@
           box-sizing: border-box !important;
           width: 100% !important;
           min-width: 0 !important;
-          max-width: 100vw !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
-          padding-left: 12px !important;
-          padding-right: 12px !important;
-          overflow-x: hidden !important;
+          max-width: 100% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+        }
+
+        /* Keep History tools above the list and centered. */
+        ytd-browse[page-subtype='history'] #secondary,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary,
+        ytd-browse[page-subtype='history'] #secondary-inner,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary-inner,
+        ytd-browse[page-subtype='history'] ytd-browse-feed-actions-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-browse-feed-actions-renderer {
+          display: flex !important;
+          visibility: visible !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          order: -1 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          position: static !important;
+          margin: 0 auto 8px !important;
+          padding: 0 !important;
+          text-align: center !important;
+        }
+
+        ytd-browse[page-subtype='history'] #secondary input,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary input,
+        ytd-browse[page-subtype='history'] #secondary yt-searchbox,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary yt-searchbox,
+        ytd-browse[page-subtype='history'] #secondary ytd-searchbox,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #secondary ytd-searchbox {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          font-size: 16px !important;
+        }
+
+        /* Center History filter chiplets. */
+        ytd-browse[page-subtype='history'] yt-chip-cloud-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-chip-cloud-renderer,
+        ytd-browse[page-subtype='history'] ytd-feed-filter-chip-bar-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-feed-filter-chip-bar-renderer,
+        ytd-browse[page-subtype='history'] #chips,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #chips,
+        ytd-browse[page-subtype='history'] #chips-wrapper,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #chips-wrapper,
+        ytd-browse[page-subtype='history'] iron-selector#chips,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] iron-selector#chips {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-wrap: wrap !important;
+          justify-content: center !important;
+          align-items: center !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 auto 8px !important;
+          padding: 0 !important;
+          text-align: center !important;
+        }
+
+        ytd-browse[page-subtype='history'] yt-chip-cloud-chip-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-chip-cloud-chip-renderer,
+        ytd-browse[page-subtype='history'] yt-chip-cloud-chip-renderer chip-shape,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-chip-cloud-chip-renderer chip-shape {
+          margin-left: 4px !important;
+          margin-right: 4px !important;
         }
 
         ytd-browse[page-subtype='history'] ytd-rich-grid-renderer,
@@ -1972,53 +2060,256 @@
 
         ytd-browse[page-subtype='history'] ytd-video-renderer,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-video-renderer,
-        ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
-        ytd-browse[${HISTORY_FEED_ATTR}='history']
-          ytd-video-renderer #dismissible,
-        ytd-browse[page-subtype='history'] yt-lockup-view-model,
-        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model,
         ytd-browse[page-subtype='history'] ytd-rich-item-renderer,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-rich-item-renderer,
         ytd-browse[page-subtype='history'] ytd-grid-video-renderer,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-grid-video-renderer {
           box-sizing: border-box !important;
-          display: flex !important;
-          flex-direction: column !important;
+          display: block !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
+          margin: 0 auto 12px !important;
+          padding: 0 !important;
+          text-align: center !important;
+        }
+
+        /* Classic History rows: stack thumbnail above title. */
+        ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-video-renderer #dismissible {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        /*
+         * Modern History lockups use a multi-column CSS grid (thumb | title).
+         * flex-direction on the custom element alone does nothing — collapse
+         * the grid to one column and cap the content-image width.
+         */
+        ytd-browse[page-subtype='history'] yt-lockup-view-model,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model,
+        ytd-browse[page-subtype='history']
+          :is(
+            .yt-lockup-view-model,
+            .ytLockupViewModelHost,
+            .ytLockupViewModelVertical
+          ),
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          :is(
+            .yt-lockup-view-model,
+            .ytLockupViewModelHost,
+            .ytLockupViewModelVertical
+          ) {
+          box-sizing: border-box !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: auto !important;
+          grid-auto-flow: row !important;
+          align-items: stretch !important;
+          justify-items: stretch !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin: 0 auto 12px !important;
+          column-gap: 0 !important;
+          row-gap: 8px !important;
+          text-align: center !important;
+        }
+
+        /* Inner host div (when lockup wraps one) — same single-column stack. */
+        ytd-browse[page-subtype='history'] yt-lockup-view-model > div,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model > div {
+          box-sizing: border-box !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-auto-flow: row !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          column-gap: 0 !important;
+          row-gap: 8px !important;
         }
 
         ytd-browse[page-subtype='history'] ytd-thumbnail,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-thumbnail,
         ytd-browse[page-subtype='history'] a#thumbnail,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] a#thumbnail,
-        ytd-browse[page-subtype='history'] #thumbnail,
-        ytd-browse[${HISTORY_FEED_ATTR}='history'] #thumbnail,
+        ytd-browse[page-subtype='history'] yt-thumbnail-view-model,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-thumbnail-view-model,
         ytd-browse[page-subtype='history']
           yt-lockup-view-model a[href*='/watch'],
         ytd-browse[${HISTORY_FEED_ATTR}='history']
-          yt-lockup-view-model a[href*='/watch'] {
+          yt-lockup-view-model a[href*='/watch'],
+        ytd-browse[page-subtype='history']
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          ),
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          ) {
           box-sizing: border-box !important;
+          display: block !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
+          margin: 0 auto !important;
+          aspect-ratio: 16 / 9 !important;
+          height: auto !important;
+          overflow: hidden !important;
+          flex: none !important;
+        }
+
+        ytd-browse[page-subtype='history'] ytd-thumbnail img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-thumbnail img,
+        ytd-browse[page-subtype='history']
+          yt-lockup-view-model a[href*='/watch'] img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-lockup-view-model a[href*='/watch'] img,
+        ytd-browse[page-subtype='history']
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          )
+          img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          )
+          img {
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
         }
 
         ytd-browse[page-subtype='history'] #details,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] #details,
         ytd-browse[page-subtype='history'] #meta,
         ytd-browse[${HISTORY_FEED_ATTR}='history'] #meta,
-        ytd-browse[page-subtype='history'] #channel-info,
-        ytd-browse[${HISTORY_FEED_ATTR}='history'] #channel-info {
+        ytd-browse[page-subtype='history']
+          yt-lockup-metadata-view-model,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-lockup-metadata-view-model,
+        ytd-browse[page-subtype='history']
+          :is(
+            .yt-lockup-view-model__metadata,
+            .ytLockupViewModelMetadata
+          ),
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          :is(
+            .yt-lockup-view-model__metadata,
+            .ytLockupViewModelMetadata
+          ),
+        ytd-browse[page-subtype='history'] h3,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] h3,
+        ytd-browse[page-subtype='history'] #video-title,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #video-title,
+        ytd-browse[page-subtype='history'] a#video-title,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] a#video-title {
           box-sizing: border-box !important;
+          display: block !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          overflow: visible !important;
+          text-align: center !important;
+          text-overflow: unset !important;
+          white-space: normal !important;
+          -webkit-line-clamp: unset !important;
+        }
+
+        /* Restore channel logo + center it with the channel name. */
+        ytd-browse[page-subtype='history'] #channel-info,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #channel-info,
+        ytd-browse[page-subtype='history'] #channel-name,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #channel-name {
+          box-sizing: border-box !important;
+          display: inline-flex !important;
+          visibility: visible !important;
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 8px !important;
+          width: auto !important;
+          max-width: 100% !important;
+          margin: 4px auto 0 !important;
+          text-align: center !important;
+        }
+
+        ytd-browse[page-subtype='history'] #avatar-link,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #avatar-link,
+        ytd-browse[page-subtype='history'] yt-img-shadow#avatar,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-img-shadow#avatar,
+        ytd-browse[page-subtype='history'] yt-decorated-avatar-view-model,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-decorated-avatar-view-model,
+        ytd-browse[page-subtype='history']
+          a[href^='/@'] yt-img-shadow,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          a[href^='/@'] yt-img-shadow,
+        ytd-browse[page-subtype='history']
+          a[href*='/channel/'] yt-img-shadow,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          a[href*='/channel/'] yt-img-shadow {
+          display: inline-flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          width: 36px !important;
+          min-width: 36px !important;
+          max-width: 36px !important;
+          height: 36px !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+          border-radius: 50% !important;
+        }
+
+        ytd-browse[page-subtype='history'] #avatar-link img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #avatar-link img,
+        ytd-browse[page-subtype='history'] yt-img-shadow#avatar img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-img-shadow#avatar img,
+        ytd-browse[page-subtype='history']
+          yt-decorated-avatar-view-model img,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-decorated-avatar-view-model img {
+          display: block !important;
+          visibility: visible !important;
+          width: 36px !important;
+          height: 36px !important;
+          object-fit: cover !important;
+        }
+
+        ytd-browse[page-subtype='history']
+          ytd-item-section-header-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-item-section-header-renderer,
+        ytd-browse[page-subtype='history']
+          ytd-item-section-header-renderer #title,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-item-section-header-renderer #title {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          text-align: center !important;
         }
 
         /*
