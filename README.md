@@ -103,6 +103,10 @@ Remove the older copy from Orion, download the newest beta ZIP from [GitHub Rele
 
 ## Troubleshooting
 
+### Do not enable Request Desktop Website
+
+Leave Orion’s per-site **Request Desktop Website** setting disabled for YouTube. Fuck YouTube Premium already selects the required desktop backend and then applies its phone layout. Enabling Orion’s desktop mode on top of the extension can enlarge or misalign the interface. If it is currently enabled, turn it off, close the YouTube tab, and reopen YouTube.
+
 ### Captions appear twice or multiple languages are selected
 
 Orion’s native **Subtitles → Languages** menu can incorrectly leave more than one subtitle track selected:
