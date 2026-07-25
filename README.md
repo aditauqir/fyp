@@ -38,13 +38,15 @@ The Apple and GitHub icons use [tandpfun/skill-icons](https://github.com/tandpfu
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download `2.1.8_beta-release.zip`. It is the Chrome Manifest V3 ZIP format used by the known-good 2.0.20 release and is packaged for Orion’s **Install from File** flow. Minimal Orion ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download `2.1.0_release.zip`. It is the Chrome Manifest V3 ZIP format used by the known-good 2.0.20 release and is packaged for Orion’s **Install from File** flow. Minimal Orion ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
-6. Select `2.1.8_beta-release.zip`. Do not unzip or rename it.
+6. Select `2.1.0_release.zip`. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube, then open [youtube.com](https://www.youtube.com/). The extension selects the required YouTube backend automatically; no per-site desktop-mode setting is needed.
 
-Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.1.8_beta-release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
+Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.1.0_release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
+
+If you installed a `2.1.4`–`2.1.8` beta, uninstall it before installing stable `2.1.0`. Orion treats `2.1.0` as a lower numeric version and cannot replace the beta in place.
 
 ## Final extension result
 
@@ -91,7 +93,7 @@ Due to Orion’s extension policies, a manually installed extension cannot silen
   <img src="docs/images/orion-install-from-file.png" alt="Orion Extensions menu with Install from File selected for a manual OTA update" width="420">
 </p>
 
-After downloading the update, remove the old extension, choose **Install from File**, and select the new beta ZIP.
+After downloading the update, remove the old extension, choose **Install from File**, and select the new release ZIP.
 
 ### Release history policy
 
@@ -99,7 +101,7 @@ Old GitHub Releases and their downloads are always preserved. Whenever a new ver
 
 ## Update
 
-Remove the older copy from Orion, download the newest beta ZIP from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
+Remove the older copy from Orion, download the newest release ZIP from [GitHub Releases](https://github.com/aditauqir/fyp/releases), and repeat the installation steps above. More troubleshooting is available in [INSTALL-ORION.md](INSTALL-ORION.md).
 
 ## Troubleshooting
 
@@ -126,11 +128,11 @@ Uninstall the Firefox/XPI build and install the latest `fuck-youtube-premium-chr
 1. Close the YouTube tab in Orion first.
 2. Return to **Orion → Settings → Extensions**.
 3. Confirm that every older **Fuck YouTube Premium** entry has been uninstalled.
-4. In Files, move the downloaded beta ZIP out of iCloud Drive and into **On My iPhone → Downloads**.
+4. In Files, move the downloaded release ZIP out of iCloud Drive and into **On My iPhone → Downloads**.
 5. Tap **+** → **Install from File** and select the local zip again.
 6. If Orion repeats the error, keep retrying the install button and selecting the same zip until Orion confirms that the extension was installed.
 
-Do not unzip or rename the file. [Orion’s issue tracker](https://orionfeedback.org/d/936-install-from-file-for-extensions/15) recommends moving extension files to device storage when iCloud permissions interfere with installation. If the beta ZIP still cannot be installed, try the Orion ZIP or XPI fallback. After installation succeeds, enable **Fuck YouTube Premium**, reopen YouTube, and confirm that both this extension and uBlock Origin are allowed to access the site.
+Do not unzip or rename the file. [Orion’s issue tracker](https://orionfeedback.org/d/936-install-from-file-for-extensions/15) recommends moving extension files to device storage when iCloud permissions interfere with installation. If the release ZIP still cannot be installed, try the Orion ZIP or XPI fallback. After installation succeeds, enable **Fuck YouTube Premium**, reopen YouTube, and confirm that both this extension and uBlock Origin are allowed to access the site.
 
 ## Build from source
 
@@ -140,7 +142,7 @@ Run:
 ./rebuild-extension.sh
 ```
 
-The build validates the generated JavaScript and writes the recommended Orion beta ZIP plus Chrome, Firefox, Orion ZIP, and XPI fallbacks locally. Generated packages are ignored by Git and published through [GitHub Releases](https://github.com/aditauqir/fyp/releases), keeping the source tree clean.
+The build validates the generated JavaScript and writes the recommended Orion release ZIP plus Chrome, Firefox, Orion ZIP, and XPI fallbacks locally. Generated packages are ignored by Git and published through [GitHub Releases](https://github.com/aditauqir/fyp/releases), keeping the source tree clean.
 
 Release history is maintained in [PATCH_NOTES.md](PATCH_NOTES.md). Agent and developer documentation is in [ARCHITECTURE.md](ARCHITECTURE.md), with current implementation history and handoff notes in [HANDOFF.md](HANDOFF.md).
 

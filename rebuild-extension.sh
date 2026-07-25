@@ -122,7 +122,7 @@ FF_ZIP="$ROOT/fuck-youtube-premium-firefox-${VERSION}.zip"
 CH_ZIP="$ROOT/fuck-youtube-premium-chrome-${VERSION}.zip"
 ORION_ZIP="$ROOT/fuck-youtube-premium-orion-${VERSION}.zip"
 ORION_XPI="$ROOT/fuck-youtube-premium-orion-${VERSION}.xpi"
-BETA_RELEASE_ZIP="$ROOT/${RELEASE_LABEL}_beta-release.zip"
+RELEASE_ZIP="$ROOT/${RELEASE_LABEL}_release.zip"
 
 pack "$FF" "$FF_ZIP" \
   manifest.json content.js page.js background.js popup.html popup.css popup.js \
@@ -157,7 +157,7 @@ pack "$ORION_BUILD_DIR" "$ORION_ZIP" \
   icons/icon-48.png icons/icon-96.png icons/icon-128.png
 
 cp "$FF_ZIP" "$ORION_XPI"
-cp "$CH_ZIP" "$BETA_RELEASE_ZIP"
+cp "$CH_ZIP" "$RELEASE_ZIP"
 python3 - <<PY
 import json, zipfile
 with zipfile.ZipFile("$ORION_ZIP") as archive:
@@ -175,21 +175,21 @@ with zipfile.ZipFile("$ORION_XPI") as archive:
     assert manifest.get("browser_specific_settings", {}).get("gecko", {}).get("id")
 print("Validated", "$ORION_XPI", "as standard Firefox Manifest V2")
 
-with zipfile.ZipFile("$BETA_RELEASE_ZIP") as archive:
+with zipfile.ZipFile("$RELEASE_ZIP") as archive:
     manifest = json.loads(archive.read("manifest.json"))
     assert manifest.get("manifest_version") == 3, manifest
     assert manifest.get("version") == "$VERSION", manifest
     assert manifest.get("action", {}).get("default_popup") == "popup.html", manifest
-print("Validated", "$BETA_RELEASE_ZIP", "as Orion Chrome Manifest V3 ZIP")
+print("Validated", "$RELEASE_ZIP", "as Orion Chrome Manifest V3 ZIP")
 
 PY
 
 echo
-echo "Install this beta on Orion iOS (Chrome-format ZIP matching v2.0.20):"
-echo "  $BETA_RELEASE_ZIP"
+echo "Install this release on Orion iOS (Chrome-format ZIP matching v2.0.20):"
+echo "  $RELEASE_ZIP"
 echo "Fallback packages:"
 echo "  $ORION_ZIP"
 echo "  $CH_ZIP"
 echo "  $ORION_XPI"
 echo "  $FF_ZIP"
-ls -la "$BETA_RELEASE_ZIP" "$ORION_ZIP" "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"
+ls -la "$RELEASE_ZIP" "$ORION_ZIP" "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"

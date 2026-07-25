@@ -85,6 +85,14 @@ assert.doesNotMatch(source, /maxresdefault\.jpg/);
 assert.match(source, /function applyMediaArtworkPoster\(/);
 assert.match(source, /video\.poster = preferred\.src/);
 assert.match(source, /navigator\.mediaSession\.playbackState/);
+assert.match(source, /function visibleVideoTitle\(\)/);
+assert.match(source, /currentMetadata\?\.title\?\.trim\(\) === title/);
+assert.match(source, /const preservePlayback = action !== 'play-pause'/);
+assert.match(source, /if \(video\.paused && !video\.ended\) safePlay\(video\)/);
+assert.match(source, /function channelVideosUrl\(input\)/);
+assert.match(source, /function redirectChannelRootToVideos\(\)/);
+assert.match(source, /function redirectChannelLinkToVideos\(event\)/);
+assert.match(source, /page-subtype='channels'/);
 assert.match(source, /const AD_RESPONSE_KEYS = new Set/);
 assert.match(
   source,

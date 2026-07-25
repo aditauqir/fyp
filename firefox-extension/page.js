@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.8');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.0');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -13,6 +13,8 @@
   const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
+  const CHANNEL_ROOT_PATH_PATTERN =
+    /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
   const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-player-strip';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -32,6 +34,55 @@
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
   let lastMediaSessionMetadataKey = '';
+  function channelVideosUrl(input) {
+    let target;
+    try {
+      target = new URL(input, location.href);
+    } catch {
+      return null;
+    }
+    if (
+      !['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(
+        target.hostname
+      ) ||
+      !CHANNEL_ROOT_PATH_PATTERN.test(target.pathname)
+    ) {
+      return null;
+    }
+    target.protocol = 'https:';
+    target.hostname = BACKEND_HOST;
+    target.port = '';
+    target.pathname = `${target.pathname.replace(/\/+$/, '')}/videos`;
+    target.searchParams.set('app', 'desktop');
+    target.searchParams.set('persist_app', '1');
+    return target;
+  }
+
+  function redirectChannelRootToVideos() {
+    const target = channelVideosUrl(location.href);
+    if (!target || target.href === location.href) return false;
+    location.replace(target.href);
+    return true;
+  }
+
+  function redirectChannelLinkToVideos(event) {
+    if (
+      event.defaultPrevented ||
+      event.button > 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    const link = event.target?.closest?.('a[href]');
+    const target = channelVideosUrl(link?.href || link?.getAttribute('href'));
+    if (!target) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign(target.href);
+  }
   /*
    * Normalize every normal and short YouTube link onto the desktop host.
    * Orion can then use the full desktop player underneath the mobile-only UI
@@ -63,6 +114,8 @@
     location.replace(target.href);
     return;
   }
+
+  if (redirectChannelRootToVideos()) return;
 
   // Never land on Shorts — send those URLs to Home.
   if (location.pathname.startsWith('/shorts')) {
@@ -735,6 +788,7 @@
   async function runPlayerControlOption(option) {
     const video = controllableVideo();
     if (!(video instanceof HTMLVideoElement)) return;
+    const preservePlayback = !video.paused;
     const action = option.dataset.fypPlayerOption;
 
     if (action === 'captions-off') {
@@ -794,6 +848,15 @@
         ?.click();
     }
 
+    if (preservePlayback) {
+      state.wantsPlayback = true;
+      state.userPauseUntil = 0;
+      for (const delay of [0, 120, 350]) {
+        setTimeout(() => {
+          if (video.paused && !video.ended) safePlay(video);
+        }, delay);
+      }
+    }
     closePlayerControlMenu();
     setTimeout(syncCustomPlayerControls, 0);
     setTimeout(syncCustomPlayerControls, 250);
@@ -802,6 +865,7 @@
   async function runPlayerControlAction(action, sourceButton) {
     const video = controllableVideo();
     if (!(video instanceof HTMLVideoElement)) return;
+    const preservePlayback = action !== 'play-pause' && !video.paused;
 
     if (action === 'rewind' || action === 'forward') {
       const offset = action === 'rewind' ? -10 : 10;
@@ -877,6 +941,15 @@
       toggleMorePlayerMenu(video, sourceButton);
     }
 
+    if (preservePlayback) {
+      state.wantsPlayback = true;
+      state.userPauseUntil = 0;
+      for (const delay of [0, 120, 350]) {
+        setTimeout(() => {
+          if (video.paused && !video.ended) safePlay(video);
+        }, delay);
+      }
+    }
     setTimeout(syncCustomPlayerControls, 0);
     setTimeout(syncCustomPlayerControls, 250);
   }
@@ -1304,6 +1377,18 @@
     return document.querySelector(selector)?.getAttribute('content')?.trim() || '';
   }
 
+  function visibleVideoTitle() {
+    return (
+      document
+        .querySelector(
+          'ytd-watch-metadata h1 yt-formatted-string, ' +
+            'ytd-watch-metadata #title yt-formatted-string, ' +
+            'ytd-video-primary-info-renderer h1 yt-formatted-string'
+        )
+        ?.textContent?.replace(/\s+/g, ' ')?.trim() || ''
+    );
+  }
+
   function mediaSessionArtwork(videoId, response) {
     const candidates = [];
     if (videoId) {
@@ -1350,7 +1435,9 @@
       details.videoId || new URL(location.href).searchParams.get('v') || '';
     const title =
       details.title ||
+      visibleVideoTitle() ||
       metadataContent('meta[property="og:title"]') ||
+      metadataContent('meta[name="title"]') ||
       document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim();
     const artist =
       details.author ||
@@ -1375,15 +1462,18 @@
       artist,
       artwork.map((item) => item.src),
     ]);
-    const currentArtwork = Array.from(
-      navigator.mediaSession.metadata?.artwork || []
-    );
+    const currentMetadata = navigator.mediaSession.metadata;
+    const currentArtwork = Array.from(currentMetadata?.artwork || []);
     const artworkStillApplied = currentArtwork.some((item) =>
       artwork.some((candidate) => candidate.src === item.src)
     );
+    const textStillApplied =
+      currentMetadata?.title?.trim() === title &&
+      currentMetadata?.artist?.trim() === artist;
     if (
       metadataKey === lastMediaSessionMetadataKey &&
-      artworkStillApplied
+      artworkStillApplied &&
+      textStillApplied
     ) {
       return;
     }
@@ -1574,6 +1664,13 @@
       ytd-rich-item-renderer:has(a[href*='/shorts']),
       yt-lockup-view-model:has(a[href*='/shorts']),
       grid-shelf-view-model:has(a[href*='/shorts']),
+      ytd-browse[page-subtype='channels'] yt-tab-shape:has(a[href$='/shorts']),
+      ytd-browse[page-subtype='channels'] [role='tab']:has(a[href$='/shorts']),
+      ytd-browse[page-subtype='channels'] ytd-rich-item-renderer:has(a[href*='/shorts']),
+      ytd-browse[page-subtype='channels'] ytd-grid-video-renderer:has(a[href*='/shorts']),
+      ytd-browse[page-subtype='channels'] yt-lockup-view-model:has(a[href*='/shorts']),
+      ytd-browse[page-subtype='channels'] ytd-reel-shelf-renderer,
+      ytd-browse[page-subtype='channels'] ytd-rich-shelf-renderer:has(a[href*='/shorts']),
       a[href^='/shorts'],
       a[href*='youtube.com/shorts/'],
       [is-shorts],
@@ -3378,6 +3475,7 @@
   }, true);
   nativeDocumentAddEventListener('freeze', prepareForBackground, true);
   nativeDocumentAddEventListener('yt-navigate-finish', () => {
+    if (redirectChannelRootToVideos()) return;
     if (location.pathname.startsWith('/shorts')) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
@@ -3421,6 +3519,7 @@
     passive: true,
   });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
+  nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
   nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
   nativeDocumentAddEventListener(
     'submit',

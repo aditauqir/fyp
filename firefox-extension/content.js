@@ -27,13 +27,15 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.8';
+  const EXPECTED_PAGE_VERSION = '2.1.0';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
   const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215';
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
+  const CHANNEL_ROOT_PATH_PATTERN =
+    /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
   const fallbackAttachedVideos = new WeakSet();
   const fallbackPlaybackState = {
     video: null,
@@ -133,6 +135,18 @@
     return document.querySelector(selector)?.getAttribute('content')?.trim() || '';
   }
 
+  function fallbackVisibleVideoTitle() {
+    return (
+      document
+        .querySelector(
+          'ytd-watch-metadata h1 yt-formatted-string, ' +
+            'ytd-watch-metadata #title yt-formatted-string, ' +
+            'ytd-video-primary-info-renderer h1 yt-formatted-string'
+        )
+        ?.textContent?.replace(/\s+/g, ' ')?.trim() || ''
+    );
+  }
+
   function updateFallbackMediaSessionMetadata() {
     if (pageRuntimeReady()) return;
     if (
@@ -144,7 +158,9 @@
     }
     const videoId = new URL(location.href).searchParams.get('v') || '';
     const title =
+      fallbackVisibleVideoTitle() ||
       fallbackMetadataContent('meta[property="og:title"]') ||
+      fallbackMetadataContent('meta[name="title"]') ||
       document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim();
     const artist =
       document
@@ -190,15 +206,18 @@
       artist,
       artwork.map((item) => item.src),
     ]);
-    const currentArtwork = Array.from(
-      navigator.mediaSession.metadata?.artwork || []
-    );
+    const currentMetadata = navigator.mediaSession.metadata;
+    const currentArtwork = Array.from(currentMetadata?.artwork || []);
     const artworkStillApplied = currentArtwork.some((item) =>
       artwork.some((candidate) => candidate.src === item.src)
     );
+    const textStillApplied =
+      currentMetadata?.title?.trim() === title &&
+      currentMetadata?.artist?.trim() === artist;
     if (
       metadataKey === lastFallbackMediaSessionMetadataKey &&
-      artworkStillApplied
+      artworkStillApplied &&
+      textStillApplied
     ) {
       return;
     }
@@ -549,6 +568,7 @@
   async function runFallbackPlayerControlOption(option) {
     const video = fallbackVideo();
     if (!(video instanceof HTMLVideoElement)) return;
+    const preservePlayback = !video.paused;
     const action = option.dataset.fypPlayerOption;
 
     if (action === 'captions-off') {
@@ -591,6 +611,15 @@
         ?.click();
     }
 
+    if (preservePlayback) {
+      fallbackPlaybackState.wantsPlayback = true;
+      fallbackPlaybackState.userPauseUntil = 0;
+      for (const delay of [0, 120, 350]) {
+        setTimeout(() => {
+          if (video.paused && !video.ended) fallbackSafePlay(video);
+        }, delay);
+      }
+    }
     closeFallbackPlayerControlMenu();
     setTimeout(syncFallbackPlayerControls, 0);
     setTimeout(syncFallbackPlayerControls, 250);
@@ -599,6 +628,7 @@
   async function runFallbackPlayerControlAction(action, sourceButton) {
     const video = fallbackVideo();
     if (!(video instanceof HTMLVideoElement)) return;
+    const preservePlayback = action !== 'play-pause' && !video.paused;
     if (action === 'rewind' || action === 'forward') {
       const offset = action === 'rewind' ? -10 : 10;
       const duration = Number.isFinite(video.duration)
@@ -670,6 +700,15 @@
       sourceButton instanceof HTMLButtonElement
     ) {
       toggleFallbackMorePlayerMenu(video, sourceButton);
+    }
+    if (preservePlayback) {
+      fallbackPlaybackState.wantsPlayback = true;
+      fallbackPlaybackState.userPauseUntil = 0;
+      for (const delay of [0, 120, 350]) {
+        setTimeout(() => {
+          if (video.paused && !video.ended) fallbackSafePlay(video);
+        }, delay);
+      }
     }
     setTimeout(syncFallbackPlayerControls, 0);
     setTimeout(syncFallbackPlayerControls, 250);
@@ -862,7 +901,58 @@
     return true;
   }
 
+  function channelVideosUrl(input) {
+    let target;
+    try {
+      target = new URL(input, location.href);
+    } catch {
+      return null;
+    }
+    if (
+      !['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(
+        target.hostname
+      ) ||
+      !CHANNEL_ROOT_PATH_PATTERN.test(target.pathname)
+    ) {
+      return null;
+    }
+    target.protocol = 'https:';
+    target.hostname = 'www.youtube.com';
+    target.port = '';
+    target.pathname = `${target.pathname.replace(/\/+$/, '')}/videos`;
+    target.searchParams.set('app', 'desktop');
+    target.searchParams.set('persist_app', '1');
+    return target;
+  }
+
+  function redirectChannelRootToVideos() {
+    const target = channelVideosUrl(location.href);
+    if (!target || target.href === location.href) return false;
+    location.replace(target.href);
+    return true;
+  }
+
+  function redirectChannelLinkToVideos(event) {
+    if (
+      event.defaultPrevented ||
+      event.button > 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    const link = event.target?.closest?.('a[href]');
+    const target = channelVideosUrl(link?.href || link?.getAttribute('href'));
+    if (!target) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign(target.href);
+  }
+
   function installDomFallbacks() {
+    if (redirectChannelRootToVideos()) return;
     redirectShorts();
     markVideoTree(document);
     ensureFallbackPlayerControlsToolbar();
@@ -940,7 +1030,11 @@
     );
     document.addEventListener(
       'yt-navigate-finish',
-      ensureFallbackPlayerControlsToolbar,
+      () => {
+        if (!redirectChannelRootToVideos()) {
+          ensureFallbackPlayerControlsToolbar();
+        }
+      },
       true
     );
     window.addEventListener(
@@ -974,6 +1068,7 @@
       },
       true
     );
+    document.addEventListener('click', redirectChannelLinkToVideos, true);
 
     const installFallbackStyle = () => {
       const root = document.documentElement || document.head || document.body;
@@ -1202,6 +1297,24 @@
           .fyp-player-menu-option:focus-visible {
           outline: 2px solid #fff !important;
           outline-offset: -2px !important;
+        }
+
+        ytd-browse[page-subtype='channels']
+          yt-tab-shape:has(a[href$='/shorts']),
+        ytd-browse[page-subtype='channels']
+          [role='tab']:has(a[href$='/shorts']),
+        ytd-browse[page-subtype='channels']
+          ytd-rich-item-renderer:has(a[href*='/shorts']),
+        ytd-browse[page-subtype='channels']
+          ytd-grid-video-renderer:has(a[href*='/shorts']),
+        ytd-browse[page-subtype='channels']
+          yt-lockup-view-model:has(a[href*='/shorts']),
+        ytd-browse[page-subtype='channels'] ytd-reel-shelf-renderer,
+        ytd-browse[page-subtype='channels']
+          ytd-rich-shelf-renderer:has(a[href*='/shorts']) {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
         }
       `;
       root.appendChild(style);

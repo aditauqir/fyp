@@ -1,31 +1,31 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.1.8
+# Install Fuck YouTube Premium on Orion iOS — v2.1.0
 
-Version **2.1.8** preserves the stable player and viewport behavior while containing channel listings without restructuring their native UI and strengthening Now Playing artwork delivery. It uses the same Chrome Manifest V3 ZIP format as the known-good 2.0.20 Orion release.
+Version **2.1.0** is the stable release: channel links open Videos first, channel Shorts are removed, Now Playing receives the video title and artwork, and toolbar actions preserve active playback. It uses the same Chrome Manifest V3 ZIP format as the known-good 2.0.20 Orion release.
 
 ## Install this
 
-**Prefer the Orion beta ZIP:**
+**Prefer the Orion release ZIP:**
 
-`2.1.8_beta-release.zip`
+`2.1.0_release.zip`
 
 Fallback packages:
 
-`fuck-youtube-premium-orion-2.1.8.xpi`
+`fuck-youtube-premium-orion-2.1.0.xpi`
 
-`fuck-youtube-premium-firefox-2.1.8.zip`
+`fuck-youtube-premium-firefox-2.1.0.zip`
 
 ## Steps
 
-1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `2.1.8_beta-release.zip` from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
+1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `2.1.0_release.zip` from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it. If a `2.1.4`–`2.1.8` beta is installed, uninstall it first because Orion cannot replace it with the numerically lower stable `2.1.0`.
 2. Open Orion → Settings → Extensions and enable both **Chrome Extensions** and **Firefox Extensions**.
 3. **Uninstall** every older “YouTube Mobile for Orion” or “Fuck YouTube Premium” entry.
 4. In Orion’s Extensions screen, tap **+** → **Install from File**.
-5. Open **On My iPhone → Downloads** and select `2.1.8_beta-release.zip`.
+5. Open **On My iPhone → Downloads** and select `2.1.0_release.zip`.
 6. Enable **Fuck YouTube Premium** in Orion.
 7. Install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) in Orion, then enable it.
 8. Allow both extensions to access YouTube, then open `https://www.youtube.com`. The extension selects the required YouTube backend automatically; no per-site desktop-mode setting is needed.
 
-If the beta ZIP does not install after the local-file retries below, repeat the same steps with the minimal Orion ZIP, then the XPI.
+If the release ZIP does not install after the local-file retries below, repeat the same steps with the minimal Orion ZIP, then the XPI.
 
 **uBlock Origin is required.** Keep it enabled alongside this extension. uBlock Origin handles network ad blocking, while Fuck YouTube Premium handles Orion playback and the mobile-friendly YouTube layout. Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 

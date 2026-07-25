@@ -1,5 +1,15 @@
 # Patch Notes
 
+## v2.1.0 stable
+
+- Added: Clicking a channel name, avatar, or other channel-root link now opens that channel's Videos tab first; direct channel-root visits are normalized the same way.
+- Removed: Channel-page Shorts tabs, cards, and shelves are hidden while regular Videos and the rest of the native channel layout remain intact.
+- Fixed: Now Playing metadata now reasserts both the current video title and channel whenever YouTube or Orion clears the text while leaving artwork behind.
+- Fixed: Rewind, forward, captions, playback speed, PiP, fullscreen, and settings interactions preserve active playback instead of allowing a toolbar interaction to pause the video.
+- Consolidated: Stable `2.1.0` includes the tested player toolbar, caption/speed menus, phone-width channel containment, horizontal viewport lock, background playback, and artwork work from the `2.1.4`–`2.1.8` beta series.
+- Install note: Uninstall any `2.1.4`–`2.1.8` beta before installing stable `2.1.0`, because Orion compares the manifest versions numerically.
+- Packaging: The stable numeric manifest version is `2.1.0`, and the recommended Orion installer is `2.1.0_release.zip`.
+
 ## v2.1.8 beta
 
 - Fixed: Removed the channel-page flex-direction and internal-card overrides that enlarged the entire interface.
