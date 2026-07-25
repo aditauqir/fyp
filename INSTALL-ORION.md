@@ -1,33 +1,31 @@
-# Install Fuck YouTube Premium on Orion iOS — v2.0.20
+# Install Fuck YouTube Premium on Orion iOS — v2.1.8
 
-Version **2.0.20** restores the extension-icon popup by making the Chrome Manifest V3 package Orion’s primary installer. Subtitle normalization and the ten-second player-control delay remain unchanged.
+Version **2.1.8** preserves the stable player and viewport behavior while containing channel listings without restructuring their native UI and strengthening Now Playing artwork delivery. It uses the same Chrome Manifest V3 ZIP format as the known-good 2.0.20 Orion release.
 
 ## Install this
 
-**Prefer the Chrome zip:**
+**Prefer the Orion beta ZIP:**
 
-`fuck-youtube-premium-chrome-2.0.20.zip`
+`2.1.8_beta-release.zip`
 
 Fallback packages:
 
-`fuck-youtube-premium-orion-2.0.20.xpi`
+`fuck-youtube-premium-orion-2.1.8.xpi`
 
-`fuck-youtube-premium-firefox-2.0.20.zip`
+`fuck-youtube-premium-firefox-2.1.8.zip`
 
 ## Steps
 
-1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download the Chrome zip from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
+1. [Install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `2.1.8_beta-release.zip` from the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest) to **On My iPhone → Downloads** in Files. Do not unzip or rename it.
 2. Open Orion → Settings → Extensions and enable both **Chrome Extensions** and **Firefox Extensions**.
 3. **Uninstall** every older “YouTube Mobile for Orion” or “Fuck YouTube Premium” entry.
 4. In Orion’s Extensions screen, tap **+** → **Install from File**.
-5. Open **On My iPhone → Downloads** and select the Chrome zip.
+5. Open **On My iPhone → Downloads** and select `2.1.8_beta-release.zip`.
 6. Enable **Fuck YouTube Premium** in Orion.
 7. Install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) in Orion, then enable it.
-8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube.
-9. Open `https://www.youtube.com`, open Orion’s website settings, and enable **Request Desktop Website**.
-10. Hard-refresh, or close the tab and reopen it.
+8. Allow both extensions to access YouTube, then open `https://www.youtube.com`. The extension selects the required YouTube backend automatically; no per-site desktop-mode setting is needed.
 
-If the Chrome zip does not install after the local-file retries below, repeat the same steps with the Orion XPI, then the Firefox zip.
+If the beta ZIP does not install after the local-file retries below, repeat the same steps with the minimal Orion ZIP, then the XPI.
 
 **uBlock Origin is required.** Keep it enabled alongside this extension. uBlock Origin handles network ad blocking, while Fuck YouTube Premium handles Orion playback and the mobile-friendly YouTube layout. Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
@@ -41,7 +39,7 @@ If the Chrome zip does not install after the local-file retries below, repeat th
 
 Tap the **Fuck YouTube Premium** extension icon and choose **Check for updates**. The extension also checks GitHub every six hours and shows an **UP** badge when a newer version exists. This provides “OTA” update detection and downloads.
 
-Orion’s extension policies do not allow a manually installed extension to replace itself silently. If an update is available, download the offered Chrome zip, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new zip from local device storage:
+Orion’s extension policies do not allow a manually installed extension to replace itself silently. If an update is available, download the offered ZIP, uninstall the current extension, and **always choose `+` → `Install from File`** to install the new ZIP from local device storage:
 
 <p align="center">
   <img src="docs/images/orion-install-from-file.png" alt="Install from File option for a manual Fuck YouTube Premium OTA update" width="420">
@@ -64,7 +62,7 @@ Orion’s extension policies do not allow a manually installed extension to repl
 - Closed captions appear once.
 - uBlock Origin handles network ad blocking.
 
-If these changes are missing, confirm the extension is enabled and allowed on youtube.com, and confirm **Request Desktop Website** is enabled. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
+If these changes are missing, confirm both extensions are enabled and allowed on youtube.com, then close and reopen the YouTube tab. If Play invokes the native fullscreen controller, Orion’s app-level inline media setting is overriding the page; report the Orion/iOS version because a WebExtension cannot change its host app’s `WKWebViewConfiguration`.
 
 ## If captions appear twice
 

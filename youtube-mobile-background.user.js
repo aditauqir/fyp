@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.0.20
+// @version      2.1.8
+// @release-label 2.1.8
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -17,15 +18,17 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.0.20');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.8');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
+  const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
-  const NAV_LAYOUT_VERSION = 'ext-v220-toolbar-popup-package';
+  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-player-strip';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
@@ -43,6 +46,7 @@
   const ORION_NAV_GAP = '72px';
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
+  let lastMediaSessionMetadataKey = '';
   /*
    * Normalize every normal and short YouTube link onto the desktop host.
    * Orion can then use the full desktop player underneath the mobile-only UI
@@ -351,12 +355,15 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
+    updateMediaSessionMetadata();
+    syncCustomPlayerControls();
   }
 
   function onVideoPause() {
     if (Date.now() <= state.userPauseUntil || !state.wantsPlayback) {
       state.wantsPlayback = false;
       clearRecoveryTimers();
+      syncCustomPlayerControls();
       return;
     }
     if (isReallyHidden() && state.wantsPlayback && !state.video?.ended) {
@@ -366,6 +373,7 @@
       state.wantsPlayback = false;
       clearRecoveryTimers();
     }
+    syncCustomPlayerControls();
   }
 
   function recordPlayerControlIntent(event) {
@@ -414,6 +422,525 @@
     }, PLAYER_CONTROLS_VISIBLE_MS);
   }
 
+  const PLAYER_CONTROL_ICONS = Object.freeze({
+    rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1"></rect><rect x="15" y="4" width="4" height="16" rx="1"></rect></svg>',
+    forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
+    captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="M7 15h4"></path><path d="M13 15h4"></path><path d="M7 11h2"></path><path d="M15 11h2"></path></svg>',
+    pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
+    fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
+    more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>',
+  });
+
+  function playerControlButtonMarkup(action, label, icon) {
+    const menuAttributes =
+      action === 'captions' || action === 'more'
+        ? ' aria-haspopup="menu" aria-expanded="false"'
+        : '';
+    return (
+      `<button type="button" class="fyp-player-control" ` +
+      `data-fyp-player-action="${action}" aria-label="${label}" ` +
+      `title="${label}" aria-pressed="false"${menuAttributes}>${icon}</button>`
+    );
+  }
+
+  function playerControlsMarkup() {
+    return [
+      playerControlButtonMarkup(
+        'rewind',
+        'Back 10 seconds',
+        PLAYER_CONTROL_ICONS.rewind
+      ),
+      playerControlButtonMarkup(
+        'play-pause',
+        'Play',
+        PLAYER_CONTROL_ICONS.play
+      ),
+      playerControlButtonMarkup(
+        'forward',
+        'Forward 10 seconds',
+        PLAYER_CONTROL_ICONS.forward
+      ),
+      playerControlButtonMarkup(
+        'captions',
+        'Captions',
+        PLAYER_CONTROL_ICONS.captions
+      ),
+      playerControlButtonMarkup(
+        'pip',
+        'Picture in Picture',
+        PLAYER_CONTROL_ICONS.pip
+      ),
+      playerControlButtonMarkup(
+        'fullscreen',
+        'Fullscreen',
+        PLAYER_CONTROL_ICONS.fullscreen
+      ),
+      playerControlButtonMarkup(
+        'more',
+        'More player options',
+        PLAYER_CONTROL_ICONS.more
+      ),
+    ].join('');
+  }
+
+  function controllableVideo(shouldAttach = true) {
+    const stateVideo =
+      state.video instanceof HTMLVideoElement && state.video.isConnected
+        ? state.video
+        : null;
+    const video = stateVideo || findVideo();
+    if (!(video instanceof HTMLVideoElement)) return null;
+    if (shouldAttach) attachVideo(video);
+    return video;
+  }
+
+  function syncCustomPlayerControls() {
+    const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+    if (!(toolbar instanceof HTMLElement)) return;
+    const video = controllableVideo(false);
+    const playButton = toolbar.querySelector(
+      '[data-fyp-player-action="play-pause"]'
+    );
+    if (playButton instanceof HTMLButtonElement) {
+      const paused = !video || video.paused || video.ended;
+      const label = paused ? 'Play' : 'Pause';
+      const playbackState = paused ? 'paused' : 'playing';
+      if (playButton.dataset.fypPlaybackState !== playbackState) {
+        playButton.dataset.fypPlaybackState = playbackState;
+        playButton.innerHTML = paused
+          ? PLAYER_CONTROL_ICONS.play
+          : PLAYER_CONTROL_ICONS.pause;
+      }
+      playButton.setAttribute('aria-label', label);
+      playButton.title = label;
+      playButton.setAttribute('aria-pressed', String(!paused));
+    }
+
+    const captionsButton = toolbar.querySelector(
+      '[data-fyp-player-action="captions"]'
+    );
+    if (captionsButton instanceof HTMLButtonElement) {
+      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+      const captionsActive =
+        nativeCaptions?.getAttribute('aria-pressed') === 'true' ||
+        Boolean(
+          video &&
+            [...video.textTracks].some(
+              (track) =>
+                (track.kind === 'captions' || track.kind === 'subtitles') &&
+                track.mode === 'showing'
+            )
+        );
+      captionsButton.setAttribute('aria-pressed', String(captionsActive));
+    }
+
+    const pipButton = toolbar.querySelector('[data-fyp-player-action="pip"]');
+    if (pipButton instanceof HTMLButtonElement) {
+      const pipActive =
+        document.pictureInPictureElement === video ||
+        video?.webkitPresentationMode === 'picture-in-picture';
+      pipButton.setAttribute('aria-pressed', String(pipActive));
+    }
+
+    const fullscreenButton = toolbar.querySelector(
+      '[data-fyp-player-action="fullscreen"]'
+    );
+    if (fullscreenButton instanceof HTMLButtonElement) {
+      const fullscreenActive = Boolean(
+        document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          video?.webkitDisplayingFullscreen
+      );
+      fullscreenButton.setAttribute('aria-pressed', String(fullscreenActive));
+    }
+  }
+
+  function closePlayerControlMenu(
+    toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)
+  ) {
+    if (!(toolbar instanceof HTMLElement)) return;
+    toolbar.querySelector('.fyp-player-menu')?.remove();
+    toolbar
+      .querySelectorAll('[aria-haspopup="menu"]')
+      .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  }
+
+  function createPlayerControlMenu(toolbar, sourceButton, label) {
+    const current = toolbar.querySelector('.fyp-player-menu');
+    if (
+      current?.dataset.fypMenuOwner === sourceButton.dataset.fypPlayerAction
+    ) {
+      closePlayerControlMenu(toolbar);
+      return null;
+    }
+    closePlayerControlMenu(toolbar);
+    const menu = document.createElement('div');
+    menu.className = 'fyp-player-menu';
+    menu.dataset.fypMenuOwner = sourceButton.dataset.fypPlayerAction || '';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', label);
+    sourceButton.setAttribute('aria-expanded', 'true');
+    toolbar.appendChild(menu);
+    return menu;
+  }
+
+  function appendPlayerMenuTitle(menu, text) {
+    const title = document.createElement('div');
+    title.className = 'fyp-player-menu-title';
+    title.textContent = text;
+    menu.appendChild(title);
+  }
+
+  function appendPlayerMenuOption(
+    menu,
+    { action, label, checked = false, disabled = false, trackIndex, speed }
+  ) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'fyp-player-menu-option';
+    option.dataset.fypPlayerOption = action;
+    if (trackIndex !== undefined) {
+      option.dataset.fypTrackIndex = String(trackIndex);
+    }
+    if (speed !== undefined) option.dataset.fypSpeed = String(speed);
+    option.setAttribute('role', 'menuitemradio');
+    option.setAttribute('aria-checked', String(checked));
+    option.disabled = disabled;
+    option.textContent = label;
+    menu.appendChild(option);
+    return option;
+  }
+
+  function captionTracks(video) {
+    const tracks = [...video.textTracks].filter(
+      (track) => track.kind === 'captions' || track.kind === 'subtitles'
+    );
+    const seen = new Set();
+    return tracks.filter((track) => {
+      const key = `${track.label || ''}|${track.language || ''}`
+        .trim()
+        .toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function captionOptionText(value) {
+    if (typeof value === 'string') return value.trim();
+    if (typeof value?.simpleText === 'string') return value.simpleText.trim();
+    if (Array.isArray(value?.runs)) {
+      return value.runs.map((run) => run.text || '').join('').trim();
+    }
+    return '';
+  }
+
+  function youtubeCaptionTrackList() {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.getOption !== 'function') return [];
+    try {
+      const tracks = player.getOption('captions', 'tracklist');
+      return Array.isArray(tracks) ? tracks : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function selectYouTubeCaptionTrack(selectedTrack) {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.setOption !== 'function') return false;
+    try {
+      player.loadModule?.('captions');
+    } catch {}
+    const selectedLabel = String(selectedTrack.label || '').trim().toLowerCase();
+    const selectedLanguage = String(selectedTrack.language || '').toLowerCase();
+    const youtubeTrack = youtubeCaptionTrackList().find((track) => {
+      const label = captionOptionText(
+        track.displayName || track.name || track.label
+      ).toLowerCase();
+      const language = String(
+        track.languageCode || track.language || track.lang || ''
+      ).toLowerCase();
+      return (
+        (selectedLabel && label === selectedLabel) ||
+        (selectedLanguage &&
+          language === selectedLanguage &&
+          (!selectedLabel ||
+            label.includes(selectedLabel) ||
+            selectedLabel.includes(label)))
+      );
+    });
+    if (!youtubeTrack) return false;
+    try {
+      player.setOption('captions', 'track', youtubeTrack);
+      player.setOption('captions', 'reload', true);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function toggleCaptionsMenu(video, sourceButton) {
+    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
+    if (!(toolbar instanceof HTMLElement)) return;
+    const menu = createPlayerControlMenu(
+      toolbar,
+      sourceButton,
+      'Caption options'
+    );
+    if (!menu) return;
+
+    const tracks = captionTracks(video);
+    const selectedTrack =
+      selectedCaptionTrackByVideo.get(video) ||
+      tracks.find((track) => track.mode !== 'disabled');
+    appendPlayerMenuTitle(menu, 'Captions');
+    appendPlayerMenuOption(menu, {
+      action: 'captions-off',
+      label: 'Off',
+      checked: !selectedTrack,
+    });
+    tracks.forEach((track, index) => {
+      appendPlayerMenuOption(menu, {
+        action: 'caption-track',
+        label:
+          String(track.label || track.language || '').trim() ||
+          `Captions ${index + 1}`,
+        checked: track === selectedTrack,
+        trackIndex: index,
+      });
+    });
+    if (!tracks.length) {
+      appendPlayerMenuOption(menu, {
+        action: 'caption-unavailable',
+        label: 'No captions available',
+        disabled: true,
+      });
+    }
+  }
+
+  function toggleMorePlayerMenu(video, sourceButton) {
+    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
+    if (!(toolbar instanceof HTMLElement)) return;
+    const menu = createPlayerControlMenu(
+      toolbar,
+      sourceButton,
+      'More player options'
+    );
+    if (!menu) return;
+
+    appendPlayerMenuTitle(menu, 'Playback speed');
+    for (const speed of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
+      appendPlayerMenuOption(menu, {
+        action: 'playback-speed',
+        label: speed === 1 ? 'Normal' : `${speed}×`,
+        checked: Math.abs(video.playbackRate - speed) < 0.01,
+        speed,
+      });
+    }
+    appendPlayerMenuTitle(menu, 'Player');
+    appendPlayerMenuOption(menu, {
+      action: 'native-settings',
+      label: 'Native player settings',
+    });
+  }
+
+  async function runPlayerControlOption(option) {
+    const video = controllableVideo();
+    if (!(video instanceof HTMLVideoElement)) return;
+    const action = option.dataset.fypPlayerOption;
+
+    if (action === 'captions-off') {
+      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+      if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
+        nativeCaptions.click();
+      }
+      captionTracks(video).forEach((track) => {
+        track.mode = 'disabled';
+      });
+      selectedCaptionTrackByVideo.delete(video);
+      delete video.dataset.fypNativeCaptionsHidden;
+    } else if (action === 'caption-track') {
+      const selectedTrack =
+        captionTracks(video)[Number(option.dataset.fypTrackIndex)];
+      if (!selectedTrack) return;
+      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+      const selectedThroughPlayer = selectYouTubeCaptionTrack(selectedTrack);
+      if (
+        !selectedThroughPlayer &&
+        nativeCaptions?.getAttribute('aria-pressed') !== 'true'
+      ) {
+        nativeCaptions.click();
+      }
+      const applyCaptionSelection = () => {
+        for (const track of captionTracks(video)) {
+          track.mode = track === selectedTrack ? 'hidden' : 'disabled';
+        }
+        selectedCaptionTrackByVideo.set(video, selectedTrack);
+        video.dataset.fypNativeCaptionsHidden = 'true';
+        suppressDuplicateNativeCaptions(video);
+      };
+      applyCaptionSelection();
+      setTimeout(() => {
+        selectYouTubeCaptionTrack(selectedTrack);
+        applyCaptionSelection();
+      }, 120);
+      setTimeout(applyCaptionSelection, 350);
+    } else if (action === 'playback-speed') {
+      const speed = Number(option.dataset.fypSpeed);
+      if (Number.isFinite(speed)) {
+        const applyPlaybackRate = () => {
+          video.playbackRate = speed;
+          try {
+            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+          } catch {}
+        };
+        applyPlaybackRate();
+        setTimeout(applyPlaybackRate, 120);
+      }
+    } else if (action === 'native-settings') {
+      holdPlayerControlsVisible();
+      document
+        .querySelector(
+          '.ytp-settings-button, .ytp-overflow-button, .ytp-more-button'
+        )
+        ?.click();
+    }
+
+    closePlayerControlMenu();
+    setTimeout(syncCustomPlayerControls, 0);
+    setTimeout(syncCustomPlayerControls, 250);
+  }
+
+  async function runPlayerControlAction(action, sourceButton) {
+    const video = controllableVideo();
+    if (!(video instanceof HTMLVideoElement)) return;
+
+    if (action === 'rewind' || action === 'forward') {
+      const offset = action === 'rewind' ? -10 : 10;
+      const duration = Number.isFinite(video.duration)
+        ? video.duration
+        : Number.POSITIVE_INFINITY;
+      video.currentTime = Math.max(
+        0,
+        Math.min(duration, video.currentTime + offset)
+      );
+    } else if (action === 'play-pause') {
+      if (video.paused || video.ended) {
+        state.wantsPlayback = true;
+        state.userPauseUntil = 0;
+        try {
+          await video.play();
+        } catch {
+          document.querySelector('.ytp-play-button')?.click();
+        }
+      } else {
+        state.wantsPlayback = false;
+        state.userPauseUntil = Date.now() + 3000;
+        clearRecoveryTimers();
+        video.pause();
+      }
+    } else if (
+      action === 'captions' &&
+      sourceButton instanceof HTMLButtonElement
+    ) {
+      toggleCaptionsMenu(video, sourceButton);
+    } else if (action === 'pip') {
+      video.removeAttribute('disablepictureinpicture');
+      try {
+        video.disablePictureInPicture = false;
+      } catch {}
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture?.();
+      } else if (typeof video.requestPictureInPicture === 'function') {
+        await video.requestPictureInPicture();
+      } else if (typeof video.webkitSetPresentationMode === 'function') {
+        const mode =
+          video.webkitPresentationMode === 'picture-in-picture'
+            ? 'inline'
+            : 'picture-in-picture';
+        video.webkitSetPresentationMode(mode);
+      }
+    } else if (action === 'fullscreen') {
+      state.fullscreenIntentUntil = Date.now() + 2000;
+      const player =
+        video.closest('#movie_player, .html5-video-player, ytd-player') ||
+        video;
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        const exit =
+          document.exitFullscreen || document.webkitExitFullscreen;
+        await exit?.call(document);
+      } else {
+        const request =
+          player.requestFullscreen ||
+          player.webkitRequestFullscreen ||
+          player.webkitRequestFullScreen;
+        if (typeof request === 'function') {
+          await request.call(player);
+        } else {
+          const enter =
+            video.webkitEnterFullscreen || video.webkitEnterFullScreen;
+          enter?.call(video);
+        }
+      }
+    } else if (
+      action === 'more' &&
+      sourceButton instanceof HTMLButtonElement
+    ) {
+      toggleMorePlayerMenu(video, sourceButton);
+    }
+
+    setTimeout(syncCustomPlayerControls, 0);
+    setTimeout(syncCustomPlayerControls, 250);
+  }
+
+  function acceptSinglePlayerControlAction(button) {
+    if (!(button instanceof HTMLElement)) return false;
+    const now = Date.now();
+    const previous = Number(button.dataset.fypLastActionAt || 0);
+    if (now - previous < 450) return false;
+    button.dataset.fypLastActionAt = String(now);
+    return true;
+  }
+
+  function handlePlayerControlActionCapture(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest(
+      '[data-fyp-player-option], [data-fyp-player-action]'
+    );
+    if (!(button instanceof HTMLButtonElement)) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!acceptSinglePlayerControlAction(button)) return;
+    if (button.dataset.fypPlayerOption) {
+      void runPlayerControlOption(button);
+    } else {
+      void runPlayerControlAction(button.dataset.fypPlayerAction, button);
+    }
+  }
+
+  function closePlayerControlMenuFromOutside(event) {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
+    ) {
+      closePlayerControlMenu();
+    }
+  }
+
+  function enforceHorizontalViewportLock() {
+    const scrollingElement = document.scrollingElement;
+    if (scrollingElement?.scrollLeft) scrollingElement.scrollLeft = 0;
+    if (document.documentElement.scrollLeft) {
+      document.documentElement.scrollLeft = 0;
+    }
+    if (document.body?.scrollLeft) document.body.scrollLeft = 0;
+  }
+
   function enforceInlinePlayback(video) {
     if (!video) return;
     if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', '');
@@ -427,12 +954,14 @@
       video.webkitPlaysInline = true;
     } catch {}
     try {
-      video.disablePictureInPicture = true;
+      video.removeAttribute('disablepictureinpicture');
+      video.disablePictureInPicture = false;
     } catch {}
   }
 
   function onVideoLoaded() {
     enforceInlinePlayback(state.video);
+    updateMediaSessionMetadata();
   }
 
   function hasExplicitFullscreenIntent() {
@@ -459,6 +988,7 @@
       'button[title="Full screen"]',
       'button[title="Fullscreen"]',
       '[data-tooltip-target-id="ytp-fullscreen-button"]',
+      '[data-fyp-player-action="fullscreen"]',
     ].join(','));
     if (!control) return;
     state.fullscreenIntentUntil = Date.now() + 2000;
@@ -592,7 +1122,6 @@
       'webkitSetPresentationMode',
       (nativePresentationMode) =>
         function explicitPresentationModeOnly(mode) {
-          if (mode === 'picture-in-picture') return undefined;
           if (mode === 'fullscreen' && !hasExplicitFullscreenIntent()) {
             return undefined;
           }
@@ -786,8 +1315,110 @@
     video.dataset.fypNativeCaptionsHidden = 'true';
   }
 
+  function metadataContent(selector) {
+    return document.querySelector(selector)?.getAttribute('content')?.trim() || '';
+  }
+
+  function mediaSessionArtwork(videoId, response) {
+    const candidates = [];
+    if (videoId) {
+      candidates.push(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
+    }
+    candidates.push(metadataContent('meta[property="og:image"]'));
+    for (const thumbnail of [
+      ...(response?.videoDetails?.thumbnail?.thumbnails || []),
+    ].reverse()) {
+      candidates.push(thumbnail.url);
+    }
+
+    for (const src of candidates) {
+      if (!src) continue;
+      try {
+        const absolute = new URL(src, location.href).href;
+        return [{ src: absolute }];
+      } catch {}
+    }
+    return [];
+  }
+
+  function applyMediaArtworkPoster(video, artwork) {
+    if (!(video instanceof HTMLVideoElement) || !artwork.length) return;
+    const preferred =
+      artwork.find((item) => item.src.includes('/hqdefault.jpg')) ||
+      artwork[artwork.length - 1];
+    if (preferred?.src && video.poster !== preferred.src) {
+      video.poster = preferred.src;
+    }
+  }
+
+  function updateMediaSessionMetadata() {
+    if (
+      !('mediaSession' in navigator) ||
+      typeof MediaMetadata !== 'function' ||
+      location.pathname !== '/watch'
+    ) {
+      return;
+    }
+    const response = window.ytInitialPlayerResponse;
+    const details = response?.videoDetails || {};
+    const videoId =
+      details.videoId || new URL(location.href).searchParams.get('v') || '';
+    const title =
+      details.title ||
+      metadataContent('meta[property="og:title"]') ||
+      document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim();
+    const artist =
+      details.author ||
+      document
+        .querySelector(
+          'ytd-video-owner-renderer #channel-name a, ' +
+            'ytd-watch-metadata #owner #channel-name a'
+        )
+        ?.textContent?.trim() ||
+      'YouTube';
+    const artwork = mediaSessionArtwork(videoId, response);
+    if (!title || !artwork.length) return;
+    const video = state.video || findVideo();
+    applyMediaArtworkPoster(video, artwork);
+    try {
+      navigator.mediaSession.playbackState =
+        video && !video.paused && !video.ended ? 'playing' : 'paused';
+    } catch {}
+    const metadataKey = JSON.stringify([
+      videoId,
+      title,
+      artist,
+      artwork.map((item) => item.src),
+    ]);
+    const currentArtwork = Array.from(
+      navigator.mediaSession.metadata?.artwork || []
+    );
+    const artworkStillApplied = currentArtwork.some((item) =>
+      artwork.some((candidate) => candidate.src === item.src)
+    );
+    if (
+      metadataKey === lastMediaSessionMetadataKey &&
+      artworkStillApplied
+    ) {
+      return;
+    }
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title,
+        artist,
+        album: 'YouTube',
+        artwork,
+      });
+      lastMediaSessionMetadataKey = metadataKey;
+    } catch {
+      // Media artwork is optional in older Orion/WebKit releases.
+    }
+  }
+
   function installMediaSessionHandlers() {
     if (!('mediaSession' in navigator)) return;
+    updateMediaSessionMetadata();
     try {
       navigator.mediaSession.setActionHandler('play', () => {
         state.wantsPlayback = true;
@@ -830,6 +1461,49 @@
 
     const video = findVideo();
     if (video) attachVideo(video);
+  }
+
+  const AD_BLOCK_ENFORCEMENT_PATTERN =
+    /ad blockers? (?:are not allowed|violate)|ad blocker.{0,40}youtube|video playback is blocked|disable (?:your )?ad blocker|allow youtube ads|ad-blocking software/i;
+
+  function dismissAdBlockEnforcement(root = document) {
+    let removed = false;
+    const candidates = root.querySelectorAll?.(
+      [
+        'ytd-enforcement-message-view-model',
+        'yt-playability-error-supported-renderers',
+        '#error-screen',
+        'tp-yt-paper-dialog',
+      ].join(',')
+    );
+    for (const candidate of candidates || []) {
+      const text = (candidate.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!AD_BLOCK_ENFORCEMENT_PATTERN.test(text)) continue;
+      const dialog = candidate.closest('tp-yt-paper-dialog') || candidate;
+      dialog.remove();
+      removed = true;
+    }
+    if (!removed) return;
+
+    if (!document.querySelector('tp-yt-paper-dialog[opened]')) {
+      document
+        .querySelectorAll(
+          'tp-yt-iron-overlay-backdrop.opened, ' +
+            'tp-yt-paper-dialog + tp-yt-iron-overlay-backdrop'
+        )
+        .forEach((backdrop) => backdrop.remove());
+      document.documentElement.style.removeProperty('overflow');
+      document.body?.style.removeProperty('overflow');
+      document.querySelector('ytd-app')?.removeAttribute('aria-hidden');
+    }
+
+    const video = findVideo();
+    if (video && video.paused && !video.ended && video.readyState > 0) {
+      attachVideo(video);
+      state.wantsPlayback = true;
+      state.userPauseUntil = 0;
+      safePlay(video);
+    }
   }
 
   function removeAdCards(root = document) {
@@ -1012,7 +1686,15 @@
 
         html,
         body {
-          overflow-x: clip !important;
+          overflow-x: hidden !important;
+          overscroll-behavior-x: none !important;
+        }
+
+        @supports (overflow: clip) {
+          html,
+          body {
+            overflow-x: clip !important;
+          }
         }
 
         ytd-watch-flexy[is-single-column] #primary,
@@ -1054,6 +1736,42 @@
           max-width: 100% !important;
           margin-left: 0 !important;
           margin-right: 0 !important;
+        }
+
+        ytd-browse[page-subtype='channels'],
+        ytd-browse[page-subtype='channels'] #primary,
+        ytd-browse[page-subtype='channels']
+          ytd-two-column-browse-results-renderer,
+        ytd-browse[page-subtype='channels'] ytd-rich-grid-renderer,
+        ytd-browse[page-subtype='channels'] ytd-rich-grid-renderer #contents {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100vw !important;
+          margin-right: 0 !important;
+          margin-left: 0 !important;
+          overflow-x: hidden !important;
+        }
+
+        ytd-browse[page-subtype='channels'] ytd-rich-grid-renderer {
+          --ytd-rich-grid-items-per-row: 1 !important;
+          --ytd-rich-grid-posts-per-row: 1 !important;
+        }
+
+        ytd-browse[page-subtype='channels'] ytd-rich-grid-row,
+        ytd-browse[page-subtype='channels'] ytd-rich-item-renderer,
+        ytd-browse[page-subtype='channels'] ytd-grid-video-renderer,
+        ytd-browse[page-subtype='channels'] ytd-video-renderer,
+        ytd-browse[page-subtype='channels']
+          ytd-channel-video-player-renderer,
+        ytd-browse[page-subtype='channels'] yt-lockup-view-model,
+        ytd-browse[page-subtype='channels'] ytd-thumbnail {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin-right: 0 !important;
+          margin-left: 0 !important;
         }
 
         /*
@@ -1211,6 +1929,149 @@
         max-width: 100% !important;
         margin: clamp(.35rem, 1.5vw, .75rem) 0 0 !important;
         order: 3 !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} {
+        box-sizing: border-box;
+        position: relative;
+        z-index: 5;
+        display: grid !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        width: 100%;
+        min-width: 0;
+        margin: clamp(.5rem, 2.4vw, .8rem) 0;
+        padding: clamp(.35rem, 1.8vw, .55rem);
+        gap: clamp(.25rem, 1.4vw, .55rem);
+        border: 1px solid rgba(255, 255, 255, .14);
+        border-radius: clamp(.85rem, 4vw, 1.2rem);
+        background: rgba(255, 255, 255, .08);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        overflow: visible;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
+        appearance: none;
+        box-sizing: border-box;
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100%;
+        min-width: 0;
+        height: clamp(2.35rem, 10vw, 2.85rem);
+        margin: 0;
+        padding: clamp(.48rem, 2.2vw, .7rem);
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: rgba(255, 255, 255, .12);
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 999px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[data-fyp-player-action='play-pause'] {
+        color: #0f0f0f;
+        background: #fff;
+        border-color: #fff;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[aria-pressed='true']:not(
+          [data-fyp-player-action='play-pause']
+        ) {
+        color: #fff;
+        background: #ff0033;
+        border-color: #ff0033;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:active {
+        transform: scale(.92);
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: clamp(1.05rem, 4.8vw, 1.35rem);
+        max-height: clamp(1.05rem, 4.8vw, 1.35rem);
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[data-fyp-player-action='play-pause'] svg {
+        fill: currentColor;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+        box-sizing: border-box;
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 0;
+        max-height: min(42svh, 18rem);
+        margin-top: clamp(.15rem, .8vw, .3rem);
+        padding: clamp(.4rem, 2vw, .65rem);
+        gap: clamp(.25rem, 1vw, .4rem);
+        color: #fff;
+        background: rgba(15, 15, 15, .97);
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: clamp(.75rem, 3vw, 1rem);
+        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
+        padding: clamp(.25rem, 1vw, .4rem) clamp(.7rem, 3vw, .95rem);
+        color: rgba(255, 255, 255, .72);
+        font: 700 clamp(.78rem, 3.2vw, .9rem)/1.2 Roboto, Arial, sans-serif;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option {
+        appearance: none;
+        box-sizing: border-box;
+        width: 100%;
+        min-height: clamp(2.45rem, 10vw, 2.9rem);
+        margin: 0;
+        padding: 0 clamp(.75rem, 3vw, 1rem);
+        color: #fff;
+        background: rgba(255, 255, 255, .09);
+        border: 1px solid transparent;
+        border-radius: clamp(.6rem, 2.5vw, .8rem);
+        text-align: left;
+        font: 600 clamp(.8rem, 3.4vw, .95rem)/1.25 Roboto, Arial, sans-serif;
+        touch-action: manipulation;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-menu-option[aria-checked='true'] {
+        background: #ff0033;
+        border-color: #ff0033;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled {
+        opacity: .55;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: -2px;
       }
 
       .html5-video-player[data-fyp-controls-visible='true'] .ytp-chrome-bottom,
@@ -2431,6 +3292,76 @@
     viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
   }
 
+  function visiblePlacementTarget(selectors) {
+    return [...document.querySelectorAll(selectors)].find((element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        element.getClientRects().length > 0 &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    });
+  }
+
+  function ensurePlayerControlsToolbar() {
+    if (location.pathname !== '/watch') {
+      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
+      return;
+    }
+
+    const titleCandidate = visiblePlacementTarget(
+      [
+        'ytd-watch-metadata #title',
+        'ytd-video-primary-info-renderer #title',
+        'ytd-watch-flexy #below h1',
+        'ytd-watch-flexy #primary h1',
+      ].join(',')
+    );
+    const title = titleCandidate?.closest('#title, h1') || titleCandidate;
+    const playerAnchor = visiblePlacementTarget(
+      [
+        'ytd-watch-flexy #player-full-bleed-container',
+        'ytd-watch-flexy #player-container-outer',
+        'ytd-watch-flexy #player',
+        '#player-container-outer',
+        '#player',
+      ].join(',')
+    );
+    if (!(title instanceof Element) && !(playerAnchor instanceof Element)) {
+      return;
+    }
+
+    let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+    if (
+      !(toolbar instanceof HTMLElement) ||
+      toolbar.dataset.fypControlsLayout !== PLAYER_CONTROLS_LAYOUT_VERSION
+    ) {
+      toolbar?.remove();
+      toolbar = document.createElement('div');
+      toolbar.id = PLAYER_CONTROLS_TOOLBAR_ID;
+      toolbar.dataset.fypControlsLayout = PLAYER_CONTROLS_LAYOUT_VERSION;
+      toolbar.setAttribute('role', 'toolbar');
+      toolbar.setAttribute('aria-label', 'Video player controls');
+      toolbar.innerHTML = playerControlsMarkup();
+    }
+
+    if (title instanceof Element) {
+      if (title.nextElementSibling !== toolbar) {
+        title.insertAdjacentElement('afterend', toolbar);
+      }
+    } else if (
+      playerAnchor instanceof Element &&
+      playerAnchor.nextElementSibling !== toolbar
+    ) {
+      playerAnchor.insertAdjacentElement('afterend', toolbar);
+    }
+    syncCustomPlayerControls();
+  }
+
   function scanPage() {
     ensureViewport();
     if (location.pathname.startsWith('/shorts')) {
@@ -2444,6 +3375,8 @@
     removeFloatingPillNav();
     showWelcomeOnce();
     markSubscribeButtons();
+    ensurePlayerControlsToolbar();
+    updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
     enhanceComments();
@@ -2470,6 +3403,7 @@
     ensureGuideButtonVisible();
     hideUploadControls();
     dismissMiniplayer();
+    ensurePlayerControlsToolbar();
     arrangeWatchComments();
     enhanceComments();
   }, true);
@@ -2478,6 +3412,29 @@
     recordPlayerControlIntent,
     { capture: true, passive: true }
   );
+  nativeDocumentAddEventListener(
+    'PointerEvent' in window ? 'pointerdown' : 'touchstart',
+    handlePlayerControlActionCapture,
+    { capture: true, passive: false }
+  );
+  nativeDocumentAddEventListener(
+    'PointerEvent' in window ? 'pointerdown' : 'touchstart',
+    closePlayerControlMenuFromOutside,
+    true
+  );
+  nativeDocumentAddEventListener(
+    'click',
+    handlePlayerControlActionCapture,
+    true
+  );
+  nativeDocumentAddEventListener(
+    'scroll',
+    enforceHorizontalViewportLock,
+    { capture: true, passive: true }
+  );
+  nativeWindowAddEventListener('scroll', enforceHorizontalViewportLock, {
+    passive: true,
+  });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
   nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
   nativeDocumentAddEventListener(
@@ -2533,10 +3490,14 @@
   // Player overlays and WebKit caption tracks can change between DOM scans.
   setInterval(() => {
     skipPlayerAd();
+    dismissAdBlockEnforcement();
     suppressDuplicateNativeCaptions();
   }, 300);
   setInterval(() => {
     markSubscribeButtons();
+    ensurePlayerControlsToolbar();
+    syncCustomPlayerControls();
+    updateMediaSessionMetadata();
     hideAskGeminiControls();
     ensureGuideButtonVisible();
     hideUploadControls();

@@ -28,5 +28,69 @@ assert.match(
 );
 assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
+assert.match(source, /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215'/);
+assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
+assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);
+for (const action of [
+  'rewind',
+  'play-pause',
+  'forward',
+  'captions',
+  'pip',
+  'fullscreen',
+  'more',
+]) {
+  assert.match(
+    source,
+    new RegExp(`playerControlButtonMarkup\\(\\s*'${action}'`)
+  );
+}
+assert.match(source, /video\.currentTime \+ offset/);
+assert.match(source, /await video\.play\(\)/);
+assert.match(source, /video\.pause\(\)/);
+assert.match(source, /video\.requestPictureInPicture\(\)/);
+assert.match(source, /player\.requestFullscreen/);
+assert.match(source, /\.ytp-subtitles-button/);
+assert.match(source, /\.ytp-settings-button/);
+assert.match(source, /function toggleCaptionsMenu\(/);
+assert.match(source, /function selectYouTubeCaptionTrack\(/);
+assert.match(source, /player\.setOption\('captions', 'track', youtubeTrack\)/);
+assert.match(source, /player\.setOption\('captions', 'reload', true\)/);
+assert.match(source, /setTimeout\(applyCaptionSelection, 350\)/);
+assert.match(source, /function toggleMorePlayerMenu\(/);
+assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedTrack\)/);
+assert.match(source, /action: 'captions-off'/);
+assert.match(source, /action: 'caption-track'/);
+assert.match(source, /action: 'playback-speed'/);
+assert.match(source, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
+assert.match(source, /action: 'native-settings'/);
+assert.match(
+  source,
+  /\[data-fyp-player-option\], \[data-fyp-player-action\]/
+);
+assert.match(source, /grid-column: 1 \/ -1;/);
+assert.match(source, /max-height: min\(42svh, 18rem\);/);
+assert.match(source, /grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
+assert.match(
+  source,
+  /'PointerEvent' in window \? 'pointerdown' : 'touchstart',\s*handlePlayerControlActionCapture/
+);
+assert.doesNotMatch(source, /fypPlayerHoverSimulated/);
+assert.match(source, /playButton\.dataset\.fypPlaybackState !== playbackState/);
+assert.match(source, /state\.video\.isConnected/);
+assert.match(source, /function updateMediaSessionMetadata\(\)/);
+assert.match(source, /navigator\.mediaSession\.metadata = new MediaMetadata/);
+assert.match(source, /hqdefault\.jpg/);
+assert.doesNotMatch(source, /maxresdefault\.jpg/);
+assert.match(source, /function applyMediaArtworkPoster\(/);
+assert.match(source, /video\.poster = preferred\.src/);
+assert.match(source, /navigator\.mediaSession\.playbackState/);
+assert.match(source, /const AD_RESPONSE_KEYS = new Set/);
+assert.match(
+  source,
+  /function dismissAdBlockEnforcement\(root = document\)[\s\S]*AD_BLOCK_ENFORCEMENT_PATTERN/
+);
+assert.match(source, /ytd-enforcement-message-view-model/);
+assert.doesNotMatch(source, /duration - 0\.05/);
 
-console.log('player controls hide 10 seconds after user interaction: ok');
+console.log('10-second native hold and seven-button player strip: ok');

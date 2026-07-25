@@ -16,6 +16,9 @@ assert.match(readme, /skillicons\.dev\/icons\?i=apple/);
 assert.match(readme, /skillicons\.dev\/icons\?i=github/);
 assert.match(readme, /logo=safari/);
 assert.match(readme, /logo=ublockorigin/);
+assert.match(readme, /discord\.gg\/sd5Y8f7ukh/);
+assert.match(readme, /logo=discord/);
+assert.match(readme, /Join%20the%20server%20for%20support%20or%20help/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/releases\/latest/);
 assert.match(readme, /addons\.mozilla\.org\/en-US\/firefox\/addon\/ublock-origin/);
 assert.match(readme, /Mandatory for ad blocking/);
@@ -23,6 +26,7 @@ assert.match(readme, /## Final extension result/);
 assert.match(readme, /docs\/images\/final-extension-result\.png/);
 assert.match(readme, /docs\/images\/youtube-watch-page\.png/);
 assert.match(readme, /docs\/images\/youtube-mobile-feed\.png/);
+assert.match(readme, /docs\/images\/player-options-menu\.png/);
 assert.match(readme, /docs\/images\/background-playback-lock-screen\.png/);
 assert.match(readme, /docs\/images\/orion-install-from-file\.png/);
 assert.match(readme, /“OTA” update detection and downloads/);
@@ -33,14 +37,17 @@ assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion first/);
 assert.match(readme, /keep retrying the install button/);
-assert.match(readme, /fuck-youtube-premium-chrome-2\.0\.20\.zip/);
+assert.match(readme, /2\.1\.8_beta-release\.zip/);
+assert.match(readme, /### Do not enable Request Desktop Website/);
+assert.match(readme, /Leave Orion’s per-site \*\*Request Desktop Website\*\* setting disabled/);
+assert.doesNotMatch(install, /Request Desktop Website/);
+assert.match(readme, /no per-site desktop-mode setting is needed/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstalled/);
-assert.match(
-  readme,
-  /releases\/download\/v2\.0\.20\/fuck-youtube-premium-chrome-2\.0\.20\.zip/
+assert.ok(
+  fs.existsSync(path.join(root, '2.1.8_beta-release.zip')),
+  'preferred Orion beta ZIP'
 );
-assert.match(readme, /Generated packages are ignored by Git/);
 assert.match(readme, /Tapping the extension icon shows no buttons/);
 assert.match(readme, /three changelog lines plus \*\*Go to YouTube\*\*/);
 assert.match(readme, /orion-multiple-subtitle-tracks\.png/);
@@ -50,6 +57,7 @@ for (const image of [
   'final-extension-result.png',
   'youtube-watch-page.png',
   'youtube-mobile-feed.png',
+  'player-options-menu.png',
   'background-playback-lock-screen.png',
   'orion-install-from-file.png',
 ]) {

@@ -1,12 +1,58 @@
 # Patch Notes
 
+## v2.1.8 beta
+
+- Fixed: Removed the channel-page flex-direction and internal-card overrides that enlarged the entire interface.
+- Changed: Channel pages now retain YouTube's native card structure and only receive root/card width containment within the phone viewport.
+- Fixed: Removed the unreliable derived `maxresdefault.jpg` Media Session entry, which could be selected by iOS even when that image did not exist.
+- Added: The guaranteed YouTube HQ thumbnail is applied to both Media Session artwork and the active video poster, and Media Session playback state is refreshed for iOS Now Playing.
+- Preserved: Player controls, caption and playback menus, horizontal viewport lock, Home/watch layouts, background playback, and ad handling are unchanged.
+- Packaging: The new numeric manifest version is `2.1.8`, and the installable Orion file is `2.1.8_beta-release.zip`.
+
+## v2.1.7 beta
+
+- Fixed: Player toolbar events now defer to the injected page runtime when available, allowing caption and playback options to control YouTube instead of stopping in Orion's isolated fallback world.
+- Fixed: Caption choices are deduplicated and the selected language is applied through YouTube's caption-track API, with guarded TextTrack retries for Orion.
+- Added: Media Session metadata now supplies the video title, channel, and multiple YouTube thumbnail sizes for Lock Screen, Now Playing, and Dynamic Island artwork where Orion exposes iOS media artwork.
+- Fixed: Channel browse pages use a phone-width single-column card layout, while Home, watch pages, horizontal shelves, the player, and the viewport lock remain unchanged.
+- Documentation: Replaced the inline watch screenshot, added a playback-options demo, and removed the unnecessary Request Desktop Website installation step.
+- Packaging: The new numeric manifest version is `2.1.7`, and the installable Orion file is `2.1.7_beta-release.zip`.
+
+## v2.1.6 beta
+
+- Added: The phone document viewport is locked to horizontal position zero while vertical page scrolling remains available.
+- Added: Root horizontal overflow uses `clip` where Orion supports it, with `hidden` as a compatibility fallback and horizontal rubber-band overscroll disabled.
+- Preserved: The working player-control strip, Captions dropdown, three-dot playback/settings dropdown, Home layout, action buttons, video behavior, captions, background playback, and ad handling are unchanged.
+- Packaging: The new numeric manifest version is `2.1.6`, and the installable Orion file is `2.1.6_beta-release.zip`.
+
+## v2.1.5 beta
+
+- Fixed: The three-dot More button now opens a working dropdown instead of forwarding an unreliable tap to YouTube's hidden desktop control.
+- Added: The More dropdown provides 0.5×, 0.75×, Normal, 1.25×, 1.5×, and 2× playback speeds plus an entry for YouTube's native player settings.
+- Fixed: The Captions button now opens a dropdown containing Off and every caption or subtitle track currently exposed by the video.
+- Added: Active caption and playback-speed choices are highlighted, tapping the same icon toggles its menu closed, and tapping outside the toolbar dismisses it.
+- Preserved: Both menus occupy a full-width row inside the existing watch-page toolbar; Home, player, title, action-row, and horizontal layout geometry are unchanged.
+- Packaging: The new numeric manifest version is `2.1.5`, and the installable Orion file is `2.1.5_beta-release.zip`.
+
+## v2.1.4 beta
+
+- Restored: Home, watch-page, masthead, feed, and native action layout are based directly on the known-good `2.0.20` release, removing the later width, offset, action-row, and horizontal-lock experiments.
+- Replaced: The unreliable Show/Hide Controls hover button is gone. A seven-button Lucide-style strip now controls Back 10 seconds, Play/Pause, Forward 10 seconds, Captions, Picture in Picture, Fullscreen, and More.
+- Fixed: The controls run from either the page world or Orion's isolated content fallback, with capture-phase `pointerdown`/`touchstart` handling so YouTube cannot swallow or double-trigger a command.
+- Fixed: Play/Pause icon synchronization is now idempotent, breaking a mutation-observer feedback loop that could prevent the video and buttons from loading.
+- Fixed: Horizontal scrolling is disabled only on `html` and `body`; YouTube app, feed, page-manager, player, and menu geometry remain untouched.
+- Fixed: Removed the detectable active-ad timeline seeking introduced in 2.1.3; ad handling returns to skip-button clicks, response cleanup, and promoted-card removal.
+- Added: YouTube's ad-block enforcement dialog is removed only when its text explicitly matches the ad-block warning, after which modal scroll state and playback are restored.
+- Fixed: Background playback recovery now also runs in the isolated fallback on visibility changes, app blur, tab changes, page hiding, freezing, and screen locking.
+- Preserved: Tapping inside the native player still holds YouTube's native controls for exactly 10 seconds without autonomous `play` or `playing` events extending the timer.
+- Packaging: The new numeric manifest version is `2.1.4`, and the installable Orion file is `2.1.4_beta-release.zip`.
+
 ## v2.0.20
 
 - Fixed: Orion’s toolbar action opens the packaged bottom-center popup again when the extension is installed from the recommended Chrome Manifest V3 zip.
 - Changed: Manual installs and in-extension update checks now prefer the Chrome zip; the Firefox zip and XPI remain available as fallback packages.
 - Changed: The popup’s three priority lines now identify the toolbar fix, the preferred iPhone package, and preserved background playback/control timing.
 - Added: The README demo now includes the supplied iPhone lock-screen screenshot showing background playback.
-- Changed: Generated ZIP/XPI packages are distributed through GitHub Releases instead of being committed to the source tree; only the current build is retained locally.
 - Notes: Player behavior, inline/fullscreen/PiP handling, background audio, captions, controls delay, comments, recommendations, search, navigation, Shorts, miniplayer, ads, and popup sizing are unchanged.
 
 ## v2.0.19

@@ -25,9 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Toolbar buttons open again in Orion\./);
-assert.match(popup, /The Chrome package is preferred on iPhone\./);
-assert.match(popup, /Background play and 10-second controls remain\./);
+assert.match(popup, /Caption and playback menu choices now apply correctly\./);
+assert.match(popup, /Now Playing receives YouTube thumbnail artwork\./);
+assert.match(popup, /Channel video cards now fit the phone viewport\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
@@ -52,6 +52,6 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
-assert.match(patchNotes, /## v2\.0\.20/);
+assert.match(patchNotes, /## v2\.1\.7 beta/);
 
 console.log('bottom-center extension popup: ok');

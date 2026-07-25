@@ -26,6 +26,15 @@ print(m.group(1) if m else "0.0.0")
 PY
 )"
 
+RELEASE_LABEL="$(
+  python3 - <<'PY' "$SRC" "$VERSION"
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"// @release-label\s+(\S+)", text)
+print(m.group(1) if m else sys.argv[2])
+PY
+)"
+
 python3 - <<PY
 from pathlib import Path
 import json, shutil
@@ -111,7 +120,9 @@ PY
 
 FF_ZIP="$ROOT/fuck-youtube-premium-firefox-${VERSION}.zip"
 CH_ZIP="$ROOT/fuck-youtube-premium-chrome-${VERSION}.zip"
+ORION_ZIP="$ROOT/fuck-youtube-premium-orion-${VERSION}.zip"
 ORION_XPI="$ROOT/fuck-youtube-premium-orion-${VERSION}.xpi"
+BETA_RELEASE_ZIP="$ROOT/${RELEASE_LABEL}_beta-release.zip"
 
 pack "$FF" "$FF_ZIP" \
   manifest.json content.js page.js background.js popup.html popup.css popup.js \
@@ -121,20 +132,64 @@ pack "$CH" "$CH_ZIP" \
   manifest.json content.js page.js background.js popup.html popup.css popup.js \
   icons/icon-48.png icons/icon-96.png icons/icon-128.png
 
+ORION_BUILD_DIR="$(mktemp -d "${TMPDIR:-/tmp}/fyp-orion.XXXXXX")"
+trap 'rm -rf "$ORION_BUILD_DIR"' EXIT
+cp "$FF"/manifest.json "$FF"/content.js "$FF"/page.js \
+  "$FF"/background.js "$FF"/popup.html "$FF"/popup.css "$FF"/popup.js \
+  "$ORION_BUILD_DIR"/
+mkdir -p "$ORION_BUILD_DIR/icons"
+cp "$FF"/icons/icon-48.png "$FF"/icons/icon-96.png \
+  "$FF"/icons/icon-128.png "$ORION_BUILD_DIR/icons"/
+
+python3 - <<PY
+from pathlib import Path
+import json
+
+manifest_path = Path("$ORION_BUILD_DIR/manifest.json")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest.pop("browser_specific_settings", None)
+manifest.pop("applications", None)
+manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+PY
+
+pack "$ORION_BUILD_DIR" "$ORION_ZIP" \
+  manifest.json content.js page.js background.js popup.html popup.css popup.js \
+  icons/icon-48.png icons/icon-96.png icons/icon-128.png
+
 cp "$FF_ZIP" "$ORION_XPI"
+cp "$CH_ZIP" "$BETA_RELEASE_ZIP"
 python3 - <<PY
 import json, zipfile
+with zipfile.ZipFile("$ORION_ZIP") as archive:
+    manifest = json.loads(archive.read("manifest.json"))
+    assert manifest.get("manifest_version") == 2, manifest
+    assert manifest.get("version") == "$VERSION", manifest
+    assert "browser_specific_settings" not in manifest, manifest
+    assert "applications" not in manifest, manifest
+print("Validated", "$ORION_ZIP", "as minimal Orion Manifest V2")
+
 with zipfile.ZipFile("$ORION_XPI") as archive:
     manifest = json.loads(archive.read("manifest.json"))
     assert manifest.get("manifest_version") == 2, manifest
     assert manifest.get("version") == "$VERSION", manifest
-print("Validated", "$ORION_XPI", "as Firefox/XPI fallback")
+    assert manifest.get("browser_specific_settings", {}).get("gecko", {}).get("id")
+print("Validated", "$ORION_XPI", "as standard Firefox Manifest V2")
+
+with zipfile.ZipFile("$BETA_RELEASE_ZIP") as archive:
+    manifest = json.loads(archive.read("manifest.json"))
+    assert manifest.get("manifest_version") == 3, manifest
+    assert manifest.get("version") == "$VERSION", manifest
+    assert manifest.get("action", {}).get("default_popup") == "popup.html", manifest
+print("Validated", "$BETA_RELEASE_ZIP", "as Orion Chrome Manifest V3 ZIP")
+
 PY
 
 echo
-echo "Install on Orion iOS (prefer Chrome zip for toolbar popup support):"
-echo "  $CH_ZIP"
+echo "Install this beta on Orion iOS (Chrome-format ZIP matching v2.0.20):"
+echo "  $BETA_RELEASE_ZIP"
 echo "Fallback packages:"
+echo "  $ORION_ZIP"
+echo "  $CH_ZIP"
 echo "  $ORION_XPI"
 echo "  $FF_ZIP"
-ls -la "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"
+ls -la "$BETA_RELEASE_ZIP" "$ORION_ZIP" "$ORION_XPI" "$CH_ZIP" "$FF_ZIP"
