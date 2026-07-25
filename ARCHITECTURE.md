@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.0.16`
+**Current shipped version:** `2.1.1` (`2.1.1_release_hotfix.zip`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -42,6 +42,7 @@ flowchart TD
 | Fullscreen | Starting playback must not trigger fullscreen; only a tap on YouTube’s fullscreen control grants a two-second entry window. |
 | PiP | Disabled. Starting playback must not enter PiP. |
 | Background audio | Continue playing when Orion is backgrounded or the phone is locked when WebKit permits it. |
+| Now Playing | Lock Screen, Dynamic Island, and Now Playing play/pause must control the same video as the in-page toolbar and keep that toolbar icon in sync. |
 | Layout | No content clipped beyond the left or right viewport edge. |
 | Feed | One-column phone layout at narrow widths. |
 | Navigation | Only YouTube’s native hamburger drawer. No permanent mini-guide column and no custom bottom navigation. |
@@ -50,7 +51,7 @@ flowchart TD
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
 | Comments | Order the watch page as description, recommendations, then YouTube’s native comments. Do not force-open or custom-paginate comments. |
 | Reply editor | Use a 16px minimum editor font to avoid iOS focus zoom. |
-| Player controls | Keep controls visible for eight seconds after user interaction, then return autohide ownership to YouTube. |
+| Player controls | Keep controls visible for ten seconds after user interaction, then return autohide ownership to YouTube. |
 | Captions | Keep YouTube’s custom captions and hide only the duplicate native WebVTT cue when both layers exist. |
 | Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
 | Ads | Expect uBlock Origin to handle network ad blocking. |
@@ -79,6 +80,14 @@ Critical DOM behavior is intentionally duplicated at this boundary because DOM c
 - hides Shorts surfaces and blocks Shorts navigation;
 - constrains top-level watch containers to `100vw`.
 
+When `pageRuntimeReady()` is true, the content fallback must **not**:
+
+- install Media Session play/pause handlers;
+- run background playback recovery;
+- own Now Playing / Lock Screen / Dynamic Island controls.
+
+Those remain page-runtime responsibilities. The 2.1.1 hotfix exists because the fallback previously stole Media Session handlers and restarted playback while page.js was already alive, so Lock Screen pause and the in-page play/pause strip fought each other.
+
 ### 3. Page-context runtime
 
 `youtube-mobile-background.user.js` is the source of truth. During a build, its userscript header is removed and its body becomes each package’s generated `page.js`.
@@ -87,9 +96,10 @@ The page runtime owns:
 
 - desktop-host enforcement;
 - inline and background playback behavior;
+- Media Session metadata and action handlers (Now Playing / Lock Screen / Dynamic Island);
 - mobile breakpoint CSS;
 - Shorts, miniplayer, upload, and navigation cleanup;
-- recommendations-before-comments placement, reply focus sizing, eight-second player controls, and caption deduplication;
+- recommendations-before-comments placement, reply focus sizing, ten-second player controls, and caption deduplication;
 - repeated DOM reconciliation after YouTube SPA navigation.
 
 Never edit `chrome-extension/page.js` or `firefox-extension/page.js` directly. They are generated files.
@@ -147,6 +157,36 @@ The page reports visible state to YouTube while retaining native visibility desc
 - uses the optional WebKit Audio Session playback type when available.
 
 A visible-page pause is treated as user intent and must remain paused.
+
+### Media Session / Now Playing ownership
+
+Apple Now Playing, Lock Screen, and Dynamic Island controls use the Media Session API. Only one layer may own those handlers at a time.
+
+**Owner:** page runtime (`youtube-mobile-background.user.js` → generated `page.js`).
+
+Required behavior:
+
+1. `installMediaSessionHandlers()` registers `play`, `pause`, and seek actions on the page runtime.
+2. Media Session `play` sets `wantsPlayback = true`, clears any intentional-pause window, plays the active video, and syncs `navigator.mediaSession.playbackState` plus the in-page play/pause icon.
+3. Media Session `pause` sets `wantsPlayback = false`, opens a short `userPauseUntil` window, clears recovery timers, pauses through `nativeMediaPause` so the background pause-guard cannot block it, and syncs Now Playing state plus the in-page icon.
+4. `prepareForBackground()` must respect `userPauseUntil`. It must not force `wantsPlayback = true` or recover playback during an intentional Now Playing / toolbar pause.
+5. Handlers are reasserted periodically so YouTube cannot silently steal them.
+6. While `data-fyp-page-ready` matches the expected version, `content.template.js` must return early from `prepareFallbackBackgroundPlayback()` and `recoverFallbackPlayback()`.
+
+Do not:
+
+- let the isolated content fallback install Media Session handlers when page.js is ready;
+- let background-audio recovery undo a Lock Screen / Dynamic Island pause;
+- update only one of {video element, Media Session `playbackState`, in-page play/pause icon}.
+
+```mermaid
+flowchart LR
+    NP["Lock Screen / Dynamic Island / Now Playing"] --> MS["Media Session handlers in page.js"]
+    MS --> V["HTML video element"]
+    MS --> TB["In-page play/pause toolbar icon"]
+    C["content.js fallback"] -->|"only if pageRuntimeReady is false"| MS
+    C -->|"must no-op when page ready"| X["No Media Session / no recover"]
+```
 
 ## Mobile shell architecture
 
@@ -218,8 +258,11 @@ Required edit flow:
 
 Current package names:
 
-- `fuck-youtube-premium-chrome-2.0.16.zip`
-- `fuck-youtube-premium-firefox-2.0.16.zip`
+- `2.1.1_release_hotfix.zip` (recommended Orion Chrome MV3 installer)
+- `fuck-youtube-premium-chrome-2.1.1_hotfix.zip`
+- `fuck-youtube-premium-firefox-2.1.1_hotfix.zip`
+- `fuck-youtube-premium-orion-2.1.1_hotfix.zip`
+- `fuck-youtube-premium-orion-2.1.1_hotfix.xpi`
 
 ## Verification contract
 
@@ -241,13 +284,14 @@ Then test at an iPhone-sized viewport and, when possible, on Orion iOS:
 1. One Play tap starts video inline.
 2. No fullscreen or PiP transition occurs from Play; the fullscreen control still works.
 3. Video keeps playing while the user scrolls through metadata and comments.
-4. Background audio resumes when the page is hidden.
-5. Left and right edges remain inside the viewport.
-6. Player remains full-width.
-7. Home and recommendation feeds are one column.
-8. Hamburger opens the native drawer once.
-9. No mini-guide column or Shorts entry appears.
-10. The extension icon opens a bottom-center popup panel with three changelog lines and two large buttons.
+4. Background audio resumes when the page is hidden without an intentional pause.
+5. Lock Screen / Dynamic Island pause actually pauses the video; play resumes it; the in-page play/pause icon matches.
+6. Left and right edges remain inside the viewport.
+7. Player remains full-width.
+8. Home and recommendation feeds are one column.
+9. Hamburger opens the native drawer once.
+10. No mini-guide column or Shorts entry appears.
+11. The extension icon opens a bottom-center popup panel with three changelog lines and two large buttons.
 
 Browser-based desktop testing cannot prove Orion’s app-level `WKWebView` configuration. Treat an actual Orion iPhone test as the final authority for playback presentation behavior.
 
@@ -258,9 +302,10 @@ Releases are published to `aditauqir/fyp`.
 Rules:
 
 - Never delete an older release or its assets.
-- The newest release title is `Fuck YouTube Premium <version>`.
+- The newest release title is `Fuck YouTube Premium <version>` (append `hotfix` when the ship is a hotfix, e.g. `Fuck YouTube Premium 2.1.1 hotfix`).
 - After publishing a new version, rename each older release title to `[DEPRECATED] Fuck YouTube Premium <version>`.
-- Upload both Chrome and Firefox ZIP assets.
+- Upload the recommended Orion installer plus Chrome, Firefox, Orion ZIP, and XPI fallbacks.
+- Hotfix asset names append `_hotfix` before the extension, e.g. `2.1.1_release_hotfix.zip`.
 - Keep the ZIP files in the repository’s Downloads workspace as local deliverables.
 - Verify the release and direct asset URLs after upload.
 
