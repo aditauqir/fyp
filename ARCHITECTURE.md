@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.1.1` (`2.1.1_release_hotfix.zip`)
+**Current shipped version:** `2.1.2` (`2.1.2_release.zip`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -204,6 +204,19 @@ At `max-width: 700px`, the extension:
 
 Do not apply transforms, negative margins, fixed pixel widths, or document-wide scale/zoom to imitate a phone layout.
 
+### History feed layout
+
+`/feed/history` uses desktop list rows (`ytd-video-renderer` / `yt-lockup-view-model`) with wide min-widths. On Orion that looks zoomed and scrambled, and side-by-side titles get clipped.
+
+History-only rules (do not apply this stacking to channel pages):
+
+1. Mark `ytd-browse` with `data-fyp-feed="history"` when the path is `/feed/history` (also match `page-subtype='history'`).
+2. Contain History `#primary` / `#secondary` / section lists to `100vw` with Home-like minimal side padding.
+3. Stack the two-column History layout so Clear / Pause / Manage / Search stay visible above the list.
+4. Modern History `yt-lockup-view-model` cards use a multi-column CSS grid (`thumb | title`). Collapse that grid to `grid-template-columns: minmax(0, 1fr)`, target both BEM and camelCase host classes (`.ytLockupViewModelContentImage` / `.ytLockupViewModelMetadata`), and cap the content-image to full card width at 16:9 so the title sits under the thumbnail instead of beside an oversized image.
+5. Classic `ytd-video-renderer` rows still use `#dismissible { flex-direction: column }` with centered text (`white-space: normal`, no line-clamp cut-off).
+6. Leave Home, subscriptions, and channel browse layouts on their existing rules.
+
 ## Navigation architecture
 
 YouTube’s native guide button and drawer own all open/close behavior.
@@ -258,11 +271,11 @@ Required edit flow:
 
 Current package names:
 
-- `2.1.1_release_hotfix.zip` (recommended Orion Chrome MV3 installer)
-- `fuck-youtube-premium-chrome-2.1.1_hotfix.zip`
-- `fuck-youtube-premium-firefox-2.1.1_hotfix.zip`
-- `fuck-youtube-premium-orion-2.1.1_hotfix.zip`
-- `fuck-youtube-premium-orion-2.1.1_hotfix.xpi`
+- `2.1.2_release.zip` (recommended Orion Chrome MV3 installer)
+- `fuck-youtube-premium-chrome-2.1.2.zip`
+- `fuck-youtube-premium-firefox-2.1.2.zip`
+- `fuck-youtube-premium-orion-2.1.2.zip`
+- `fuck-youtube-premium-orion-2.1.2.xpi`
 
 ## Verification contract
 

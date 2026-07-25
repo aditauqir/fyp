@@ -11,12 +11,15 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.1'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.2'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.1'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.2'\)/);
+assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
+assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
+assert.match(content, /ytd-browse\[page-subtype='history'\]/);
 assert.match(
   content,
   /function prepareFallbackBackgroundPlayback\(\) \{[\s\S]*?if \(pageRuntimeReady\(\)\) return;/

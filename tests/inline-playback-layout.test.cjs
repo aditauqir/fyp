@@ -7,8 +7,8 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /@version\s+2\.1\.1/);
-assert.match(source, /@release-label\s+2\.1\.1/);
+assert.match(source, /@version\s+2\.1\.2/);
+assert.match(source, /@release-label\s+2\.1\.2/);
 assert.match(source, /function installInlinePlaybackGuard\(\)/);
 assert.match(source, /video\.disablePictureInPicture = false/);
 assert.match(source, /video\.requestPictureInPicture\(\)/);
@@ -17,14 +17,53 @@ assert.match(source, /--ytd-rich-grid-items-per-row: 1 !important/);
 assert.match(source, /ytd-browse\[page-subtype='channels'\]/);
 assert.match(source, /ytd-channel-video-player-renderer/);
 assert.match(source, /max-width: 100vw !important/);
+assert.match(source, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
+assert.match(source, /function markHistoryFeedBrowse\(\)/);
+assert.match(source, /ytd-browse\[page-subtype='history'\]/);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*flex-direction: column !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*grid-template-columns: minmax\(0, 1fr\) !important/
+);
+assert.match(
+  source,
+  /ytLockupViewModelContentImage/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*ytd-browse-feed-actions-renderer[\s\S]*order: -1 !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*#video-title[\s\S]*white-space: normal !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*align-items: center !important/
+);
+assert.match(
+  source,
+  /ytd-two-column-browse-results-renderer[\s\S]*padding: 0 12px !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*yt-chip-cloud-renderer[\s\S]*justify-content: center !important/
+);
+assert.match(
+  source,
+  /ytd-browse\[page-subtype='history'\][\s\S]*yt-img-shadow#avatar[\s\S]*visibility: visible !important/
+);
 const channelLayoutStart = source.indexOf(
   "ytd-browse[page-subtype='channels']"
 );
-const channelLayoutEnd = source.indexOf(
-  "Keep YouTube's native desktop search form",
+const historyLayoutStart = source.indexOf(
+  "ytd-browse[page-subtype='history']",
   channelLayoutStart
 );
-const channelLayout = source.slice(channelLayoutStart, channelLayoutEnd);
+const channelLayout = source.slice(channelLayoutStart, historyLayoutStart);
 assert.doesNotMatch(channelLayout, /flex-direction:\s*column/);
 assert.doesNotMatch(channelLayout, /display:\s*block/);
 
