@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.1');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.2');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -15,7 +15,8 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-player-strip';
+  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-history-viewport';
+  const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
@@ -1932,6 +1933,95 @@
         }
 
         /*
+         * History keeps desktop list rows with wide min-widths, which looks
+         * zoomed/scrambled on Orion. Contain the page and stack each row.
+         */
+        ytd-browse[page-subtype='history'],
+        ytd-browse[${HISTORY_FEED_ATTR}='history'],
+        ytd-browse[page-subtype='history'] #primary,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #primary,
+        ytd-browse[page-subtype='history']
+          ytd-two-column-browse-results-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-two-column-browse-results-renderer,
+        ytd-browse[page-subtype='history'] ytd-section-list-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-section-list-renderer,
+        ytd-browse[page-subtype='history'] ytd-item-section-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-item-section-renderer,
+        ytd-browse[page-subtype='history'] ytd-rich-grid-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-rich-grid-renderer,
+        ytd-browse[page-subtype='history'] ytd-rich-grid-renderer #contents,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-rich-grid-renderer #contents {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100vw !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
+          overflow-x: hidden !important;
+        }
+
+        ytd-browse[page-subtype='history'] ytd-rich-grid-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-rich-grid-renderer {
+          --ytd-rich-grid-items-per-row: 1 !important;
+          --ytd-rich-grid-posts-per-row: 1 !important;
+        }
+
+        ytd-browse[page-subtype='history'] ytd-video-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-video-renderer,
+        ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          ytd-video-renderer #dismissible,
+        ytd-browse[page-subtype='history'] yt-lockup-view-model,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model,
+        ytd-browse[page-subtype='history'] ytd-rich-item-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-rich-item-renderer,
+        ytd-browse[page-subtype='history'] ytd-grid-video-renderer,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-grid-video-renderer {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+
+        ytd-browse[page-subtype='history'] ytd-thumbnail,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-thumbnail,
+        ytd-browse[page-subtype='history'] a#thumbnail,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] a#thumbnail,
+        ytd-browse[page-subtype='history'] #thumbnail,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #thumbnail,
+        ytd-browse[page-subtype='history']
+          yt-lockup-view-model a[href*='/watch'],
+        ytd-browse[${HISTORY_FEED_ATTR}='history']
+          yt-lockup-view-model a[href*='/watch'] {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+
+        ytd-browse[page-subtype='history'] #details,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #details,
+        ytd-browse[page-subtype='history'] #meta,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #meta,
+        ytd-browse[page-subtype='history'] #channel-info,
+        ytd-browse[${HISTORY_FEED_ATTR}='history'] #channel-info {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        /*
          * Keep YouTube's native desktop search form, but present it as a
          * phone-width overlay after the search icon is tapped. A 16px input
          * also prevents WebKit from zooming the page when the keyboard opens.
@@ -2907,6 +2997,16 @@
     }
   }
 
+  function markHistoryFeedBrowse() {
+    const browse = document.querySelector('ytd-browse');
+    if (!(browse instanceof HTMLElement)) return;
+    if (location.pathname.startsWith('/feed/history')) {
+      browse.setAttribute(HISTORY_FEED_ATTR, 'history');
+    } else if (browse.getAttribute(HISTORY_FEED_ATTR) === 'history') {
+      browse.removeAttribute(HISTORY_FEED_ATTR);
+    }
+  }
+
   function applyMobileShell() {
     hideNativeNavigationAndShorts();
     ensureGuideButtonVisible();
@@ -2914,6 +3014,7 @@
     dismissMiniplayer();
     removeFloatingPillNav();
     applySafeBottomSpacing();
+    markHistoryFeedBrowse();
 
     for (const video of document.querySelectorAll('video')) {
       enforceInlinePlayback(video);

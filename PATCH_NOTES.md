@@ -1,5 +1,11 @@
 # Patch Notes
 
+## v2.1.2
+
+- Fixed: History feed rows no longer appear zoomed or scrambled; the History page is contained to the phone viewport and each list item stacks thumbnail-over-text.
+- Preserved: Home, subscriptions, channel pages, watch layout, Now Playing sync, and player controls are unchanged.
+- Packaging: The numeric manifest version is `2.1.2`, and the recommended Orion installer is `2.1.2_release.zip`.
+
 ## v2.1.1
 
 - Fixed: Lock Screen, Dynamic Island, and Now Playing play/pause now control the active video instead of fighting the in-page toolbar and background-audio recovery.

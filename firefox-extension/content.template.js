@@ -27,7 +27,8 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.1';
+  const EXPECTED_PAGE_VERSION = '2.1.2';
+  const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
@@ -976,10 +977,21 @@
     location.assign(target.href);
   }
 
+  function markFallbackHistoryFeedBrowse() {
+    const browse = document.querySelector('ytd-browse');
+    if (!(browse instanceof HTMLElement)) return;
+    if (location.pathname.startsWith('/feed/history')) {
+      browse.setAttribute(HISTORY_FEED_ATTR, 'history');
+    } else if (browse.getAttribute(HISTORY_FEED_ATTR) === 'history') {
+      browse.removeAttribute(HISTORY_FEED_ATTR);
+    }
+  }
+
   function installDomFallbacks() {
     if (redirectChannelRootToVideos()) return;
     redirectShorts();
     markVideoTree(document);
+    markFallbackHistoryFeedBrowse();
     ensureFallbackPlayerControlsToolbar();
 
     const videoObserver = new MutationObserver((mutations) => {
@@ -1057,6 +1069,7 @@
       'yt-navigate-finish',
       () => {
         if (!redirectChannelRootToVideos()) {
+          markFallbackHistoryFeedBrowse();
           ensureFallbackPlayerControlsToolbar();
         }
       },
@@ -1073,6 +1086,7 @@
       true
     );
     setInterval(() => {
+      markFallbackHistoryFeedBrowse();
       ensureFallbackPlayerControlsToolbar();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
@@ -1184,6 +1198,54 @@
             max-width: 100% !important;
             margin-right: 0 !important;
             margin-left: 0 !important;
+          }
+
+          ytd-browse[page-subtype='history'],
+          ytd-browse[${HISTORY_FEED_ATTR}='history'],
+          ytd-browse[page-subtype='history'] #primary,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #primary,
+          ytd-browse[page-subtype='history']
+            ytd-two-column-browse-results-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            ytd-two-column-browse-results-renderer,
+          ytd-browse[page-subtype='history'] ytd-section-list-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-section-list-renderer,
+          ytd-browse[page-subtype='history'] ytd-item-section-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-item-section-renderer {
+            box-sizing: border-box !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100vw !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+            overflow-x: hidden !important;
+          }
+
+          ytd-browse[page-subtype='history'] ytd-video-renderer,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-video-renderer,
+          ytd-browse[page-subtype='history'] ytd-video-renderer #dismissible,
+          ytd-browse[${HISTORY_FEED_ATTR}='history']
+            ytd-video-renderer #dismissible,
+          ytd-browse[page-subtype='history'] yt-lockup-view-model,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] yt-lockup-view-model {
+            box-sizing: border-box !important;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+          }
+
+          ytd-browse[page-subtype='history'] ytd-thumbnail,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] ytd-thumbnail,
+          ytd-browse[page-subtype='history'] #thumbnail,
+          ytd-browse[${HISTORY_FEED_ATTR}='history'] #thumbnail {
+            box-sizing: border-box !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
           }
         }
 
