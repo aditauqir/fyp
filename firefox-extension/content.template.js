@@ -27,12 +27,17 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.8';
+  const EXPECTED_PAGE_VERSION = '2.1.9';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only';
+  const FYP_OWNED_SELECTOR = [
+    `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
+    '[data-fyp-player-action]',
+    '[data-fyp-player-option]',
+  ].join(',');
   const MENU_OPTION_TAP_SLOP_PX = 12;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
@@ -119,16 +124,6 @@
         'fullscreen',
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
-      ),
-      playerControlButtonMarkup(
-        'speed',
-        'Playback speed',
-        PLAYER_CONTROL_ICONS.speed
-      ),
-      playerControlButtonMarkup(
-        'quality',
-        'Video quality',
-        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -1013,13 +1008,15 @@
 
   function handleFallbackPlayerControlActionCapture(event) {
     if (pageRuntimeReady()) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest(FYP_OWNED_SELECTOR)) return;
+
     if (Date.now() < ignoreFallbackPlayerControlActionsUntil) {
       if (event.cancelable) event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
-    const target = event.target;
-    if (!(target instanceof Element)) return;
 
     const optionButton = target.closest('[data-fyp-player-option]');
     if (optionButton instanceof HTMLButtonElement) {
@@ -1073,12 +1070,9 @@
 
   function closeFallbackPlayerControlMenuFromOutside(event) {
     const target = event.target;
-    if (
-      target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
-    ) {
-      closeFallbackPlayerControlMenu();
-    }
+    if (!(target instanceof Element)) return;
+    if (target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)) return;
+    closeFallbackPlayerControlMenu();
   }
 
   function enforceFallbackHorizontalViewportLock() {
@@ -1740,13 +1734,20 @@
           fill: currentColor !important;
         }
 
-        #movie_player .ytp-settings-button,
-        .html5-video-player .ytp-settings-button,
+        /* Native settings gear stays available; overflow/more clutter stays hidden. */
         #movie_player .ytp-overflow-button,
         .html5-video-player .ytp-overflow-button,
         #movie_player .ytp-more-button,
         .html5-video-player .ytp-more-button {
           display: none !important;
+        }
+
+        #movie_player .ytp-settings-button,
+        .html5-video-player .ytp-settings-button {
+          display: inline-flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {

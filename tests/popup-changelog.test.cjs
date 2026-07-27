@@ -25,11 +25,11 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Centered strip with Lucide quality gear; speed timer inline\./);
-assert.match(popup, /Search capsule \+ suggestions\/recents under the field\./);
+assert.match(popup, /Masthead Lucide Search; no bottom-float clash\./);
+assert.match(popup, /Transport-only strip; native settings gear restored\./);
 assert.match(
   popup,
-  /Native CC for captions; History\/Now Playing stay intact\./
+  /No FOUC jump; capture limited to FYP nodes\./
 );
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
@@ -55,6 +55,7 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
+assert.match(patchNotes, /## v2\.1\.9/);
 assert.match(patchNotes, /## v2\.1\.8/);
 assert.match(patchNotes, /## v2\.1\.5/);
 assert.match(patchNotes, /## v2\.1\.4/);

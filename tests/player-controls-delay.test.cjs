@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
@@ -56,11 +56,11 @@ assert.doesNotMatch(
   source,
   /playerControlButtonMarkup\(\s*'more'/
 );
-assert.match(
+assert.doesNotMatch(
   source,
   /playerControlButtonMarkup\(\s*'speed'/
 );
-assert.match(
+assert.doesNotMatch(
   source,
   /playerControlButtonMarkup\(\s*'quality'/
 );
@@ -132,7 +132,16 @@ assert.match(
   /function dismissAdBlockEnforcement\(root = document\)[\s\S]*AD_BLOCK_ENFORCEMENT_PATTERN/
 );
 assert.match(source, /ytd-enforcement-message-view-model/);
+assert.match(source, /function isFypOwnedTarget\(/);
+assert.match(source, /FYP_OWNED_SELECTOR/);
 assert.doesNotMatch(source, /duration - 0\.05/);
-assert.match(source, /\.ytp-settings-button[\s\S]*display: none !important/);
+assert.match(
+  source,
+  /#movie_player \.ytp-settings-button[\s\S]*display: inline-flex !important/
+);
+assert.doesNotMatch(
+  source,
+  /#movie_player \.ytp-settings-button,\s*\.html5-video-player \.ytp-settings-button,\s*#movie_player \.ytp-overflow-button/
+);
 
-console.log('10-second native hold and centered strip with inline speed/quality: ok');
+console.log('10-second native hold and transport-only strip: ok');

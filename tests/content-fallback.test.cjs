@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.8'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.9'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.8'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.9'\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -48,7 +48,7 @@ assert.match(content, /max-width: 100vw !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only'/
 );
 for (const action of [
   'rewind',
@@ -62,14 +62,19 @@ for (const action of [
     new RegExp(`playerControlButtonMarkup\\(\\s*'${action}'`)
   );
 }
-assert.match(content, /playerControlButtonMarkup\(\s*'speed'/);
-assert.match(content, /playerControlButtonMarkup\(\s*'quality'/);
+assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'speed'/);
+assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'quality'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'captions'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'more'/);
 assert.match(content, /video\.currentTime \+ offset/);
 assert.match(content, /video\.requestPictureInPicture\(\)/);
 assert.match(content, /requestFullscreen/);
 assert.match(content, /\.ytp-settings-button/);
+assert.match(content, /FYP_OWNED_SELECTOR/);
+assert.match(
+  content,
+  /#movie_player \.ytp-settings-button[\s\S]*display: inline-flex !important/
+);
 assert.match(content, /function toggleFallbackSpeedMenu\(/);
 assert.match(content, /function toggleFallbackQualityMenu\(/);
 assert.doesNotMatch(content, /function ensureFallbackPlayerChromeExtras\(/);

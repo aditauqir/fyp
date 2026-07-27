@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.1.8
-// @release-label 2.1.8
+// @version      2.1.9
+// @release-label 2.1.9
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,23 +18,24 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.8');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.9');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
+  const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only';
   const SEARCH_OVERLAY_ID = `${SCRIPT_ID}-search-overlay`;
   const SEARCH_TRIGGER_ID = `${SCRIPT_ID}-search-trigger`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v217-search-overlay-suggest';
-  const SEARCH_TRIGGER_LAYOUT_VERSION = 'capsule-v217';
-  const SEARCH_OVERLAY_LAYOUT_VERSION = 'suggest-recents-v217';
+  const NAV_LAYOUT_VERSION = 'ext-v219-masthead-search-settings';
+  const SEARCH_TRIGGER_LAYOUT_VERSION = 'masthead-slot-v219';
+  const SEARCH_OVERLAY_LAYOUT_VERSION = 'suggest-recents-v219';
   const SEARCH_RECENTS_KEY = `${SCRIPT_ID}:search-recents`;
   const SEARCH_RECENTS_MAX = 8;
   const SEARCH_SUGGEST_MAX = 8;
@@ -67,6 +68,97 @@
    * Keep floating controls above that chrome so they stay tappable.
    */
   const ORION_NAV_GAP = '72px';
+  /*
+   * Phone-width gauge (~iPhone 17 logical CSS ~402×874). Show the masthead-slot
+   * Lucide Search whenever the mobile layout media query is active (≤700px),
+   * matching native search hide so 431–700px never loses search entirely.
+   */
+  const PHONE_WIDTH_MAX_PX = 700;
+  const FYP_OWNED_SELECTOR = [
+    `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
+    `#${SEARCH_TRIGGER_ID}`,
+    `#${SEARCH_OVERLAY_ID}`,
+    '[data-fyp-player-action]',
+    '[data-fyp-player-option]',
+    '[data-fyp-search-action]',
+  ].join(',');
+
+  function injectCriticalSearchStyle() {
+    if (document.getElementById(CRITICAL_STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = CRITICAL_STYLE_ID;
+    style.textContent = `
+      @media (max-width: ${PHONE_WIDTH_MAX_PX}px) {
+        ytd-masthead #center,
+        ytd-masthead #search-button,
+        ytd-masthead #search-button-narrow,
+        ytd-masthead #search-icon-legacy,
+        ytd-masthead ytd-searchbox,
+        ytd-masthead yt-searchbox,
+        ytd-masthead button[aria-label='Search'],
+        ytd-masthead [role='button'][aria-label='Search'],
+        ytd-masthead yt-icon-button[aria-label='Search'] {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+        }
+
+        /*
+         * Body-level fixed overlay (not inside ytd-masthead): WKWebView can
+         * re-root position:fixed under transformed ancestors. Safe-area may be
+         * 0 on first paint (WebKit 191872) — use max(..., 20px) fallback.
+         * translateZ(0) promotes a compositor layer to reduce fixed flicker.
+         */
+        #${SEARCH_TRIGGER_ID} {
+          appearance: none !important;
+          box-sizing: border-box !important;
+          position: fixed !important;
+          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 6px) !important;
+          right: calc(max(env(safe-area-inset-right, 0px), 0px) + 52px) !important;
+          left: auto !important;
+          bottom: auto !important;
+          z-index: 2147483000 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 40px !important;
+          min-width: 40px !important;
+          height: 40px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: #fff !important;
+          background: #000 !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, .35) !important;
+          cursor: pointer !important;
+          touch-action: manipulation !important;
+          transform: translateZ(0) !important;
+          -webkit-transform: translateZ(0) !important;
+          will-change: transform !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          pointer-events: auto !important;
+        }
+
+        html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+      }
+    `;
+    const host = document.documentElement || document.head;
+    if (host) host.appendChild(style);
+  }
+
+  injectCriticalSearchStyle();
+
   let searchSuggestTimer = null;
   let searchSuggestRequestId = 0;
   let playerControlsHideTimer = null;
@@ -563,16 +655,6 @@
         'fullscreen',
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
-      ),
-      playerControlButtonMarkup(
-        'speed',
-        'Playback speed',
-        PLAYER_CONTROL_ICONS.speed
-      ),
-      playerControlButtonMarkup(
-        'quality',
-        'Video quality',
-        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -1189,14 +1271,24 @@
     };
   }
 
+  function isFypOwnedTarget(target) {
+    return target instanceof Element && Boolean(target.closest(FYP_OWNED_SELECTOR));
+  }
+
   function handlePlayerControlActionCapture(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    /*
+     * Never steal YouTube chrome (settings gear, CC, progress, etc.).
+     * Capture handlers only own FYP strip / search nodes.
+     */
+    if (!isFypOwnedTarget(target)) return;
+
     if (Date.now() < ignorePlayerControlActionsUntil) {
       if (event.cancelable) event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
-    const target = event.target;
-    if (!(target instanceof Element)) return;
 
     const optionButton = target.closest('[data-fyp-player-option]');
     if (optionButton instanceof HTMLButtonElement) {
@@ -1255,12 +1347,10 @@
 
   function closePlayerControlMenuFromOutside(event) {
     const target = event.target;
-    if (
-      target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
-    ) {
-      closePlayerControlMenu();
-    }
+    if (!(target instanceof Element)) return;
+    if (target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)) return;
+    // Do not preventDefault — native ytp menus / settings must keep working.
+    closePlayerControlMenu();
   }
 
   function enforceHorizontalViewportLock() {
@@ -2545,8 +2635,9 @@
         }
 
         /*
-         * Hide native masthead search chrome and use the extension overlay
-         * everywhere. 16px input font prevents iOS keyboard zoom.
+         * Hide native masthead search chrome on phone widths. The Lucide Search
+         * trigger is forced into the masthead search-icon slot via early CSS
+         * (critical style) so first paint never shows a right→center jump.
          */
         ytd-masthead,
         ytd-masthead #container,
@@ -2569,72 +2660,85 @@
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
         }
 
       }
 
-      /* Closed search trigger: black capsule, Search + Lucide icon centered. */
-      #${SEARCH_TRIGGER_ID} {
-        appearance: none !important;
-        box-sizing: border-box !important;
-        position: fixed !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
-        top: auto !important;
-        z-index: 2147483645 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 8px !important;
-        width: auto !important;
-        min-width: 9.5rem !important;
-        height: 48px !important;
-        margin: 0 !important;
-        padding: 0 1.35rem !important;
-        color: #fff !important;
-        background: #000 !important;
-        border: 0 !important;
-        border-radius: 999px !important;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, .45) !important;
-        cursor: pointer !important;
-        touch-action: manipulation !important;
-        transform: translate3d(-50%, 0, 0) !important;
-        -webkit-transform: translate3d(-50%, 0, 0) !important;
-        font: 600 15px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
-        letter-spacing: .01em !important;
-        transition:
-          opacity .28s ease-in-out,
-          transform .28s ease-in-out,
-          visibility .28s ease-in-out !important;
+      /*
+       * Closed search trigger: black Lucide Search control forced into the
+       * native masthead search-icon slot (top-right, left of avatar). Bottom
+       * float was unreliable under Orion's URL chrome.
+       */
+      @media (max-width: ${PHONE_WIDTH_MAX_PX}px) {
+        #${SEARCH_TRIGGER_ID} {
+          appearance: none !important;
+          box-sizing: border-box !important;
+          position: fixed !important;
+          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 6px) !important;
+          right: calc(max(env(safe-area-inset-right, 0px), 0px) + 52px) !important;
+          left: auto !important;
+          bottom: auto !important;
+          z-index: 2147483000 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 0 !important;
+          width: 40px !important;
+          min-width: 40px !important;
+          height: 40px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: #fff !important;
+          background: #000 !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, .35) !important;
+          cursor: pointer !important;
+          touch-action: manipulation !important;
+          transform: translateZ(0) !important;
+          -webkit-transform: translateZ(0) !important;
+          will-change: transform !important;
+          font: 600 15px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
+          letter-spacing: .01em !important;
+          transition:
+            opacity .28s ease-in-out,
+            visibility .28s ease-in-out !important;
+        }
+
+        html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
+          opacity: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+
+        #${SEARCH_TRIGGER_ID} .fyp-search-trigger-label {
+          display: none !important;
+        }
+
+        #${SEARCH_TRIGGER_ID} svg {
+          display: block !important;
+          width: 20px !important;
+          height: 20px !important;
+          flex: 0 0 auto !important;
+          fill: none !important;
+          stroke: currentColor !important;
+          stroke-width: 2 !important;
+          stroke-linecap: round !important;
+          stroke-linejoin: round !important;
+        }
       }
 
-      html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
-        opacity: 0 !important;
-        visibility: hidden !important;
-        pointer-events: none !important;
-        transform: translate3d(-50%, 10px, 0) !important;
-        -webkit-transform: translate3d(-50%, 10px, 0) !important;
-      }
-
-      #${SEARCH_TRIGGER_ID} .fyp-search-trigger-label {
-        display: inline-block !important;
-        color: inherit !important;
-        font: inherit !important;
-        line-height: 1 !important;
-        white-space: nowrap !important;
-      }
-
-      #${SEARCH_TRIGGER_ID} svg {
-        display: block !important;
-        width: 20px !important;
-        height: 20px !important;
-        flex: 0 0 auto !important;
-        fill: none !important;
-        stroke: currentColor !important;
-        stroke-width: 2 !important;
-        stroke-linecap: round !important;
-        stroke-linejoin: round !important;
+      @media (min-width: ${PHONE_WIDTH_MAX_PX + 1}px) {
+        #${SEARCH_TRIGGER_ID} {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
       }
 
       #${SEARCH_OVERLAY_ID} {
@@ -3016,13 +3120,20 @@
         fill: currentColor;
       }
 
-      #movie_player .ytp-settings-button,
-      .html5-video-player .ytp-settings-button,
+      /* Native settings gear stays available; overflow/more clutter stays hidden. */
       #movie_player .ytp-overflow-button,
       .html5-video-player .ytp-overflow-button,
       #movie_player .ytp-more-button,
       .html5-video-player .ytp-more-button {
         display: none !important;
+      }
+
+      #movie_player .ytp-settings-button,
+      .html5-video-player .ytp-settings-button {
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
@@ -3636,6 +3747,12 @@
   }
 
   function ensureSearchTrigger() {
+    /*
+     * Always mount on body/documentElement — never inside ytd-masthead.
+     * WKWebView re-roots position:fixed under transformed ancestors, which
+     * made masthead-mounted triggers jump or vanish on Orion iOS.
+     * Visual slot = native search icon (top-right via fixed + safe-area CSS).
+     */
     const host = document.body || document.documentElement;
     if (!(host instanceof Element)) return;
 
@@ -3649,13 +3766,13 @@
       trigger.title = 'Search';
       trigger.setAttribute('aria-haspopup', 'dialog');
       trigger.setAttribute('aria-expanded', 'false');
+      trigger.setAttribute('data-fyp-search-action', 'open');
     }
 
     if (trigger.dataset.fypSearchLayout !== SEARCH_TRIGGER_LAYOUT_VERSION) {
       trigger.dataset.fypSearchLayout = SEARCH_TRIGGER_LAYOUT_VERSION;
-      trigger.innerHTML =
-        `<span class="fyp-search-trigger-label">Search</span>` +
-        PLAYER_CONTROL_ICONS.search;
+      // Icon-only in the masthead search slot (no label → no FOUC reflow).
+      trigger.innerHTML = PLAYER_CONTROL_ICONS.search;
     }
 
     if (trigger.parentElement !== host) {
@@ -3849,6 +3966,13 @@
     const actionNode = target.closest('[data-fyp-search-action]');
     if (actionNode instanceof HTMLElement) {
       const action = actionNode.dataset.fypSearchAction;
+      if (action === 'open') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (isSearchOverlayOpen()) closeMobileSearch();
+        else openMobileSearch();
+        return;
+      }
       event.preventDefault();
       event.stopImmediatePropagation();
       if (action === 'close') closeMobileSearch();

@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.1.9
+
+- Fixed: Search trigger is force-visible in the masthead search-icon slot (top-right Lucide Search) so it is no longer hidden under Orion’s bottom URL chrome.
+- Fixed: Load jump / FOUC — critical CSS at `document_start` hides native search immediately; icon-only trigger stays at a stable fixed position.
+- Removed: Speed timer and quality gear from the webpage transport strip (strip is rewind / play-pause / forward / pip / fullscreen only).
+- Fixed: Native YouTube settings gear works again; FYP pointer capture is limited to `#fyp-…` / `[data-fyp-…]` nodes so player chrome is not blocked.
+- Packaging: Numeric version `2.1.9`; recommended Orion installer `2.1.9_release.zip` (Chrome MV3).
+
 ## v2.1.8
 
 - Changed: Combined release — inline Lucide quality gear + optional speed timer on the centered webpage transport strip (from 2.1.6) with the black Search capsule, Lucide overlay, recents, and YouTube autocomplete (from 2.1.7).
