@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.1.6
+
+- Changed: Moved video quality (Lucide gear) into the centered webpage transport strip; removed the in-player gear overlay.
+- Changed: Moved playback speed (Lucide timer) into the same strip; removed the in-player clock overlay.
+- Preserved: Rewind / play-pause / forward / pip / fullscreen stay centered; quality/speed menus still use apply + 120ms retry; native CC captions unchanged.
+- Packaging: Numeric version `2.1.6`; Orion test installer `2.1.6_inline-gear_test.zip` (also builds `2.1.6_release.zip`).
+
 ## v2.1.5
 
 - Changed: Webpage player strip is centered transport-only (rewind / play-pause / forward / pip / fullscreen); Captions and More were removed from that bar.
