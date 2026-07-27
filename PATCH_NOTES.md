@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.2.0
+
+- Changed: Home search is a half-width chip over the first feed video (not masthead top-right). Watch adds a rectangular search pill below the transport strip. Both open the same overlay.
+- Changed: Search overlay opens with Lucide X, **“Searching for something?”**, then the input; translucent backdrop + ease-in/out; recents/suggestions kept. Ask YouTube / voice / AI search chrome stays stripped.
+- Added: Shimmer skeleton placeholders matching the Home chip and Watch strip+pill footprint until the real UI mounts (prevents load jump / FOUC).
+- Changed: Inline transport buttons are larger for easier taps; play/pause glyphs use YouTube-like filled triangle/bars synced to paused/playing.
+- Packaging: Numeric version `2.2.0`; recommended Orion installer `2.2.0_release.zip` (Chrome MV3).
+
 ## v2.1.9
 
 - Fixed: Search trigger is force-visible in the masthead search-icon slot (top-right Lucide Search) so it is no longer hidden under Orion’s bottom URL chrome.

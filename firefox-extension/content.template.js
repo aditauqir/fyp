@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.9';
+  const EXPECTED_PAGE_VERSION = '2.2.0';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -66,8 +66,8 @@
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
     rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1"></rect><rect x="15" y="4" width="4" height="16" rx="1"></rect></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
     forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
@@ -1667,8 +1667,8 @@
           max-width: 100% !important;
           min-width: 0 !important;
           margin: clamp(.5rem, 2.4vw, .8rem) auto !important;
-          padding: clamp(.35rem, 1.8vw, .55rem) !important;
-          gap: clamp(.25rem, 1.4vw, .55rem) !important;
+          padding: clamp(.45rem, 2vw, .7rem) !important;
+          gap: clamp(.35rem, 1.8vw, .65rem) !important;
           justify-content: center !important;
           align-items: center !important;
           border: 1px solid rgba(255, 255, 255, .14) !important;
@@ -1686,11 +1686,11 @@
           visibility: visible !important;
           opacity: 1 !important;
           flex: 0 0 auto !important;
-          width: clamp(2.45rem, 11vw, 3rem) !important;
-          min-width: 0 !important;
-          height: clamp(2.35rem, 10vw, 2.85rem) !important;
+          width: clamp(2.9rem, 13vw, 3.45rem) !important;
+          min-width: 2.9rem !important;
+          height: clamp(2.75rem, 12vw, 3.25rem) !important;
           margin: 0 !important;
-          padding: clamp(.48rem, 2.2vw, .7rem) !important;
+          padding: clamp(.62rem, 2.6vw, .85rem) !important;
           align-items: center !important;
           justify-content: center !important;
           color: #fff !important;
@@ -1720,8 +1720,8 @@
           display: block !important;
           width: 100% !important;
           height: 100% !important;
-          max-width: clamp(1.05rem, 4.8vw, 1.35rem) !important;
-          max-height: clamp(1.05rem, 4.8vw, 1.35rem) !important;
+          max-width: clamp(1.25rem, 5.6vw, 1.6rem) !important;
+          max-height: clamp(1.25rem, 5.6vw, 1.6rem) !important;
           fill: none !important;
           stroke: currentColor !important;
           stroke-width: 2 !important;
@@ -1732,6 +1732,7 @@
         #${PLAYER_CONTROLS_TOOLBAR_ID}
           .fyp-player-control[data-fyp-player-action='play-pause'] svg {
           fill: currentColor !important;
+          stroke: none !important;
         }
 
         /* Native settings gear stays available; overflow/more clutter stays hidden. */
@@ -1861,7 +1862,7 @@
           pointer-events: none !important;
         }
 
-        /* Mirror page.js: hide native masthead search chrome. */
+        /* Mirror page.js: hide native masthead search + Ask/voice clutter. */
         ytd-masthead #center,
         ytd-masthead #search-button,
         ytd-masthead #search-button-narrow,
@@ -1870,7 +1871,17 @@
         ytd-masthead yt-searchbox,
         ytd-masthead button[aria-label='Search'],
         ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'] {
+        ytd-masthead yt-icon-button[aria-label='Search'],
+        ytd-masthead #voice-search-button,
+        ytd-masthead button[aria-label*='Search with your voice' i],
+        ytd-masthead button[aria-label*='Voice search' i],
+        ytd-masthead [aria-label*='Ask YouTube' i],
+        ytd-masthead [aria-label*='Ask Gemini' i],
+        #voice-search-button,
+        button[aria-label*='Search with your voice' i],
+        button[aria-label*='Voice search' i],
+        [aria-label*='Ask YouTube' i],
+        [aria-label*='Ask Gemini' i] {
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;

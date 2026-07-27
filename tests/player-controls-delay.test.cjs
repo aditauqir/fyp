@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
@@ -107,6 +107,10 @@ assert.match(
 );
 assert.doesNotMatch(source, /fypPlayerHoverSimulated/);
 assert.match(source, /playButton\.dataset\.fypPlaybackState !== playbackState/);
+assert.match(source, /M8 5v14l11-7z/);
+assert.match(source, /M6 4h4v16H6zm8 0h4v16h-4z/);
+assert.match(source, /stroke: none/);
+assert.match(source, /clamp\(2\.9rem, 13vw, 3\.45rem\)/);
 assert.match(source, /state\.video\.isConnected/);
 assert.match(source, /function updateMediaSessionMetadata\(\)/);
 assert.match(source, /navigator\.mediaSession\.metadata = new MediaMetadata/);

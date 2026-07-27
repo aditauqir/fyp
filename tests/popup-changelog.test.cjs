@@ -25,12 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Masthead Lucide Search; no bottom-float clash\./);
-assert.match(popup, /Transport-only strip; native settings gear restored\./);
-assert.match(
-  popup,
-  /No FOUC jump; capture limited to FYP nodes\./
-);
+assert.match(popup, /Home\/Watch search chips; no masthead float\./);
+assert.match(popup, /Bigger transport strip; YouTube-like play\/pause\./);
+assert.match(popup, /Skeleton loader prevents search\/control jump\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
@@ -55,13 +52,9 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
+assert.match(patchNotes, /## v2\.2\.0/);
 assert.match(patchNotes, /## v2\.1\.9/);
 assert.match(patchNotes, /## v2\.1\.8/);
 assert.match(patchNotes, /## v2\.1\.5/);
-assert.match(patchNotes, /## v2\.1\.4/);
-assert.match(patchNotes, /## v2\.1\.3/);
-assert.match(patchNotes, /## v2\.1\.2/);
-assert.match(patchNotes, /## v2\.1\.1/);
-assert.match(patchNotes, /## v2\.1\.0 stable/);
 
-console.log('bottom-center extension popup: ok');
+console.log('popup changelog and update actions: ok');

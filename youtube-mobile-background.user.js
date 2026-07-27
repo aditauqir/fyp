@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.1.9
-// @release-label 2.1.9
+// @version      2.2.0
+// @release-label 2.2.0
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.9');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.0');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -26,21 +26,25 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v219-transport-only';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger';
   const SEARCH_OVERLAY_ID = `${SCRIPT_ID}-search-overlay`;
   const SEARCH_TRIGGER_ID = `${SCRIPT_ID}-search-trigger`;
+  const UI_SKELETON_ID = `${SCRIPT_ID}-ui-skeleton`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v219-masthead-search-settings';
-  const SEARCH_TRIGGER_LAYOUT_VERSION = 'masthead-slot-v219';
-  const SEARCH_OVERLAY_LAYOUT_VERSION = 'suggest-recents-v219';
+  const NAV_LAYOUT_VERSION = 'ext-v220-home-watch-search';
+  const SEARCH_TRIGGER_LAYOUT_VERSION = 'home-feed-watch-pill-v220';
+  const SEARCH_OVERLAY_LAYOUT_VERSION = 'prompt-recents-v220';
   const SEARCH_RECENTS_KEY = `${SCRIPT_ID}:search-recents`;
   const SEARCH_RECENTS_MAX = 8;
   const SEARCH_SUGGEST_MAX = 8;
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
+  const ROUTE_ATTR = 'data-fyp-route';
+  const SEARCH_HOST_ATTR = 'data-fyp-search-host';
+  const UI_READY_ATTR = 'data-fyp-ui-ready';
   const NATIVE_SEARCH_HIDE_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
@@ -51,6 +55,14 @@
     'ytd-masthead #center',
     'ytd-masthead ytd-searchbox',
     'ytd-masthead yt-searchbox',
+    'ytd-masthead #voice-search-button',
+    'ytd-masthead button[aria-label*="Search with your voice" i]',
+    'ytd-masthead button[aria-label*="Voice search" i]',
+    'ytd-masthead [aria-label*="Ask YouTube" i]',
+    'ytd-masthead [aria-label*="Ask Gemini" i]',
+    '#voice-search-button',
+    'button[aria-label*="Search with your voice" i]',
+    'button[aria-label*="Voice search" i]',
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
   const MENU_OPTION_TAP_SLOP_PX = 12;
@@ -69,22 +81,39 @@
    */
   const ORION_NAV_GAP = '72px';
   /*
-   * Phone-width gauge (~iPhone 17 logical CSS ~402×874). Show the masthead-slot
-   * Lucide Search whenever the mobile layout media query is active (≤700px),
-   * matching native search hide so 431–700px never loses search entirely.
+   * Phone-width gauge (~iPhone 17 logical CSS ~402×874). Show Home/Watch search
+   * triggers whenever the mobile layout media query is active (≤700px).
    */
   const PHONE_WIDTH_MAX_PX = 700;
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     `#${SEARCH_TRIGGER_ID}`,
     `#${SEARCH_OVERLAY_ID}`,
+    `#${UI_SKELETON_ID}`,
     '[data-fyp-player-action]',
     '[data-fyp-player-option]',
     '[data-fyp-search-action]',
   ].join(',');
 
+  function currentSearchRoute() {
+    const path = location.pathname || '/';
+    if (path === '/' || path === '') return 'home';
+    if (path === '/watch') return 'watch';
+    return 'other';
+  }
+
+  function syncRouteAttr() {
+    const next = currentSearchRoute();
+    const prev = document.documentElement?.getAttribute(ROUTE_ATTR);
+    document.documentElement?.setAttribute(ROUTE_ATTR, next);
+    if (prev && prev !== next) {
+      document.documentElement?.removeAttribute(UI_READY_ATTR);
+    }
+  }
+
   function injectCriticalSearchStyle() {
     if (document.getElementById(CRITICAL_STYLE_ID)) return;
+    syncRouteAttr();
     const style = document.createElement('style');
     style.id = CRITICAL_STYLE_ID;
     style.textContent = `
@@ -97,7 +126,17 @@
         ytd-masthead yt-searchbox,
         ytd-masthead button[aria-label='Search'],
         ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'] {
+        ytd-masthead yt-icon-button[aria-label='Search'],
+        ytd-masthead #voice-search-button,
+        ytd-masthead button[aria-label*='Search with your voice' i],
+        ytd-masthead button[aria-label*='Voice search' i],
+        ytd-masthead [aria-label*='Ask YouTube' i],
+        ytd-masthead [aria-label*='Ask Gemini' i],
+        #voice-search-button,
+        button[aria-label*='Search with your voice' i],
+        button[aria-label*='Voice search' i],
+        [aria-label*='Ask YouTube' i],
+        [aria-label*='Ask Gemini' i] {
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
@@ -109,41 +148,76 @@
         }
 
         /*
-         * Body-level fixed overlay (not inside ytd-masthead): WKWebView can
-         * re-root position:fixed under transformed ancestors. Safe-area may be
-         * 0 on first paint (WebKit 191872) — use max(..., 20px) fallback.
-         * translateZ(0) promotes a compositor layer to reduce fixed flicker.
+         * Stable trigger skeleton before paint — final Home/Watch geometry only.
+         * Never use masthead top-right fixed (caused right→center FOUC in 2.1.9).
+         * Dimensions reserved so later JS remount cannot slide the control.
          */
         #${SEARCH_TRIGGER_ID} {
           appearance: none !important;
           box-sizing: border-box !important;
-          position: fixed !important;
-          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 6px) !important;
-          right: calc(max(env(safe-area-inset-right, 0px), 0px) + 52px) !important;
-          left: auto !important;
-          bottom: auto !important;
-          z-index: 2147483000 !important;
-          display: inline-flex !important;
+          z-index: 40 !important;
+          display: none !important;
           align-items: center !important;
           justify-content: center !important;
-          width: 40px !important;
-          min-width: 40px !important;
-          height: 40px !important;
+          gap: 8px !important;
+          height: 44px !important;
+          min-height: 44px !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 0 14px !important;
           color: #fff !important;
-          background: #000 !important;
-          border: 0 !important;
-          border-radius: 999px !important;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, .35) !important;
+          background: rgba(15, 15, 15, .88) !important;
+          border: 1px solid rgba(255, 255, 255, .18) !important;
+          border-radius: 14px !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, .28) !important;
           cursor: pointer !important;
           touch-action: manipulation !important;
           transform: translateZ(0) !important;
           -webkit-transform: translateZ(0) !important;
-          will-change: transform !important;
+          font: 600 14px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
+          letter-spacing: .01em !important;
           opacity: 1 !important;
           visibility: visible !important;
           pointer-events: auto !important;
+        }
+
+        html[${ROUTE_ATTR}='home'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--home {
+          position: absolute !important;
+          left: 50% !important;
+          top: 38% !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: min(50%, 15.5rem) !important;
+          min-width: min(50%, 15.5rem) !important;
+          display: inline-flex !important;
+          transform: translate(-50%, -50%) translateZ(0) !important;
+          -webkit-transform: translate(-50%, -50%) translateZ(0) !important;
+        }
+
+        html[${ROUTE_ATTR}='watch'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--watch {
+          position: relative !important;
+          left: auto !important;
+          top: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: min(92%, 22rem) !important;
+          min-width: 0 !important;
+          margin: .45rem auto .15rem !important;
+          display: inline-flex !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+        }
+
+        html[${ROUTE_ATTR}='other'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--other {
+          position: relative !important;
+          width: min(50%, 15.5rem) !important;
+          margin: .65rem auto .25rem !important;
+          display: inline-flex !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+        }
+
+        [${SEARCH_HOST_ATTR}='true'] {
+          position: relative !important;
         }
 
         html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
@@ -151,10 +225,169 @@
           visibility: hidden !important;
           pointer-events: none !important;
         }
+
+        /*
+         * Skeleton placeholders match final Home chip / Watch strip+pill footprint
+         * so layout never jumps from a wrong slot into the real UI.
+         */
+        @keyframes fyp-skel-shimmer {
+          0% { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
+
+        #${UI_SKELETON_ID} {
+          pointer-events: none !important;
+          z-index: 36 !important;
+        }
+
+        html[${UI_READY_ATTR}='true'] #${UI_SKELETON_ID} {
+          display: none !important;
+          visibility: hidden !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-bar,
+        #${UI_SKELETON_ID} .fyp-skel-dot {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, .08) 0%,
+            rgba(255, 255, 255, .18) 45%,
+            rgba(255, 255, 255, .08) 90%
+          ) !important;
+          background-size: 200% 100% !important;
+          animation: fyp-skel-shimmer 1.15s ease-in-out infinite !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-home-search,
+        #${UI_SKELETON_ID} .fyp-skel-other-search {
+          display: none !important;
+          box-sizing: border-box !important;
+          position: fixed !important;
+          left: 50% !important;
+          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 78px) !important;
+          width: min(50%, 15.5rem) !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          border-radius: 14px !important;
+          transform: translateX(-50%) translateZ(0) !important;
+          -webkit-transform: translateX(-50%) translateZ(0) !important;
+        }
+
+        html[${ROUTE_ATTR}='home']:not([${UI_READY_ATTR}='true'])
+          #${UI_SKELETON_ID} .fyp-skel-home-search {
+          display: block !important;
+        }
+
+        html[${ROUTE_ATTR}='other']:not([${UI_READY_ATTR}='true'])
+          #${UI_SKELETON_ID} .fyp-skel-other-search {
+          display: block !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-watch {
+          display: none !important;
+          position: fixed !important;
+          left: 50% !important;
+          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 56vw + 18px) !important;
+          width: min(92vw, 22rem) !important;
+          transform: translateX(-50%) translateZ(0) !important;
+          -webkit-transform: translateX(-50%) translateZ(0) !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 10px !important;
+        }
+
+        html[${ROUTE_ATTR}='watch']:not([${UI_READY_ATTR}='true'])
+          #${UI_SKELETON_ID} .fyp-skel-watch {
+          display: flex !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-strip {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 10px !important;
+          width: fit-content !important;
+          padding: 8px !important;
+          border-radius: 1rem !important;
+          background: rgba(255, 255, 255, .06) !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-dot {
+          width: 2.9rem !important;
+          height: 2.75rem !important;
+          border-radius: 999px !important;
+          flex: 0 0 auto !important;
+        }
+
+        #${UI_SKELETON_ID} .fyp-skel-watch-search {
+          width: 100% !important;
+          height: 44px !important;
+          min-height: 44px !important;
+          border-radius: 14px !important;
+        }
       }
     `;
     const host = document.documentElement || document.head;
     if (host) host.appendChild(style);
+    ensureUiSkeleton();
+  }
+
+  function uiSkeletonMarkup() {
+    return (
+      `<div class="fyp-skel-bar fyp-skel-home-search" aria-hidden="true"></div>` +
+      `<div class="fyp-skel-bar fyp-skel-other-search" aria-hidden="true"></div>` +
+      `<div class="fyp-skel-watch" aria-hidden="true">` +
+      `<div class="fyp-skel-strip">` +
+      `<span class="fyp-skel-dot"></span>`.repeat(5) +
+      `</div>` +
+      `<div class="fyp-skel-bar fyp-skel-watch-search"></div>` +
+      `</div>`
+    );
+  }
+
+  function ensureUiSkeleton() {
+    syncRouteAttr();
+    if (document.documentElement?.getAttribute(UI_READY_ATTR) === 'true') {
+      document.getElementById(UI_SKELETON_ID)?.remove();
+      return;
+    }
+    let skeleton = document.getElementById(UI_SKELETON_ID);
+    if (!(skeleton instanceof HTMLElement)) {
+      skeleton = document.createElement('div');
+      skeleton.id = UI_SKELETON_ID;
+      skeleton.setAttribute('aria-hidden', 'true');
+      skeleton.innerHTML = uiSkeletonMarkup();
+      const host = document.body || document.documentElement;
+      if (host) host.appendChild(skeleton);
+    }
+  }
+
+  function isSearchUiStable() {
+    const route = currentSearchRoute();
+    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
+    if (!(trigger instanceof HTMLElement) || !trigger.isConnected) return false;
+    if (route === 'home') {
+      return Boolean(trigger.closest(`[${SEARCH_HOST_ATTR}='true']`));
+    }
+    if (route === 'watch') {
+      const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+      return (
+        toolbar instanceof HTMLElement &&
+        toolbar.isConnected &&
+        toolbar.nextElementSibling === trigger
+      );
+    }
+    return trigger.isConnected;
+  }
+
+  function dismissUiSkeletonIfReady() {
+    if (!isSearchUiStable()) {
+      document.documentElement?.removeAttribute(UI_READY_ATTR);
+      ensureUiSkeleton();
+      return false;
+    }
+    document.documentElement?.setAttribute(UI_READY_ATTR, 'true');
+    document.getElementById(UI_SKELETON_ID)?.remove();
+    return true;
   }
 
   injectCriticalSearchStyle();
@@ -595,8 +828,9 @@
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
     rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1"></rect><rect x="15" y="4" width="4" height="16" rx="1"></rect></svg>',
+    // YouTube-like filled triangle / bars (Material path), not Lucide stroke play/pause.
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
     forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
@@ -2656,7 +2890,17 @@
         ytd-masthead yt-searchbox,
         ytd-masthead button[aria-label='Search'],
         ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'] {
+        ytd-masthead yt-icon-button[aria-label='Search'],
+        ytd-masthead #voice-search-button,
+        ytd-masthead button[aria-label*='Search with your voice' i],
+        ytd-masthead button[aria-label*='Voice search' i],
+        ytd-masthead [aria-label*='Ask YouTube' i],
+        ytd-masthead [aria-label*='Ask Gemini' i],
+        #voice-search-button,
+        button[aria-label*='Search with your voice' i],
+        button[aria-label*='Voice search' i],
+        [aria-label*='Ask YouTube' i],
+        [aria-label*='Ask Gemini' i] {
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
@@ -2670,44 +2914,77 @@
       }
 
       /*
-       * Closed search trigger: black Lucide Search control forced into the
-       * native masthead search-icon slot (top-right, left of avatar). Bottom
-       * float was unreliable under Orion's URL chrome.
+       * Home: half-width pill over first feed thumbnail.
+       * Watch: rectangular pill below the transport strip (flow layout).
+       * Never masthead top-right fixed — that caused the 2.1.9 load jump.
        */
       @media (max-width: ${PHONE_WIDTH_MAX_PX}px) {
         #${SEARCH_TRIGGER_ID} {
           appearance: none !important;
           box-sizing: border-box !important;
-          position: fixed !important;
-          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 6px) !important;
-          right: calc(max(env(safe-area-inset-right, 0px), 0px) + 52px) !important;
-          left: auto !important;
-          bottom: auto !important;
-          z-index: 2147483000 !important;
-          display: inline-flex !important;
+          z-index: 40 !important;
+          display: none !important;
           align-items: center !important;
           justify-content: center !important;
-          gap: 0 !important;
-          width: 40px !important;
-          min-width: 40px !important;
-          height: 40px !important;
+          gap: 8px !important;
+          height: 44px !important;
+          min-height: 44px !important;
           margin: 0 !important;
-          padding: 0 !important;
+          padding: 0 14px !important;
           color: #fff !important;
-          background: #000 !important;
-          border: 0 !important;
-          border-radius: 999px !important;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, .35) !important;
+          background: rgba(15, 15, 15, .88) !important;
+          border: 1px solid rgba(255, 255, 255, .18) !important;
+          border-radius: 14px !important;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, .28) !important;
           cursor: pointer !important;
           touch-action: manipulation !important;
           transform: translateZ(0) !important;
           -webkit-transform: translateZ(0) !important;
-          will-change: transform !important;
-          font: 600 15px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
+          font: 600 14px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
           letter-spacing: .01em !important;
           transition:
             opacity .28s ease-in-out,
             visibility .28s ease-in-out !important;
+        }
+
+        html[${ROUTE_ATTR}='home'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--home {
+          position: absolute !important;
+          left: 50% !important;
+          top: 38% !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: min(50%, 15.5rem) !important;
+          min-width: min(50%, 15.5rem) !important;
+          display: inline-flex !important;
+          transform: translate(-50%, -50%) translateZ(0) !important;
+          -webkit-transform: translate(-50%, -50%) translateZ(0) !important;
+        }
+
+        html[${ROUTE_ATTR}='watch'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--watch {
+          position: relative !important;
+          left: auto !important;
+          top: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: min(92%, 22rem) !important;
+          min-width: 0 !important;
+          margin: .45rem auto .15rem !important;
+          display: inline-flex !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+        }
+
+        html[${ROUTE_ATTR}='other'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--other {
+          position: relative !important;
+          width: min(50%, 15.5rem) !important;
+          margin: .65rem auto .25rem !important;
+          display: inline-flex !important;
+          transform: none !important;
+          -webkit-transform: none !important;
+        }
+
+        [${SEARCH_HOST_ATTR}='true'] {
+          position: relative !important;
         }
 
         html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
@@ -2717,13 +2994,14 @@
         }
 
         #${SEARCH_TRIGGER_ID} .fyp-search-trigger-label {
-          display: none !important;
+          display: inline !important;
+          white-space: nowrap !important;
         }
 
         #${SEARCH_TRIGGER_ID} svg {
           display: block !important;
-          width: 20px !important;
-          height: 20px !important;
+          width: 18px !important;
+          height: 18px !important;
           flex: 0 0 auto !important;
           fill: none !important;
           stroke: currentColor !important;
@@ -2785,9 +3063,9 @@
         flex-direction: column;
         width: min(100%, 28rem);
         margin-top: 0;
-        padding: 4px;
+        padding: 10px 10px 8px;
         align-items: stretch;
-        gap: 0;
+        gap: 8px;
         color: #fff;
         background: rgba(18, 18, 18, .96);
         border: 1px solid rgba(255, 255, 255, .2);
@@ -2806,6 +3084,23 @@
         opacity: 1;
       }
 
+      #${SEARCH_OVERLAY_ID} .fyp-search-header {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        min-height: 40px;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-prompt {
+        flex: 1 1 auto;
+        margin: 0;
+        padding: 0 4px;
+        color: rgba(255, 255, 255, .92);
+        font: 600 16px/1.25 "SF Pro Text", Roboto, system-ui, sans-serif;
+        text-align: left;
+      }
+
       #${SEARCH_OVERLAY_ID} .fyp-search-row {
         display: flex;
         align-items: center;
@@ -2813,6 +3108,8 @@
         width: 100%;
         min-height: 48px;
         padding: 0;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, .06);
       }
 
       #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn {
@@ -2860,7 +3157,7 @@
         outline: none;
         font-size: 16px;
         line-height: 40px;
-        text-align: center;
+        text-align: left;
         -webkit-appearance: none;
         appearance: none;
       }
@@ -3043,8 +3340,8 @@
         max-width: 100%;
         min-width: 0;
         margin: clamp(.5rem, 2.4vw, .8rem) auto;
-        padding: clamp(.35rem, 1.8vw, .55rem);
-        gap: clamp(.25rem, 1.4vw, .55rem);
+        padding: clamp(.45rem, 2vw, .7rem);
+        gap: clamp(.35rem, 1.8vw, .65rem);
         justify-content: center;
         align-items: center;
         border: 1px solid rgba(255, 255, 255, .14);
@@ -3062,11 +3359,11 @@
         visibility: visible !important;
         opacity: 1 !important;
         flex: 0 0 auto;
-        width: clamp(2.45rem, 11vw, 3rem);
-        min-width: 0;
-        height: clamp(2.35rem, 10vw, 2.85rem);
+        width: clamp(2.9rem, 13vw, 3.45rem);
+        min-width: 2.9rem;
+        height: clamp(2.75rem, 12vw, 3.25rem);
         margin: 0;
-        padding: clamp(.48rem, 2.2vw, .7rem);
+        padding: clamp(.62rem, 2.6vw, .85rem);
         align-items: center;
         justify-content: center;
         color: #fff;
@@ -3106,8 +3403,8 @@
         display: block;
         width: 100%;
         height: 100%;
-        max-width: clamp(1.05rem, 4.8vw, 1.35rem);
-        max-height: clamp(1.05rem, 4.8vw, 1.35rem);
+        max-width: clamp(1.25rem, 5.6vw, 1.6rem);
+        max-height: clamp(1.25rem, 5.6vw, 1.6rem);
         fill: none;
         stroke: currentColor;
         stroke-width: 2;
@@ -3118,6 +3415,7 @@
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] svg {
         fill: currentColor;
+        stroke: none;
       }
 
       /* Native settings gear stays available; overflow/more clutter stays hidden. */
@@ -3707,9 +4005,12 @@
     return (
       `<div class="fyp-search-backdrop" data-fyp-search-action="close"></div>` +
       `<div class="fyp-search-panel" role="dialog" aria-label="Search YouTube">` +
-      `<div class="fyp-search-row">` +
+      `<div class="fyp-search-header">` +
       `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="close" ` +
       `aria-label="Close search" title="Close">${PLAYER_CONTROL_ICONS.close}</button>` +
+      `<p class="fyp-search-prompt">Searching for something?</p>` +
+      `</div>` +
+      `<div class="fyp-search-row">` +
       `<input type="search" class="fyp-search-input" enterkeyhint="search" ` +
       `autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" ` +
       `placeholder="Search YouTube" aria-label="Search YouTube" />` +
@@ -3746,22 +4047,68 @@
     return overlay;
   }
 
+  function clearSearchHostMarks() {
+    document.querySelectorAll(`[${SEARCH_HOST_ATTR}='true']`).forEach((node) => {
+      node.removeAttribute(SEARCH_HOST_ATTR);
+    });
+  }
+
+  function findHomeFirstVideoHost() {
+    const item = document.querySelector(
+      [
+        'ytd-browse[page-subtype="home"] ytd-rich-item-renderer',
+        'ytd-browse[page-subtype="home"] yt-lockup-view-model',
+        'ytd-two-column-browse-results-renderer ytd-rich-item-renderer',
+        '#contents ytd-rich-item-renderer',
+      ].join(',')
+    );
+    if (!(item instanceof Element)) return null;
+    const thumb =
+      item.querySelector(
+        [
+          'ytd-thumbnail',
+          'a#thumbnail',
+          '#thumbnail',
+          '.ytCoreImageHost',
+          '.ytLockupViewModelContentImage',
+          'yt-image',
+        ].join(',')
+      ) || item;
+    return thumb instanceof Element ? thumb : item;
+  }
+
+  function findOtherBrowseSearchAnchor() {
+    return (
+      visiblePlacementTarget(
+        [
+          'ytd-browse #header',
+          'ytd-browse ytd-browse-feed-actions-renderer',
+          'ytd-search #header',
+          'ytd-browse #primary',
+          '#primary',
+        ].join(',')
+      ) || null
+    );
+  }
+
+  function searchTriggerMarkup() {
+    return (
+      `${PLAYER_CONTROL_ICONS.search}` +
+      `<span class="fyp-search-trigger-label">Search</span>`
+    );
+  }
+
   function ensureSearchTrigger() {
-    /*
-     * Always mount on body/documentElement — never inside ytd-masthead.
-     * WKWebView re-roots position:fixed under transformed ancestors, which
-     * made masthead-mounted triggers jump or vanish on Orion iOS.
-     * Visual slot = native search icon (top-right via fixed + safe-area CSS).
-     */
-    const host = document.body || document.documentElement;
-    if (!(host instanceof Element)) return;
+    syncRouteAttr();
+    const route = currentSearchRoute();
+    clearSearchHostMarks();
+    ensureUiSkeleton();
 
     let trigger = document.getElementById(SEARCH_TRIGGER_ID);
     if (!(trigger instanceof HTMLButtonElement)) {
       trigger = document.createElement('button');
       trigger.type = 'button';
       trigger.id = SEARCH_TRIGGER_ID;
-      trigger.className = 'fyp-search-trigger';
       trigger.setAttribute('aria-label', 'Search');
       trigger.title = 'Search';
       trigger.setAttribute('aria-haspopup', 'dialog');
@@ -3771,13 +4118,51 @@
 
     if (trigger.dataset.fypSearchLayout !== SEARCH_TRIGGER_LAYOUT_VERSION) {
       trigger.dataset.fypSearchLayout = SEARCH_TRIGGER_LAYOUT_VERSION;
-      // Icon-only in the masthead search slot (no label → no FOUC reflow).
-      trigger.innerHTML = PLAYER_CONTROL_ICONS.search;
+      trigger.innerHTML = searchTriggerMarkup();
     }
 
-    if (trigger.parentElement !== host) {
+    trigger.className = `fyp-search-trigger fyp-search-trigger--${route}`;
+
+    if (route === 'home') {
+      const host = findHomeFirstVideoHost();
+      if (!(host instanceof Element)) {
+        // Feed not ready — keep skeleton; never fall back to masthead/fixed slots.
+        trigger.remove();
+        document.documentElement?.removeAttribute(UI_READY_ATTR);
+        ensureUiSkeleton();
+        return;
+      }
+      host.setAttribute(SEARCH_HOST_ATTR, 'true');
+      if (trigger.parentElement !== host) host.appendChild(trigger);
+      dismissUiSkeletonIfReady();
+      return;
+    }
+
+    if (route === 'watch') {
+      const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+      if (!(toolbar instanceof HTMLElement)) {
+        trigger.remove();
+        document.documentElement?.removeAttribute(UI_READY_ATTR);
+        ensureUiSkeleton();
+        return;
+      }
+      if (toolbar.nextElementSibling !== trigger) {
+        toolbar.insertAdjacentElement('afterend', trigger);
+      }
+      dismissUiSkeletonIfReady();
+      return;
+    }
+
+    const anchor = findOtherBrowseSearchAnchor();
+    const host = document.body || document.documentElement;
+    if (anchor instanceof Element) {
+      if (anchor.nextElementSibling !== trigger) {
+        anchor.insertAdjacentElement('afterend', trigger);
+      }
+    } else if (host instanceof Element && trigger.parentElement !== host) {
       host.appendChild(trigger);
     }
+    dismissUiSkeletonIfReady();
   }
 
   function renderSearchSuggestions(items, mode) {
@@ -4359,11 +4744,11 @@
 
   function hideAskGeminiControls() {
     const roots = document.querySelectorAll(
-      '#movie_player, ytd-player, ytd-watch-metadata'
+      '#movie_player, ytd-player, ytd-watch-metadata, ytd-masthead, ytd-app'
     );
     for (const root of roots) {
       const candidates = root.querySelectorAll(
-        'button, [role="button"], yt-button-view-model, button-view-model'
+        'button, [role="button"], yt-button-view-model, button-view-model, a'
       );
       for (const candidate of candidates) {
         const label = [
@@ -4375,11 +4760,16 @@
           .join(' ')
           .replace(/\s+/g, ' ')
           .trim();
-        if (!/^ask(?:\s+gemini|\s+about|\s*$)/i.test(label)) continue;
+        if (
+          !/ask(?:\s+gemini|\s+youtube|\s+about|\s*$)/i.test(label) &&
+          !/search with your voice|voice search/i.test(label)
+        ) {
+          continue;
+        }
 
         const control =
           candidate.closest(
-            '.ytp-fullscreen-quick-action, yt-button-view-model, button-view-model'
+            '.ytp-fullscreen-quick-action, yt-button-view-model, button-view-model, #voice-search-button'
           ) || candidate;
         setImportantStyles(control, {
           display: 'none',
@@ -4829,6 +5219,7 @@
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
     syncCustomPlayerControls();
+    ensureSearchTrigger();
   }
 
   function scanPage() {
