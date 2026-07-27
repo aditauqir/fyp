@@ -1,15 +1,4 @@
 # Fuck YouTube Premium- Get Free YTPremium on iPhone
-
-### Basically free YouTube Premium for iPhone
-
-## What is this?
-
-I built **Fuck YouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a complete YouTube experience. Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
-
-The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, and screen-off audio. **uBlock Origin is mandatory for ad blocking**; this extension handles the player and mobile layout. The goal is a free, Premium-like YouTube experience that keeps playing without forcing you into fullscreen or Picture in Picture.
-
-This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
-
 <p align="center">
   <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
     <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
@@ -28,6 +17,20 @@ This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi,
 <p align="center">
   <a href="https://discord.gg/sd5Y8f7ukh"><img src="https://img.shields.io/badge/Discord-Join%20the%20server%20for%20support%20or%20help-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord server for support or help"></a>
 </p>
+
+## What is this?
+
+I built **Fuck YouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
+
+#### The Architecture
+The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, and screen-off audio. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube.
+
+### Notes
+**uBlock Origin is mandatory for ad blocking**; this extension handles the player and mobile layout. The goal is a free, Premium-like YouTube experience that keeps playing without forcing you into fullscreen or Picture in Picture.
+
+This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
+
+
 
 ## iPhone only — Orion Browser
 > I havent made one for iPad, with enough interest I could make one
@@ -58,17 +61,9 @@ After the steps above, both **Fuck YouTube Premium** and **uBlock Origin** shoul
 
 | YouTube native app like experienc | Phone-friendly recommendation feed |
 | --- | --- |
-| <img src="docs/images/youtube-watch-page.png" alt="Fuck YouTube Premium inline watch page in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
+| <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
 
 ### Background Player options on iPhone
-
-The built-in toolbar keeps playback controls directly below the video title:
-
-<p align="center">
-  <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390">
-</p>
-
-### Background playback demo
 
 The video keeps playing from the iPhone Lock Screen, including when the display is off:
 
