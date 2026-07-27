@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.2.1`** (branch `fix/search-menus`; recovery — revert broken search; keep enlarged 5-button transport strip)
+> **Current ship version: `2.2.3`** (branch `fix/search-menus`; caption activation fix on top of 2.2.1 search recovery + 2.2.2 single-track dedupe)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -43,7 +43,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 2.2.1_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 2.2.3_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -89,7 +89,18 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.2.1)
+## Latest changes (through 2.2.3)
+
+### 2.2.3 — caption activation fix
+- Defers single-track TextTrack dedupe until YouTube custom caption segments are visible, so captions can turn on again after 2.2.2 blocked activation.
+- Keeps duplicate English collapsed and WebKit `::cue` hidden only while custom segments exist.
+- Does not change search or transport-button layout from 2.2.1.
+
+### 2.2.2 — single caption track
+- Restores exactly one active TextTrack when captions are on (authored English preferred).
+- Disables duplicate English rows so Orion Languages cannot show English+English.
+- Hides WebKit `::cue` only while YouTube custom caption segments exist.
+- Does not change search or transport-button layout from 2.2.1.
 
 ### 2.2.1 — search recovery
 - Reverts broken 2.1.5–2.2.0 custom search (Home chip, Watch pill, capsule, masthead float, overlay, skeleton).

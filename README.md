@@ -36,15 +36,15 @@ This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi,
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download `2.2.1_release.zip` or whichever is the latest you mileage may vary with three versions, release (recommended), chrome and fireforx. Minimal Chrome ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download `2.2.3_release.zip` or whichever is the latest you mileage may vary with three versions, release (recommended), chrome and fireforx. Minimal Chrome ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
-6. Select `2.2.1_release.zip`. Do not unzip or rename it.
+6. Select `2.2.3_release.zip`. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube, then open [youtube.com](https://www.youtube.com/). The extension selects the required YouTube backend automatically; no per-site desktop-mode setting is needed.
 
-Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.2.1_release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
+Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.2.3_release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
-If you still have an old `2.1.4`–`2.2.0` build, uninstall it before installing this `2.2.1` release so Orion replaces it cleanly.
+If you still have an old `2.1.4`–`2.2.2` build, uninstall it before installing this `2.2.3` release so Orion replaces it cleanly.
 
 ## Final extension result
 
@@ -62,10 +62,10 @@ After the steps above, both **Fuck YouTube Premium** and **uBlock Origin** shoul
 
 ### Background Player options on iPhone
 
-The built-in toolbar keeps playback controls and speed choices directly below the video title:
+The built-in toolbar keeps playback controls directly below the video title:
 
 <p align="center">
-  <img src="docs/images/player-options-menu.png" alt="Fuck YouTube Premium playback-speed menu below an inline YouTube video in Orion" width="390">
+  <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390">
 </p>
 
 ### Background playback demo
@@ -115,7 +115,7 @@ Orion’s native **Subtitles → Languages** menu can incorrectly leave more tha
   <img src="docs/images/orion-multiple-subtitle-tracks.png" alt="Orion subtitle Languages menu showing duplicate English tracks" width="420">
 </p>
 
-Version 2.0.19 keeps exactly one subtitle track active. When subtitles are on, it chooses an authored English track first, falls back to English auto-generated captions, and then uses the best remaining subtitle. If you manually choose another language afterward, that choice replaces the default instead of being added as a second simultaneous track.
+Version 2.2.3 keeps exactly one subtitle track active and lets captions turn on again after the 2.2.2 activation regression. When subtitles are on, it chooses an authored English track first, falls back to English auto-generated captions, and then uses the best remaining subtitle. Duplicate English rows are collapsed so Languages cannot show English selected twice. Single-track enforcement waits until YouTube’s custom caption segments are visible. If you manually choose another language afterward, that choice replaces the default instead of being added as a second simultaneous track. YouTube’s custom caption layer stays visible; WebKit’s native `::cue` is hidden only while that custom layer is painting.
 
 ### Tapping the extension icon shows no buttons
 

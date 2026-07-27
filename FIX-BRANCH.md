@@ -1,9 +1,9 @@
 # FIX-BRANCH — `fix/search-menus`
 
-> **2.2.3 TEST BUILD** (caption activation fix on top of 2.2.2). Ship version when approved: **2.2.3**.
+> **2.2.3 SHIPPED** (caption activation fix on top of 2.2.2). Current ship version: **2.2.3**.
 > Baseline restored search: `origin/main` / `1ca4f57` (2.1.2 native masthead path).
 > Kept from later work: enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen).
-> Do **not** merge/push main or create GitHub releases until the user says “it’s good”.
+> Approved and shipping to `main` + GitHub Release `v2.2.3`.
 
 ---
 
@@ -47,7 +47,7 @@
 | M9 | Native speed timer + quality gear icons | **Fixed in 2.1.9** | Removed from strip and video chrome; native settings gear restored. |
 | M10 | Settings dropdown broken / clash | **Fixed in 2.1.9** | Stopped hiding `.ytp-settings-button`; narrowed capture to `#fyp-…` / `[data-fyp-…]` only. |
 | M11 | Play/Pause icon mismatch vs native player | **Kept** | Filled Material/YouTube-like triangle + bars; aria/state synced to paused/playing. |
-| M12 | Double captions / English selected twice | **Fixed in 2.2.3 (test zip)** | Single-track enforcement deferred until custom caption segments exist; then `hidden` + disable duplicates. Do not touch search/buttons. |
+| M12 | Double captions / English selected twice | **Fixed in 2.2.3 (shipped)** | Single-track enforcement deferred until custom caption segments exist; then `hidden` + disable duplicates. Do not touch search/buttons. |
 | S1–S5 | Custom search experiments (2.1.5–2.2.0) | **REVERTED / FAILED — do not revive without user approval** | See failure log below. Native 2.1.2 path restored in 2.2.1. |
 
 ---

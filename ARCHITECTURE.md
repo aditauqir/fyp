@@ -2,7 +2,7 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.2.1` (`2.2.1_release.zip`)
+**Current shipped version:** `2.2.3` (`2.2.3_release.zip`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -271,11 +271,11 @@ Required edit flow:
 
 Current package names:
 
-- `2.2.1_release.zip` (recommended Orion Chrome MV3 installer)
-- `fuck-youtube-premium-chrome-2.2.1.zip`
-- `fuck-youtube-premium-firefox-2.2.1.zip`
-- `fuck-youtube-premium-orion-2.2.1.zip`
-- `fuck-youtube-premium-orion-2.2.1.xpi`
+- `2.2.3_release.zip` (recommended Orion Chrome MV3 installer)
+- `fuck-youtube-premium-chrome-2.2.3.zip`
+- `fuck-youtube-premium-firefox-2.2.3.zip`
+- `fuck-youtube-premium-orion-2.2.3.zip`
+- `fuck-youtube-premium-orion-2.2.3.xpi`
 
 ## Verification contract
 
