@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.1.3
+
+- Fixed: Caption and playback-speed menu options apply again on Orion; option taps no longer vanish via a ghost click that re-hits Captions/More under the closed menu.
+- Added: The ⋮ More menu now includes a Quality section (Auto and available YouTube levels) using the same apply + 120ms retry pattern as playback speed.
+- Changed: Player control capture uses `pointerdown` only when `PointerEvent` exists, matching the known-good speed interaction path.
+- Preserved: Seven-button toolbar, caption deduplication, native player settings entry, History layout, and Now Playing sync from 2.1.2.
+- Packaging: The numeric manifest version is `2.1.3`, and the recommended Orion installer is `2.1.3_release.zip`.
+
 ## v2.1.2
 
 - Fixed: History feed rows no longer appear zoomed or scrambled; the History page is contained to the phone viewport and each list item stacks thumbnail-over-text.

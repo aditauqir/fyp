@@ -25,9 +25,12 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /History feed fits the phone viewport again\./);
-assert.match(popup, /Now Playing play\/pause stays in sync with the page\./);
-assert.match(popup, /Channel links now open the Videos tab first\./);
+assert.match(popup, /Caption and speed menu options apply without vanishing\./);
+assert.match(popup, /More menu now includes Quality levels\./);
+assert.match(
+  popup,
+  /History feed and Now Playing sync from 2\.1\.2 stay intact\./
+);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
@@ -52,6 +55,7 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
+assert.match(patchNotes, /## v2\.1\.3/);
 assert.match(patchNotes, /## v2\.1\.2/);
 assert.match(patchNotes, /## v2\.1\.1/);
 assert.match(patchNotes, /## v2\.1\.0 stable/);

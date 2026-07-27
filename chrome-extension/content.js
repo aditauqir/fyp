@@ -27,17 +27,20 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.2';
+  const EXPECTED_PAGE_VERSION = '2.1.3';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus';
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
   const fallbackAttachedVideos = new WeakSet();
+  const fallbackSelectedCaptionTrackByVideo = new WeakMap();
+  const fallbackSelectedQualityByVideo = new WeakMap();
+  let ignoreFallbackPlayerControlActionsUntil = 0;
   const fallbackPlaybackState = {
     video: null,
     wantsPlayback: false,
@@ -495,7 +498,15 @@
 
   function appendFallbackPlayerMenuOption(
     menu,
-    { action, label, checked = false, disabled = false, trackIndex, speed }
+    {
+      action,
+      label,
+      checked = false,
+      disabled = false,
+      trackIndex,
+      speed,
+      quality,
+    }
   ) {
     const option = document.createElement('button');
     option.type = 'button';
@@ -505,6 +516,7 @@
       option.dataset.fypTrackIndex = String(trackIndex);
     }
     if (speed !== undefined) option.dataset.fypSpeed = String(speed);
+    if (quality !== undefined) option.dataset.fypQuality = String(quality);
     option.setAttribute('role', 'menuitemradio');
     option.setAttribute('aria-checked', String(checked));
     option.disabled = disabled;
@@ -528,6 +540,133 @@
     });
   }
 
+  function fallbackCaptionOptionText(value) {
+    if (typeof value === 'string') return value.trim();
+    if (typeof value?.simpleText === 'string') return value.simpleText.trim();
+    if (Array.isArray(value?.runs)) {
+      return value.runs.map((run) => run.text || '').join('').trim();
+    }
+    return '';
+  }
+
+  function fallbackYouTubeCaptionTrackList() {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.getOption !== 'function') return [];
+    try {
+      const tracks = player.getOption('captions', 'tracklist');
+      return Array.isArray(tracks) ? tracks : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function selectFallbackYouTubeCaptionTrack(selectedTrack) {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.setOption !== 'function') return false;
+    try {
+      player.loadModule?.('captions');
+    } catch {}
+    const selectedLabel = String(selectedTrack.label || '').trim().toLowerCase();
+    const selectedLanguage = String(selectedTrack.language || '').toLowerCase();
+    const youtubeTrack =
+      fallbackYouTubeCaptionTrackList().find((track) => {
+        const label = fallbackCaptionOptionText(
+          track.displayName || track.name || track.label
+        ).toLowerCase();
+        const language = String(
+          track.languageCode || track.language || track.lang || ''
+        ).toLowerCase();
+        return (
+          (selectedLabel && label === selectedLabel) ||
+          (selectedLanguage && language === selectedLanguage)
+        );
+      }) ||
+      (selectedLanguage
+        ? {
+            languageCode: selectedTrack.language,
+            language: selectedTrack.language,
+          }
+        : null);
+    if (!youtubeTrack) return false;
+    try {
+      player.setOption('captions', 'track', youtubeTrack);
+      player.setOption('captions', 'reload', true);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function fallbackQualityOptionLabel(quality) {
+    const labels = {
+      auto: 'Auto',
+      highres: 'High res',
+      hd2160: '2160p',
+      hd1440: '1440p',
+      hd1080: '1080p',
+      hd720: '720p',
+      large: '480p',
+      medium: '360p',
+      small: '240p',
+      tiny: '144p',
+    };
+    return labels[quality] || String(quality || '').toUpperCase() || 'Auto';
+  }
+
+  function fallbackYouTubeQualityLevels() {
+    const player = document.querySelector('#movie_player');
+    if (!player) return ['auto'];
+    let levels = [];
+    try {
+      if (typeof player.getAvailableQualityLevels === 'function') {
+        levels = player.getAvailableQualityLevels() || [];
+      }
+    } catch {}
+    if (!levels.length) {
+      try {
+        const optionLevels = player.getOption?.('quality', 'levels');
+        levels = Array.isArray(optionLevels) ? optionLevels : [];
+      } catch {
+        levels = [];
+      }
+    }
+    const normalized = levels
+      .map((level) => String(level || '').trim())
+      .filter(Boolean);
+    if (!normalized.includes('auto')) normalized.unshift('auto');
+    return normalized.length ? normalized : ['auto'];
+  }
+
+  function currentFallbackYouTubeQuality(video) {
+    if (video && fallbackSelectedQualityByVideo.has(video)) {
+      return fallbackSelectedQualityByVideo.get(video);
+    }
+    const player = document.querySelector('#movie_player');
+    try {
+      return (
+        player?.getPlaybackQuality?.() ||
+        player?.getOption?.('quality', 'requested') ||
+        'auto'
+      );
+    } catch {
+      return 'auto';
+    }
+  }
+
+  function applyFallbackYouTubeQuality(quality) {
+    const player = document.querySelector('#movie_player');
+    if (!player || !quality) return;
+    try {
+      player.setPlaybackQualityRange?.(quality, quality);
+    } catch {}
+    try {
+      player.setPlaybackQuality?.(quality);
+    } catch {}
+    try {
+      player.setOption?.('quality', 'requested', quality);
+    } catch {}
+  }
+
   function toggleFallbackCaptionsMenu(video, sourceButton) {
     const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
     if (!(toolbar instanceof HTMLElement)) return;
@@ -539,7 +678,9 @@
     if (!menu) return;
 
     const tracks = fallbackCaptionTracks(video);
-    const selectedTrack = tracks.find((track) => track.mode !== 'disabled');
+    const selectedTrack =
+      fallbackSelectedCaptionTrackByVideo.get(video) ||
+      tracks.find((track) => track.mode !== 'disabled');
     appendFallbackPlayerMenuTitle(menu, 'Captions');
     appendFallbackPlayerMenuOption(menu, {
       action: 'captions-off',
@@ -584,6 +725,19 @@
         speed,
       });
     }
+
+    const qualities = fallbackYouTubeQualityLevels();
+    const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
+    appendFallbackPlayerMenuTitle(menu, 'Quality');
+    for (const quality of qualities) {
+      appendFallbackPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: fallbackQualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
+
     appendFallbackPlayerMenuTitle(menu, 'Player');
     appendFallbackPlayerMenuOption(menu, {
       action: 'native-settings',
@@ -598,36 +752,57 @@
     const action = option.dataset.fypPlayerOption;
 
     if (action === 'captions-off') {
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
-        nativeCaptions.click();
-      }
-      fallbackCaptionTracks(video).forEach((track) => {
-        track.mode = 'disabled';
-      });
+      const applyCaptionsOff = () => {
+        try {
+          document
+            .querySelector('#movie_player')
+            ?.setOption?.('captions', 'track', {});
+        } catch {}
+        fallbackCaptionTracks(video).forEach((track) => {
+          track.mode = 'disabled';
+        });
+        fallbackSelectedCaptionTrackByVideo.delete(video);
+        const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+        if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
+          nativeCaptions.click();
+        }
+      };
+      applyCaptionsOff();
+      setTimeout(applyCaptionsOff, 120);
     } else if (action === 'caption-track') {
       const selectedTrack =
         fallbackCaptionTracks(video)[Number(option.dataset.fypTrackIndex)];
       if (!selectedTrack) return;
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      if (nativeCaptions?.getAttribute('aria-pressed') !== 'true') {
-        nativeCaptions.click();
-      }
-      const selectTrack = () => {
+      const applyCaptionSelection = () => {
+        selectFallbackYouTubeCaptionTrack(selectedTrack);
         for (const track of fallbackCaptionTracks(video)) {
           track.mode = track === selectedTrack ? 'hidden' : 'disabled';
         }
+        fallbackSelectedCaptionTrackByVideo.set(video, selectedTrack);
       };
-      selectTrack();
-      setTimeout(selectTrack, 120);
-      setTimeout(selectTrack, 350);
+      applyCaptionSelection();
+      setTimeout(applyCaptionSelection, 120);
     } else if (action === 'playback-speed') {
       const speed = Number(option.dataset.fypSpeed);
       if (Number.isFinite(speed)) {
-        video.playbackRate = speed;
-        setTimeout(() => {
+        const applyPlaybackRate = () => {
           video.playbackRate = speed;
-        }, 120);
+          try {
+            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+          } catch {}
+        };
+        applyPlaybackRate();
+        setTimeout(applyPlaybackRate, 120);
+      }
+    } else if (action === 'playback-quality') {
+      const quality = String(option.dataset.fypQuality || '').trim();
+      if (quality) {
+        const applyQuality = () => {
+          applyFallbackYouTubeQuality(quality);
+          fallbackSelectedQualityByVideo.set(video, quality);
+        };
+        applyQuality();
+        setTimeout(applyQuality, 120);
       }
     } else if (action === 'native-settings') {
       document
@@ -751,6 +926,11 @@
 
   function handleFallbackPlayerControlActionCapture(event) {
     if (pageRuntimeReady()) return;
+    if (Date.now() < ignoreFallbackPlayerControlActionsUntil) {
+      if (event.cancelable) event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const target = event.target;
     if (!(target instanceof Element)) return;
     const button = target.closest(
@@ -761,6 +941,7 @@
     event.stopImmediatePropagation();
     if (!acceptSingleFallbackPlayerControlAction(button)) return;
     if (button.dataset.fypPlayerOption) {
+      ignoreFallbackPlayerControlActionsUntil = Date.now() + 500;
       void runFallbackPlayerControlOption(button);
     } else {
       void runFallbackPlayerControlAction(
@@ -1032,11 +1213,13 @@
       closeFallbackPlayerControlMenuFromOutside,
       true
     );
-    document.addEventListener(
-      'click',
-      handleFallbackPlayerControlActionCapture,
-      true
-    );
+    if (!('PointerEvent' in window)) {
+      document.addEventListener(
+        'click',
+        handleFallbackPlayerControlActionCapture,
+        true
+      );
+    }
     document.addEventListener(
       'scroll',
       enforceFallbackHorizontalViewportLock,

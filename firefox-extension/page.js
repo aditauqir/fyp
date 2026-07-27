@@ -3,14 +3,14 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.2');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.3');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -34,6 +34,8 @@
   const ORION_NAV_GAP = '72px';
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
+  const selectedQualityByVideo = new WeakMap();
+  let ignorePlayerControlActionsUntil = 0;
   let lastMediaSessionMetadataKey = '';
   function channelVideosUrl(input) {
     let target;
@@ -634,7 +636,15 @@
 
   function appendPlayerMenuOption(
     menu,
-    { action, label, checked = false, disabled = false, trackIndex, speed }
+    {
+      action,
+      label,
+      checked = false,
+      disabled = false,
+      trackIndex,
+      speed,
+      quality,
+    }
   ) {
     const option = document.createElement('button');
     option.type = 'button';
@@ -644,6 +654,7 @@
       option.dataset.fypTrackIndex = String(trackIndex);
     }
     if (speed !== undefined) option.dataset.fypSpeed = String(speed);
+    if (quality !== undefined) option.dataset.fypQuality = String(quality);
     option.setAttribute('role', 'menuitemradio');
     option.setAttribute('aria-checked', String(checked));
     option.disabled = disabled;
@@ -695,22 +706,25 @@
     } catch {}
     const selectedLabel = String(selectedTrack.label || '').trim().toLowerCase();
     const selectedLanguage = String(selectedTrack.language || '').toLowerCase();
-    const youtubeTrack = youtubeCaptionTrackList().find((track) => {
-      const label = captionOptionText(
-        track.displayName || track.name || track.label
-      ).toLowerCase();
-      const language = String(
-        track.languageCode || track.language || track.lang || ''
-      ).toLowerCase();
-      return (
-        (selectedLabel && label === selectedLabel) ||
-        (selectedLanguage &&
-          language === selectedLanguage &&
-          (!selectedLabel ||
-            label.includes(selectedLabel) ||
-            selectedLabel.includes(label)))
-      );
-    });
+    const youtubeTrack =
+      youtubeCaptionTrackList().find((track) => {
+        const label = captionOptionText(
+          track.displayName || track.name || track.label
+        ).toLowerCase();
+        const language = String(
+          track.languageCode || track.language || track.lang || ''
+        ).toLowerCase();
+        return (
+          (selectedLabel && label === selectedLabel) ||
+          (selectedLanguage && language === selectedLanguage)
+        );
+      }) ||
+      (selectedLanguage
+        ? {
+            languageCode: selectedTrack.language,
+            language: selectedTrack.language,
+          }
+        : null);
     if (!youtubeTrack) return false;
     try {
       player.setOption('captions', 'track', youtubeTrack);
@@ -719,6 +733,76 @@
     } catch {
       return false;
     }
+  }
+
+  function qualityOptionLabel(quality) {
+    const labels = {
+      auto: 'Auto',
+      highres: 'High res',
+      hd2160: '2160p',
+      hd1440: '1440p',
+      hd1080: '1080p',
+      hd720: '720p',
+      large: '480p',
+      medium: '360p',
+      small: '240p',
+      tiny: '144p',
+    };
+    return labels[quality] || String(quality || '').toUpperCase() || 'Auto';
+  }
+
+  function youtubeQualityLevels() {
+    const player = document.querySelector('#movie_player');
+    if (!player) return ['auto'];
+    let levels = [];
+    try {
+      if (typeof player.getAvailableQualityLevels === 'function') {
+        levels = player.getAvailableQualityLevels() || [];
+      }
+    } catch {}
+    if (!levels.length) {
+      try {
+        const optionLevels = player.getOption?.('quality', 'levels');
+        levels = Array.isArray(optionLevels) ? optionLevels : [];
+      } catch {
+        levels = [];
+      }
+    }
+    const normalized = levels
+      .map((level) => String(level || '').trim())
+      .filter(Boolean);
+    if (!normalized.includes('auto')) normalized.unshift('auto');
+    return normalized.length ? normalized : ['auto'];
+  }
+
+  function currentYouTubeQuality(video) {
+    if (video && selectedQualityByVideo.has(video)) {
+      return selectedQualityByVideo.get(video);
+    }
+    const player = document.querySelector('#movie_player');
+    try {
+      return (
+        player?.getPlaybackQuality?.() ||
+        player?.getOption?.('quality', 'requested') ||
+        'auto'
+      );
+    } catch {
+      return 'auto';
+    }
+  }
+
+  function applyYouTubeQuality(quality) {
+    const player = document.querySelector('#movie_player');
+    if (!player || !quality) return;
+    try {
+      player.setPlaybackQualityRange?.(quality, quality);
+    } catch {}
+    try {
+      player.setPlaybackQuality?.(quality);
+    } catch {}
+    try {
+      player.setOption?.('quality', 'requested', quality);
+    } catch {}
   }
 
   function toggleCaptionsMenu(video, sourceButton) {
@@ -779,6 +863,19 @@
         speed,
       });
     }
+
+    const qualities = youtubeQualityLevels();
+    const currentQuality = String(currentYouTubeQuality(video) || 'auto');
+    appendPlayerMenuTitle(menu, 'Quality');
+    for (const quality of qualities) {
+      appendPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: qualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
+
     appendPlayerMenuTitle(menu, 'Player');
     appendPlayerMenuOption(menu, {
       action: 'native-settings',
@@ -792,29 +889,36 @@
     const preservePlayback = !video.paused;
     const action = option.dataset.fypPlayerOption;
 
+    /*
+     * Playback-speed is the known-good Orion pattern: apply immediately, retry
+     * once at 120ms, avoid native UI clicks that steal the gesture. Captions
+     * and quality follow that same shape.
+     */
     if (action === 'captions-off') {
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
-        nativeCaptions.click();
-      }
-      captionTracks(video).forEach((track) => {
-        track.mode = 'disabled';
-      });
-      selectedCaptionTrackByVideo.delete(video);
-      delete video.dataset.fypNativeCaptionsHidden;
+      const applyCaptionsOff = () => {
+        try {
+          document
+            .querySelector('#movie_player')
+            ?.setOption?.('captions', 'track', {});
+        } catch {}
+        captionTracks(video).forEach((track) => {
+          track.mode = 'disabled';
+        });
+        selectedCaptionTrackByVideo.delete(video);
+        delete video.dataset.fypNativeCaptionsHidden;
+        const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+        if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
+          nativeCaptions.click();
+        }
+      };
+      applyCaptionsOff();
+      setTimeout(applyCaptionsOff, 120);
     } else if (action === 'caption-track') {
       const selectedTrack =
         captionTracks(video)[Number(option.dataset.fypTrackIndex)];
       if (!selectedTrack) return;
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      const selectedThroughPlayer = selectYouTubeCaptionTrack(selectedTrack);
-      if (
-        !selectedThroughPlayer &&
-        nativeCaptions?.getAttribute('aria-pressed') !== 'true'
-      ) {
-        nativeCaptions.click();
-      }
       const applyCaptionSelection = () => {
+        selectYouTubeCaptionTrack(selectedTrack);
         for (const track of captionTracks(video)) {
           track.mode = track === selectedTrack ? 'hidden' : 'disabled';
         }
@@ -823,11 +927,7 @@
         suppressDuplicateNativeCaptions(video);
       };
       applyCaptionSelection();
-      setTimeout(() => {
-        selectYouTubeCaptionTrack(selectedTrack);
-        applyCaptionSelection();
-      }, 120);
-      setTimeout(applyCaptionSelection, 350);
+      setTimeout(applyCaptionSelection, 120);
     } else if (action === 'playback-speed') {
       const speed = Number(option.dataset.fypSpeed);
       if (Number.isFinite(speed)) {
@@ -839,6 +939,16 @@
         };
         applyPlaybackRate();
         setTimeout(applyPlaybackRate, 120);
+      }
+    } else if (action === 'playback-quality') {
+      const quality = String(option.dataset.fypQuality || '').trim();
+      if (quality) {
+        const applyQuality = () => {
+          applyYouTubeQuality(quality);
+          selectedQualityByVideo.set(video, quality);
+        };
+        applyQuality();
+        setTimeout(applyQuality, 120);
       }
     } else if (action === 'native-settings') {
       holdPlayerControlsVisible();
@@ -965,6 +1075,11 @@
   }
 
   function handlePlayerControlActionCapture(event) {
+    if (Date.now() < ignorePlayerControlActionsUntil) {
+      if (event.cancelable) event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const target = event.target;
     if (!(target instanceof Element)) return;
     const button = target.closest(
@@ -975,6 +1090,8 @@
     event.stopImmediatePropagation();
     if (!acceptSinglePlayerControlAction(button)) return;
     if (button.dataset.fypPlayerOption) {
+      // Block the synthetic click that lands on the toolbar after the menu closes.
+      ignorePlayerControlActionsUntil = Date.now() + 500;
       void runPlayerControlOption(button);
     } else {
       void runPlayerControlAction(button.dataset.fypPlayerAction, button);
@@ -3972,11 +4089,15 @@
     closePlayerControlMenuFromOutside,
     true
   );
-  nativeDocumentAddEventListener(
-    'click',
-    handlePlayerControlActionCapture,
-    true
-  );
+  // Only use click when PointerEvent is unavailable. Dual pointerdown+click
+  // made option taps close the menu and then re-hit Captions/More underneath.
+  if (!('PointerEvent' in window)) {
+    nativeDocumentAddEventListener(
+      'click',
+      handlePlayerControlActionCapture,
+      true
+    );
+  }
   nativeDocumentAddEventListener(
     'scroll',
     enforceHorizontalViewportLock,

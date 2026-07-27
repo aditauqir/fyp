@@ -52,23 +52,23 @@ const context = {
     ok: true,
     async json() {
       return {
-        tag_name: 'v2.1.2',
-        html_url: 'https://github.com/aditauqir/fyp/releases/tag/v2.1.2',
+        tag_name: 'v2.1.3',
+        html_url: 'https://github.com/aditauqir/fyp/releases/tag/v2.1.3',
         assets: [
           {
-            name: 'fuck-youtube-premium-orion-2.1.2.xpi',
+            name: 'fuck-youtube-premium-orion-2.1.3.xpi',
             browser_download_url:
-              'https://example.test/fuck-youtube-premium-orion-2.1.2.xpi',
+              'https://example.test/fuck-youtube-premium-orion-2.1.3.xpi',
           },
           {
-            name: 'fuck-youtube-premium-chrome-2.1.2.zip',
+            name: 'fuck-youtube-premium-chrome-2.1.3.zip',
             browser_download_url:
-              'https://example.test/fuck-youtube-premium-chrome-2.1.2.zip',
+              'https://example.test/fuck-youtube-premium-chrome-2.1.3.zip',
           },
           {
-            name: 'fuck-youtube-premium-firefox-2.1.2.zip',
+            name: 'fuck-youtube-premium-firefox-2.1.3.zip',
             browser_download_url:
-              'https://example.test/fuck-youtube-premium-firefox-2.1.2.zip',
+              'https://example.test/fuck-youtube-premium-firefox-2.1.3.zip',
           },
         ],
       };
@@ -101,18 +101,18 @@ function requestUpdate() {
   const chromeUpdate = await requestUpdate();
   assert.equal(chromeUpdate.ok, true);
   assert.equal(chromeUpdate.currentVersion, '2.0.13');
-  assert.equal(chromeUpdate.latestVersion, '2.1.2');
+  assert.equal(chromeUpdate.latestVersion, '2.1.3');
   assert.equal(chromeUpdate.updateAvailable, true);
   assert.equal(
     chromeUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-chrome-2.1.2.zip'
+    'https://example.test/fuck-youtube-premium-chrome-2.1.3.zip'
   );
 
   manifestVersion = 2;
   const firefoxUpdate = await requestUpdate();
   assert.equal(
     firefoxUpdate.downloadUrl,
-    'https://example.test/fuck-youtube-premium-chrome-2.1.2.zip'
+    'https://example.test/fuck-youtube-premium-chrome-2.1.3.zip'
   );
 
   assert.equal(badgeCalls.at(-1)[0], 'text');

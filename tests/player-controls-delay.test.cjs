@@ -28,7 +28,10 @@ assert.match(
 );
 assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
-assert.match(source, /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215'/);
+assert.match(
+  source,
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus'/
+);
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);
 for (const action of [
@@ -56,14 +59,24 @@ assert.match(source, /function toggleCaptionsMenu\(/);
 assert.match(source, /function selectYouTubeCaptionTrack\(/);
 assert.match(source, /player\.setOption\('captions', 'track', youtubeTrack\)/);
 assert.match(source, /player\.setOption\('captions', 'reload', true\)/);
-assert.match(source, /setTimeout\(applyCaptionSelection, 350\)/);
+assert.match(source, /setTimeout\(applyCaptionSelection, 120\)/);
 assert.match(source, /function toggleMorePlayerMenu\(/);
 assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedTrack\)/);
 assert.match(source, /action: 'captions-off'/);
 assert.match(source, /action: 'caption-track'/);
 assert.match(source, /action: 'playback-speed'/);
+assert.match(source, /action: 'playback-quality'/);
+assert.match(source, /function applyYouTubeQuality\(/);
+assert.match(source, /function youtubeQualityLevels\(/);
+assert.match(source, /appendPlayerMenuTitle\(menu, 'Quality'\)/);
+assert.match(source, /ignorePlayerControlActionsUntil = Date\.now\(\) \+ 500/);
 assert.match(source, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
 assert.match(source, /action: 'native-settings'/);
+assert.match(
+  source,
+  /if \(!\('PointerEvent' in window\)\) \{\s*nativeDocumentAddEventListener\(\s*'click',\s*handlePlayerControlActionCapture/
+);
+assert.doesNotMatch(source, /setTimeout\(applyCaptionSelection, 350\)/);
 assert.match(
   source,
   /\[data-fyp-player-option\], \[data-fyp-player-action\]/

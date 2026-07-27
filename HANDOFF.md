@@ -1,11 +1,13 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.0.16`** (2026-07-23)
+> **Current ship version: `2.1.3`** (branch `fix/search-menus`; baseline was main `2.1.2`)
 >
-> Stability fix: 2.0.7 restores the external `page.js` injection used by the known-good 2.0.5 build. Do not reintroduce the 2.0.6 document-wide critical CSS or Chrome declarative network rules without testing on Orion iOS. Always run `./rebuild-extension.sh` after edits.
+> Always run `./rebuild-extension.sh` after edits.
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
+>
+> **Active fix checklist:** read and update [`FIX-BRANCH.md`](./FIX-BRANCH.md) before any search/menu work. It is the cleaning list (issue → status → suggested fix). After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
 
 ---
 
@@ -31,8 +33,9 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ## Repo layout
 
 ```
-/Users/aditauqir/Downloads/userscript/
+./
 ├── HANDOFF.md
+├── FIX-BRANCH.md                       ← active search/menu fix cleaning list
 ├── ARCHITECTURE.md                     ← product and technical contract
 ├── PATCH_NOTES.md                      ← release and popup changelog source
 ├── INSTALL-ORION.md                    ← install troubleshooting for the user
@@ -40,8 +43,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-├── fuck-youtube-premium-chrome-2.0.16.zip
-└── fuck-youtube-premium-firefox-2.0.16.zip
+└── 2.1.3_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -275,7 +277,9 @@ After reinstall + hard refresh on Orion:
 
 ## Next agent: first actions
 
-1. Read this file + skim `youtube-mobile-background.user.js` headers/constants.
+1. Read this file + [`FIX-BRANCH.md`](./FIX-BRANCH.md) + skim `youtube-mobile-background.user.js` headers/constants.
 2. Confirm latest packaged zip version matches `@version`.
-3. Implement the user’s new request in the **userscript**.
-4. Run `./rebuild-extension.sh` and give the user the new zip path.
+3. Pick the next **Not fixed** row from `FIX-BRANCH.md` (or the user’s new request).
+4. Implement in the **userscript**, mirror fallback if needed, update the FIX-BRANCH status table.
+5. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
+6. Ask whether to continue on **this branch**, a **separate branch**, or **stop**.
