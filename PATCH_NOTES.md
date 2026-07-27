@@ -1,11 +1,26 @@
 # Patch Notes
 
+## v2.1.8
+
+- Changed: Combined release — inline Lucide quality gear + optional speed timer on the centered webpage transport strip (from 2.1.6) with the black Search capsule, Lucide overlay, recents, and YouTube autocomplete (from 2.1.7).
+- Removed: In-player clock/gear overlays stay gone; native masthead search stays hidden.
+- Preserved: Apply + 120ms retry for speed/quality; native CC captions; History/Now Playing.
+- Packaging: Numeric version `2.1.8`; recommended Orion installer `2.1.8_release.zip`.
+
 ## v2.1.6
 
 - Changed: Moved video quality (Lucide gear) into the centered webpage transport strip; removed the in-player gear overlay.
 - Changed: Moved playback speed (Lucide timer) into the same strip; removed the in-player clock overlay.
 - Preserved: Rewind / play-pause / forward / pip / fullscreen stay centered; quality/speed menus still use apply + 120ms retry; native CC captions unchanged.
 - Packaging: Numeric version `2.1.6`; Orion test installer `2.1.6_inline-gear_test.zip` (also builds `2.1.6_release.zip`).
+
+## v2.1.7
+
+- Changed: Bottom black Search capsule trigger (centered Search label + Lucide search icon, no chevron) opens the global overlay on Home, Watch, History, and browse.
+- Changed: Search overlay uses Lucide X (left), centered input, Lucide search (right), translucent backdrop, and ease-in/out animation; native masthead search stays hidden.
+- Added: Under-field Recent searches (localStorage) and live YouTube autocomplete suggestions while typing; tapping a row runs the search.
+- Notes: Originally landed on `fix/search-overlay-ui`; combined with inline gear in 2.1.8 on `fix/search-menus`.
+- Packaging: The numeric manifest version is `2.1.7`, and the test Orion installer is `2.1.7_search-overlay_test.zip`.
 
 ## v2.1.5
 

@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.1.6`** (branch `fix/search-menus`; baseline was main `2.1.2`)
+> **Current ship version: `2.1.8`** (branch `fix/search-menus`; merges 2.1.6 inline gear + 2.1.7 search overlay)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -43,7 +43,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 2.1.6_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 2.1.8_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.

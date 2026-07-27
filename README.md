@@ -36,15 +36,15 @@ This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi,
 1. On your iPhone, [download Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200). Orion currently requires iOS 17 or later.
 2. Open **Orion → Settings → Extensions**, then enable support for both **Chrome Extensions** and **Firefox Extensions**.
 3. **Mandatory for ad blocking:** install [uBlock Origin from its official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/), enable it, and allow it to access YouTube.
-4. Tap the green **Download Latest Release** button above, then download `2.1.6_release.zip` or whichever is the latest you mileage may vary with three versions, release (recommended), chrome and fireforx. Minimal Chrome ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
+4. Tap the green **Download Latest Release** button above, then download `2.1.8_release.zip` or whichever is the latest you mileage may vary with three versions, release (recommended), chrome and fireforx. Minimal Chrome ZIP, Firefox ZIP, and XPI builds remain available as fallbacks.
 5. In Orion’s Extensions screen, tap **+**, then **Install from File**.
-6. Select `2.1.6_release.zip`. Do not unzip or rename it.
+6. Select `2.1.8_release.zip`. Do not unzip or rename it.
 7. Enable **Fuck YouTube Premium**.
 8. Allow both **Fuck YouTube Premium** and **uBlock Origin** to access YouTube, then open [youtube.com](https://www.youtube.com/). The extension selects the required YouTube backend automatically; no per-site desktop-mode setting is needed.
 
-Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.1.6_release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
+Orion supports Chrome, Firefox, and file-based extensions, but [its iOS extension support is still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html). This project recommends the Chrome Manifest V3 `2.1.8_release.zip`, matching the package type that worked in release 2.0.20. **uBlock Origin is required and must stay enabled alongside this extension.** Its canonical source is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
-If you still have an old `2.1.4`–`2.1.8` beta build, uninstall it before installing this `2.1.6` release so Orion replaces it cleanly.
+If you still have an old `2.1.4`–`2.1.8` beta build, uninstall it before installing this `2.1.8` release so Orion replaces it cleanly.
 
 ## Final extension result
 
