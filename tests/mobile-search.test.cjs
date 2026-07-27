@@ -21,7 +21,7 @@ assert.match(source, /const SEARCH_TRIGGER_LAYOUT_VERSION = 'capsule-v217'/);
 assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v217-search-overlay-suggest'/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
 assert.match(source, /function openMobileSearch\(\)/);
-assert.match(source, /function submitMobileSearch\(\)/);
+assert.match(source, /function submitMobileSearch\(/);
 assert.match(source, /function ensureSearchTrigger\(\)/);
 assert.match(source, /class="fyp-search-input"/);
 assert.match(source, /class="fyp-search-trigger-label">Search</);
