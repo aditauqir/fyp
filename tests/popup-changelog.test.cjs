@@ -26,7 +26,7 @@ const patchNotes = fs.readFileSync(
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
 assert.match(popup, /Centered transport strip; speed\/quality in-player icons\./);
-assert.match(popup, /Global search overlay: close, input, submit only\./);
+assert.match(popup, /Search capsule \+ suggestions\/recents under the field\./);
 assert.match(
   popup,
   /Native CC for captions; History\/Now Playing stay intact\./

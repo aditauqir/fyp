@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const version = '2.1.5';
-const releasePath = path.join(root, `${version}_release.zip`);
+const version = '2.1.7';
+const releasePath = path.join(root, `${version}_search-overlay_test.zip`);
 const orionZipPath = path.join(
   root,
   `fuck-youtube-premium-orion-${version}.zip`

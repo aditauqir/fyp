@@ -1,7 +1,7 @@
-# FIX-BRANCH — `fix/search-menus`
+# FIX-BRANCH — `fix/search-overlay-ui`
 
-> Cleaning checklist for any agent continuing this work.
-> Baseline: `origin/main` @ **2.1.2** (`1ca4f57`). Do not revive the failed 2.2.x search/menu rewrites.
+> Cleaning checklist for the search overlay UI branch.
+> Baseline: `fix/search-menus` @ **2.1.5** (`45469de`). Gear/inline-quality work stays on `fix/inline-quality-gear` (**2.1.6**). This branch ships search UI only at **2.1.7**.
 
 ---
 
@@ -9,14 +9,9 @@
 
 1. Read this file + `HANDOFF.md` + `ARCHITECTURE.md` before editing.
 2. Source of truth: `youtube-mobile-background.user.js` → `./rebuild-extension.sh`.
-3. Mirror player-menu behavior in `firefox-extension/content.template.js`.
-4. Webpage strip is transport-only (no Captions / More). Speed + quality live in in-player chrome icons; captions use native YouTube CC.
-5. Prefer the **playback-speed apply pattern** (apply now + retry at 120ms, no native UI click) for speed/quality.
-6. After each issue is addressed, update the Status column below.
-7. **Before starting the next issue, ask the user** whether to continue on:
-   - **this branch** (`fix/search-menus`),
-   - a **separate branch**,
-   - or **stop**.
+3. Mirror search hide/icons in `firefox-extension/content.template.js` (do not own player clock/gear/inline quality).
+4. Webpage strip / in-player chrome are owned by the gear agent — leave them alone on this branch.
+5. After each issue is addressed, update the Status column below.
 
 ---
 
@@ -24,50 +19,33 @@
 
 | ID | Issue | Status | Notes / suggested fix |
 |----|-------|--------|------------------------|
-| M1 | Caption dropdown vanishes / subtitle tap does nothing | **Fixed in 2.1.3 (superseded UI in 2.1.5)** | Webpage Captions button removed in 2.1.5; native CC remains. Ghost-click hardening still applies to chrome menus. |
-| M2 | Playback speed option taps feel like they vanish / fail | **Fixed in 2.1.5** | Speed moved to in-player timer icon; same apply + 120ms retry. |
-| M3 | Quality missing from ⋮ More menu | **Fixed in 2.1.5** | Quality moved to in-player gear icon (no webpage More menu). |
-| M4 | Prior 2.2.x work made player menus disappear entirely | **Avoided** | Stay on speed-pattern menus; chrome overlay is additive, not ownership of native search. |
-| M5 | Cannot scroll Captions / More dropdowns | **Fixed in 2.1.4** | Option `pointerup`/`touchend` + pan-y scrolling preserved for chrome menus. |
-| M6 | Need Lucide-style up-arrow collapse control | **Fixed in 2.1.4** | Collapse chevron kept on speed/quality menus. |
-| M7 | Captions broken — native vs menu fight | **Fixed in 2.1.5** | Webpage captions menu removed; native `.ytp-subtitles-button` is the path. Dedup contract still applies. |
-| M8 | Center webpage transport strip | **Fixed in 2.1.5** | Strip is five buttons (rewind / play-pause / forward / pip / fullscreen), horizontally centered. |
-| M9 | Native speed timer + quality gear icons | **Fixed in 2.1.5** | In-player overlay near control row; Lucide timer + gear; menus use apply+120ms. |
-| S1 | Search mashed / cluttered (Ask YouTube, etc.) | **Fixed in 2.1.5** | Native masthead search chrome hidden; custom overlay is Close + input + Search only. |
-| S2 | Search bar not opening | **Fixed in 2.1.5** | Custom `#…-search-trigger` opens overlay on all browse/watch pages. |
-| S3 | User wanted Close + input + Search only | **Fixed in 2.1.5** | Overlay: left close, center input, right submit; translucent backdrop with ease animation. |
+| S1 | Search mashed / cluttered (Ask YouTube, etc.) | **Fixed in 2.1.7** | Native masthead search chrome stays hidden; custom overlay is Close + centered input + Search only. |
+| S2 | Search bar not opening / hard to find | **Fixed in 2.1.7** | Bottom black `#…-search-trigger` capsule (centered “Search” + Lucide search, no chevron) opens overlay on Home, Watch, History, browse. |
+| S3 | Close + input + Search overlay polish | **Fixed in 2.1.7** | Lucide X left, centered input, Lucide search right; translucent backdrop; ease-in/out open/close. |
+| S4 | Suggestions / recent searches under field | **Fixed in 2.1.7** | Empty query shows localStorage recents; typing fetches YouTube autocomplete via JSONP `suggestqueries` (falls back to filtered recents). |
+
+Menu/player rows (M1–M9) remain documented on `fix/search-menus` / gear branch; not owned here.
 
 ---
 
-## What 2.1.5 changed (code)
+## What 2.1.7 changed (code)
 
-- Removed Captions + More from the webpage control strip; centered rewind / play-pause / forward / pip / fullscreen.
-- Added in-player speed (timer) and quality (gear) overlays with scrollable menus and apply + 120ms retry.
-- Captions path is native YouTube CC; caption dedup still hides WebKit `::cue` beside custom segments.
-- Replaced native masthead search with a global overlay (close / input / submit) and hidden Ask/voice/AI clutter.
-
-## What 2.1.4 changed (code)
-
-- Menus scroll on Orion/iOS; collapse chevron closes the open menu.
-- More menu led with **Video quality**, then Playback speed (superseded by M9 in 2.1.5).
-- Captions prefer YouTube `tracklist` / `setOption`; dedupe only hides WebKit `::cue` beside custom segments.
-
-## What failed before (do not repeat)
-
-- 2.2.0–2.2.3 custom native-search ownership races that fought YouTube’s masthead.
-- Removing outside-close entirely without a working collapse path.
-- Heavy caption paths that click `.ytp-subtitles-button` before the player API apply.
+- Replaced masthead icon-only search trigger with a fixed bottom black capsule: centered **Search** label + Lucide search icon (no chevron).
+- Open overlay keeps Close (left) / input (center) / Search (right) with ease-in-out animation and translucent blurred backdrop.
+- Suggestions panel under the field: **Recent searches** from `localStorage` when empty; **Suggestions** from YouTube autocomplete while typing (JSONP, Orion-safe). Tap a row to search.
+- Native YouTube search icon / masthead searchbox remain hidden; Ask/voice/AI clutter path unchanged.
+- Version bump to `2.1.7` (gear agent uses `2.1.6`).
 
 ## Verification (Orion iPhone)
 
-1. Uninstall old build → install `2.1.5_release.zip` → hard-refresh YouTube.
-2. Webpage strip is centered with five transport buttons only (no Captions / More).
-3. In-player timer opens speed; gear opens quality; both apply and keep playing.
-4. Native CC still toggles captions; no double cues when custom segments show.
-5. Search icon works on Home, Watch, History, and other browse pages; overlay is Close + input + Search only.
+1. Uninstall old build → install `2.1.7_search-overlay_test.zip` → hard-refresh YouTube.
+2. Bottom black Search capsule is visible on Home, Watch, History, and other browse pages; native masthead search icon is gone.
+3. Tap capsule → overlay eases in with translucent backdrop; X left, input center, search right; recents appear under the field when available.
+4. Typing shows YouTube suggestions when reachable; submit / suggestion tap runs `/results?search_query=` and remembers the query.
+5. Do not regress player clock/gear/inline quality (other branch).
 
 ## Next agent prompt template
 
 After reading this file, summarize open rows (`Not fixed`), propose the smallest patch, then ask:
 
-> Continue the next fix on **this branch** (`fix/search-menus`), a **separate branch**, or **stop**?
+> Continue the next fix on **this branch** (`fix/search-overlay-ui`), a **separate branch**, or **stop**?

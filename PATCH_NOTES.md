@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.1.7
+
+- Changed: Bottom black Search capsule trigger (centered Search label + Lucide search icon, no chevron) opens the global overlay on Home, Watch, History, and browse.
+- Changed: Search overlay uses Lucide X (left), centered input, Lucide search (right), translucent backdrop, and ease-in/out animation; native masthead search stays hidden.
+- Added: Under-field Recent searches (localStorage) and live YouTube autocomplete suggestions while typing; tapping a row runs the search.
+- Notes: Search-only branch `fix/search-overlay-ui`; gear/inline-quality remains on the parallel 2.1.6 branch.
+- Packaging: The numeric manifest version is `2.1.7`, and the test Orion installer is `2.1.7_search-overlay_test.zip`.
+
 ## v2.1.5
 
 - Changed: Webpage player strip is centered transport-only (rewind / play-pause / forward / pip / fullscreen); Captions and More were removed from that bar.

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.1.5
-// @release-label 2.1.5
+// @version      2.1.7
+// @release-label 2.1.7
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.5');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.7');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -34,7 +34,12 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v215-search-overlay-chrome';
+  const NAV_LAYOUT_VERSION = 'ext-v217-search-overlay-suggest';
+  const SEARCH_TRIGGER_LAYOUT_VERSION = 'capsule-v217';
+  const SEARCH_OVERLAY_LAYOUT_VERSION = 'suggest-recents-v217';
+  const SEARCH_RECENTS_KEY = `${SCRIPT_ID}:search-recents`;
+  const SEARCH_RECENTS_MAX = 8;
+  const SEARCH_SUGGEST_MAX = 8;
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const NATIVE_SEARCH_HIDE_SELECTOR = [
@@ -64,6 +69,8 @@
    * Keep floating controls above that chrome so they stay tappable.
    */
   const ORION_NAV_GAP = '72px';
+  let searchSuggestTimer = null;
+  let searchSuggestRequestId = 0;
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
   const selectedQualityByVideo = new WeakMap();
@@ -508,9 +515,11 @@
     quality:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
     search:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>',
     close:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+    recent:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
@@ -2576,36 +2585,70 @@
           pointer-events: none !important;
         }
 
-        #${SEARCH_TRIGGER_ID} {
-          appearance: none !important;
-          box-sizing: border-box !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          width: 40px !important;
-          min-width: 40px !important;
-          height: 40px !important;
-          margin: 0 2px 0 0 !important;
-          padding: 8px !important;
-          color: #fff !important;
-          background: transparent !important;
-          border: 0 !important;
-          border-radius: 999px !important;
-          cursor: pointer !important;
-          touch-action: manipulation !important;
-          z-index: 5 !important;
-        }
+      }
 
-        #${SEARCH_TRIGGER_ID} svg {
-          display: block !important;
-          width: 22px !important;
-          height: 22px !important;
-          fill: none !important;
-          stroke: currentColor !important;
-          stroke-width: 2 !important;
-          stroke-linecap: round !important;
-          stroke-linejoin: round !important;
-        }
+      /* Closed search trigger: black capsule, Search + Lucide icon centered. */
+      #${SEARCH_TRIGGER_ID} {
+        appearance: none !important;
+        box-sizing: border-box !important;
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+        top: auto !important;
+        z-index: 2147483645 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        width: auto !important;
+        min-width: 9.5rem !important;
+        height: 48px !important;
+        margin: 0 !important;
+        padding: 0 1.35rem !important;
+        color: #fff !important;
+        background: #000 !important;
+        border: 0 !important;
+        border-radius: 999px !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, .45) !important;
+        cursor: pointer !important;
+        touch-action: manipulation !important;
+        transform: translate3d(-50%, 0, 0) !important;
+        -webkit-transform: translate3d(-50%, 0, 0) !important;
+        font: 600 15px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
+        letter-spacing: .01em !important;
+        transition:
+          opacity .28s ease-in-out,
+          transform .28s ease-in-out,
+          visibility .28s ease-in-out !important;
+      }
+
+      html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transform: translate3d(-50%, 10px, 0) !important;
+        -webkit-transform: translate3d(-50%, 10px, 0) !important;
+      }
+
+      #${SEARCH_TRIGGER_ID} .fyp-search-trigger-label {
+        display: inline-block !important;
+        color: inherit !important;
+        font: inherit !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+      }
+
+      #${SEARCH_TRIGGER_ID} svg {
+        display: block !important;
+        width: 20px !important;
+        height: 20px !important;
+        flex: 0 0 auto !important;
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 2 !important;
+        stroke-linecap: round !important;
+        stroke-linejoin: round !important;
       }
 
       #${SEARCH_OVERLAY_ID} {
@@ -2618,21 +2661,30 @@
         padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 12px;
         pointer-events: none;
         opacity: 0;
-        transition: opacity .22s ease;
+        visibility: hidden;
+        transition:
+          opacity .28s ease-in-out,
+          visibility .28s ease-in-out;
       }
 
       #${SEARCH_OVERLAY_ID}.is-open {
         pointer-events: auto;
         opacity: 1;
+        visibility: visible;
       }
 
       #${SEARCH_OVERLAY_ID} .fyp-search-backdrop {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, .48);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        transition: opacity .22s ease;
+        background: rgba(0, 0, 0, .52);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        opacity: 0;
+        transition: opacity .28s ease-in-out;
+      }
+
+      #${SEARCH_OVERLAY_ID}.is-open .fyp-search-backdrop {
+        opacity: 1;
       }
 
       #${SEARCH_OVERLAY_ID} .fyp-search-panel {
@@ -2640,23 +2692,37 @@
         z-index: 1;
         box-sizing: border-box;
         display: flex;
+        flex-direction: column;
         width: min(100%, 28rem);
-        height: 48px;
         margin-top: 0;
         padding: 4px;
-        align-items: center;
-        gap: 2px;
+        align-items: stretch;
+        gap: 0;
         color: #fff;
         background: rgba(18, 18, 18, .96);
         border: 1px solid rgba(255, 255, 255, .2);
         border-radius: 24px;
         box-shadow: 0 10px 32px rgba(0, 0, 0, .45);
-        transform: translateY(-8px);
-        transition: transform .22s ease;
+        transform: translateY(-12px) scale(.98);
+        opacity: 0;
+        overflow: hidden;
+        transition:
+          transform .28s ease-in-out,
+          opacity .28s ease-in-out;
       }
 
       #${SEARCH_OVERLAY_ID}.is-open .fyp-search-panel {
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-row {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        width: 100%;
+        min-height: 48px;
+        padding: 0;
       }
 
       #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn {
@@ -2704,6 +2770,7 @@
         outline: none;
         font-size: 16px;
         line-height: 40px;
+        text-align: center;
         -webkit-appearance: none;
         appearance: none;
       }
@@ -2711,6 +2778,80 @@
       #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-decoration,
       #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-cancel-button {
         -webkit-appearance: none;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions {
+        display: none;
+        box-sizing: border-box;
+        width: 100%;
+        margin: 0;
+        padding: 4px 4px 8px;
+        list-style: none;
+        max-height: min(48vh, 22rem);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        border-top: 1px solid rgba(255, 255, 255, .1);
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions.is-visible {
+        display: block;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions-label {
+        padding: 8px 12px 4px;
+        color: rgba(255, 255, 255, .55);
+        font: 600 11px/1.2 "SF Pro Text", Roboto, system-ui, sans-serif;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion {
+        appearance: none;
+        box-sizing: border-box;
+        display: flex;
+        width: 100%;
+        min-height: 44px;
+        margin: 0;
+        padding: 0 10px;
+        align-items: center;
+        gap: 10px;
+        color: #fff;
+        background: transparent;
+        border: 0;
+        border-radius: 14px;
+        text-align: left;
+        font: 500 15px/1.25 "SF Pro Text", Roboto, system-ui, sans-serif;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion:active,
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion:focus-visible {
+        background: rgba(255, 255, 255, .1);
+        outline: none;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion svg {
+        display: block;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: .72;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -3136,7 +3277,7 @@
 
       ytd-app,
       ytm-app {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem) !important;
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.75rem) !important;
       }
 
       #${WELCOME_ID} {
@@ -3499,19 +3640,61 @@
     const trigger = document.getElementById(SEARCH_TRIGGER_ID);
     document.documentElement.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
     trigger?.setAttribute('aria-expanded', 'false');
+    if (searchSuggestTimer) {
+      clearTimeout(searchSuggestTimer);
+      searchSuggestTimer = null;
+    }
     if (!(overlay instanceof HTMLElement)) return;
     overlay.classList.remove('is-open');
     const finalize = () => {
       if (!isSearchOverlayOpen()) overlay.hidden = true;
     };
     overlay.addEventListener('transitionend', finalize, { once: true });
-    setTimeout(finalize, 280);
+    setTimeout(finalize, 320);
+  }
+
+  function readRecentSearches() {
+    try {
+      const raw = localStorage.getItem(SEARCH_RECENTS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean)
+        .slice(0, SEARCH_RECENTS_MAX);
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRecentSearches(items) {
+    try {
+      localStorage.setItem(
+        SEARCH_RECENTS_KEY,
+        JSON.stringify(items.slice(0, SEARCH_RECENTS_MAX))
+      );
+    } catch {
+      // Private mode / quota — ignore.
+    }
+  }
+
+  function rememberRecentSearch(query) {
+    const normalized = String(query || '').trim();
+    if (!normalized) return;
+    const next = [
+      normalized,
+      ...readRecentSearches().filter(
+        (item) => item.toLowerCase() !== normalized.toLowerCase()
+      ),
+    ].slice(0, SEARCH_RECENTS_MAX);
+    writeRecentSearches(next);
   }
 
   function searchOverlayMarkup() {
     return (
       `<div class="fyp-search-backdrop" data-fyp-search-action="close"></div>` +
       `<div class="fyp-search-panel" role="dialog" aria-label="Search YouTube">` +
+      `<div class="fyp-search-row">` +
       `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="close" ` +
       `aria-label="Close search" title="Close">${PLAYER_CONTROL_ICONS.close}</button>` +
       `<input type="search" class="fyp-search-input" enterkeyhint="search" ` +
@@ -3519,27 +3702,40 @@
       `placeholder="Search YouTube" aria-label="Search YouTube" />` +
       `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="submit" ` +
       `aria-label="Search" title="Search">${PLAYER_CONTROL_ICONS.search}</button>` +
+      `</div>` +
+      `<div class="fyp-search-suggestions" role="listbox" aria-label="Search suggestions"></div>` +
       `</div>`
     );
   }
 
   function ensureSearchOverlay() {
     let overlay = document.getElementById(SEARCH_OVERLAY_ID);
-    if (overlay instanceof HTMLElement) return overlay;
+    if (
+      overlay instanceof HTMLElement &&
+      overlay.dataset.fypSearchOverlayLayout === SEARCH_OVERLAY_LAYOUT_VERSION
+    ) {
+      return overlay;
+    }
+    if (overlay instanceof HTMLElement) overlay.remove();
     overlay = document.createElement('div');
     overlay.id = SEARCH_OVERLAY_ID;
     overlay.hidden = true;
+    overlay.dataset.fypSearchOverlayLayout = SEARCH_OVERLAY_LAYOUT_VERSION;
     overlay.innerHTML = searchOverlayMarkup();
+    const input = overlay.querySelector('.fyp-search-input');
+    if (input instanceof HTMLInputElement) {
+      input.addEventListener('input', handleMobileSearchInput);
+      input.addEventListener('focus', () => {
+        refreshSearchSuggestions(input.value);
+      });
+    }
     (document.body || document.documentElement).appendChild(overlay);
     return overlay;
   }
 
   function ensureSearchTrigger() {
-    const end =
-      document.querySelector('ytd-masthead #end') ||
-      document.querySelector('ytd-masthead #container') ||
-      document.querySelector('ytd-masthead');
-    if (!(end instanceof Element)) return;
+    const host = document.body || document.documentElement;
+    if (!(host instanceof Element)) return;
 
     let trigger = document.getElementById(SEARCH_TRIGGER_ID);
     if (!(trigger instanceof HTMLButtonElement)) {
@@ -3551,17 +3747,134 @@
       trigger.title = 'Search';
       trigger.setAttribute('aria-haspopup', 'dialog');
       trigger.setAttribute('aria-expanded', 'false');
-      trigger.innerHTML = PLAYER_CONTROL_ICONS.search;
     }
 
-    if (trigger.parentElement !== end) {
-      const buttons = end.querySelector('#buttons');
-      if (buttons instanceof Element) {
-        buttons.insertAdjacentElement('afterbegin', trigger);
-      } else {
-        end.insertAdjacentElement('afterbegin', trigger);
-      }
+    if (trigger.dataset.fypSearchLayout !== SEARCH_TRIGGER_LAYOUT_VERSION) {
+      trigger.dataset.fypSearchLayout = SEARCH_TRIGGER_LAYOUT_VERSION;
+      trigger.innerHTML =
+        `<span class="fyp-search-trigger-label">Search</span>` +
+        PLAYER_CONTROL_ICONS.search;
     }
+
+    if (trigger.parentElement !== host) {
+      host.appendChild(trigger);
+    }
+  }
+
+  function renderSearchSuggestions(items, mode) {
+    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    const list = overlay?.querySelector('.fyp-search-suggestions');
+    if (!(list instanceof HTMLElement)) return;
+
+    const rows = Array.isArray(items) ? items.slice(0, SEARCH_SUGGEST_MAX) : [];
+    if (!rows.length) {
+      list.classList.remove('is-visible');
+      list.innerHTML = '';
+      return;
+    }
+
+    const label = mode === 'suggest' ? 'Suggestions' : 'Recent searches';
+    const icon =
+      mode === 'suggest'
+        ? PLAYER_CONTROL_ICONS.search
+        : PLAYER_CONTROL_ICONS.recent;
+    list.innerHTML =
+      `<div class="fyp-search-suggestions-label">${label}</div>` +
+      rows
+        .map((query) => {
+          const safe = String(query)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+          return (
+            `<button type="button" class="fyp-search-suggestion" role="option" ` +
+            `data-fyp-search-action="suggest" data-fyp-search-query="${safe}">` +
+            `${icon}<span class="fyp-search-suggestion-text">${safe}</span>` +
+            `</button>`
+          );
+        })
+        .join('');
+    list.classList.add('is-visible');
+  }
+
+  function fetchYouTubeSuggestions(query) {
+    const q = String(query || '').trim();
+    if (!q) return Promise.resolve([]);
+
+    return new Promise((resolve) => {
+      const callbackName = `__fypSearchSuggest_${Date.now().toString(36)}_${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+      let settled = false;
+      const finish = (items) => {
+        if (settled) return;
+        settled = true;
+        try {
+          delete window[callbackName];
+        } catch {
+          window[callbackName] = undefined;
+        }
+        script.remove();
+        resolve(Array.isArray(items) ? items : []);
+      };
+
+      window[callbackName] = (payload) => {
+        const list = Array.isArray(payload?.[1]) ? payload[1] : [];
+        const suggestions = list
+          .map((entry) => {
+            if (typeof entry === 'string') return entry;
+            if (Array.isArray(entry) && typeof entry[0] === 'string') return entry[0];
+            return '';
+          })
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .slice(0, SEARCH_SUGGEST_MAX);
+        finish(suggestions);
+      };
+
+      const script = document.createElement('script');
+      script.async = true;
+      script.src =
+        'https://suggestqueries.google.com/complete/search' +
+        `?client=youtube&ds=yt&q=${encodeURIComponent(q)}&callback=${callbackName}`;
+      script.onerror = () => finish([]);
+      setTimeout(() => finish([]), 1800);
+      (document.head || document.documentElement).appendChild(script);
+    });
+  }
+
+  async function refreshSearchSuggestions(rawQuery) {
+    const query = String(rawQuery || '').trim();
+    const requestId = ++searchSuggestRequestId;
+
+    if (!query) {
+      renderSearchSuggestions(readRecentSearches(), 'recent');
+      return;
+    }
+
+    const suggestions = await fetchYouTubeSuggestions(query);
+    if (requestId !== searchSuggestRequestId || !isSearchOverlayOpen()) return;
+
+    if (suggestions.length) {
+      renderSearchSuggestions(suggestions, 'suggest');
+      return;
+    }
+
+    const recents = readRecentSearches().filter((item) =>
+      item.toLowerCase().includes(query.toLowerCase())
+    );
+    renderSearchSuggestions(recents, 'recent');
+  }
+
+  function handleMobileSearchInput(event) {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    if (searchSuggestTimer) clearTimeout(searchSuggestTimer);
+    searchSuggestTimer = setTimeout(() => {
+      searchSuggestTimer = null;
+      refreshSearchSuggestions(input.value);
+    }, 160);
   }
 
   function openMobileSearch() {
@@ -3572,6 +3885,9 @@
     overlay.hidden = false;
     document.documentElement.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
     trigger?.setAttribute('aria-expanded', 'true');
+    refreshSearchSuggestions(
+      input instanceof HTMLInputElement ? input.value : ''
+    );
     requestAnimationFrame(() => {
       overlay.classList.add('is-open');
       if (input instanceof HTMLInputElement) {
@@ -3586,11 +3902,15 @@
     });
   }
 
-  function submitMobileSearch() {
+  function submitMobileSearch(forcedQuery) {
     const overlay = document.getElementById(SEARCH_OVERLAY_ID);
     const input = overlay?.querySelector('.fyp-search-input');
     const query =
-      input instanceof HTMLInputElement ? input.value.trim() : '';
+      typeof forcedQuery === 'string' && forcedQuery.trim()
+        ? forcedQuery.trim()
+        : input instanceof HTMLInputElement
+          ? input.value.trim()
+          : '';
     if (!query) {
       if (input instanceof HTMLInputElement) {
         try {
@@ -3601,6 +3921,8 @@
       }
       return;
     }
+    if (input instanceof HTMLInputElement) input.value = query;
+    rememberRecentSearch(query);
     const target = new URL('https://www.youtube.com/results');
     target.searchParams.set('search_query', query);
     target.searchParams.set('app', 'desktop');
@@ -3629,6 +3951,9 @@
       event.stopImmediatePropagation();
       if (action === 'close') closeMobileSearch();
       else if (action === 'submit') submitMobileSearch();
+      else if (action === 'suggest') {
+        submitMobileSearch(actionNode.dataset.fypSearchQuery || '');
+      }
       return;
     }
 
