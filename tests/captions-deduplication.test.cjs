@@ -25,19 +25,25 @@ assert.match(source, /if \(english && !automatic\) score \+= 400/);
 assert.match(source, /else if \(english && automatic\) score \+= 300/);
 assert.match(
   source,
-  /track\.mode = track === selectedTrack \? 'hidden' : 'disabled'/
+  /customCaptionsVisible[\s\S]*?fypNativeCaptionsHidden = 'true'/
 );
-assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedTrack\)/);
-assert.match(source, /const newlyActiveTracks = activeTracks\.filter/);
 assert.match(
   source,
-  /previousTrack &&[\s\S]*?!activeTracks\.length[\s\S]*?selectedCaptionTrackByVideo\.delete\(video\)/
+  /track\.mode === 'showing'[\s\S]*?track\.mode = 'hidden'/
 );
-assert.match(source, /video\.dataset\.fypNativeCaptionsHidden = 'true'/);
 assert.match(
   source,
-  /video::?-webkit-media-text-track-container|video::-webkit-media-text-track-container/
+  /Caption contract: YouTube's custom caption DOM is the sole visible owner/
 );
+assert.doesNotMatch(
+  source,
+  /nativeCaptions\.click\(\)/
+);
+assert.match(
+  source,
+  /Drive YouTube's caption module exclusively; do not click the native/
+);
+assert.match(source, /video::?-webkit-media-text-track-container|video::-webkit-media-text-track-container/);
 assert.doesNotMatch(
   source,
   /\.ytp-caption-window-container\s*\{[^}]*display: none !important/

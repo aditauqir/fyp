@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.3'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.1\.4'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.3'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.1\.4'\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -48,7 +48,7 @@ assert.match(content, /max-width: 100vw !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner'/
 );
 for (const action of [
   'rewind',
@@ -77,11 +77,20 @@ assert.match(content, /action: 'caption-track'/);
 assert.match(content, /action: 'playback-speed'/);
 assert.match(content, /action: 'playback-quality'/);
 assert.match(content, /function applyFallbackYouTubeQuality\(/);
-assert.match(content, /appendFallbackPlayerMenuTitle\(menu, 'Quality'\)/);
+assert.match(content, /ignoreFallbackPlayerControlActionsUntil = Date\.now\(\) \+ 500/);
+assert.match(content, /appendFallbackPlayerMenuTitle\(menu, 'Video quality'\)/);
+assert.match(content, /FALLBACK_QUALITY_LEVELS/);
+assert.match(content, /appendFallbackPlayerMenuCollapse\(/);
+assert.match(content, /dataset\.fypPlayerOption = 'menu-collapse'/);
+assert.match(content, /action === 'menu-collapse'/);
+assert.match(content, /-webkit-overflow-scrolling: touch/);
+assert.match(content, /touch-action: pan-y/);
+assert.match(content, /pendingFallbackMenuOptionGesture/);
 assert.match(
   content,
-  /ignoreFallbackPlayerControlActionsUntil = Date\.now\(\) \+ 500/
+  /'PointerEvent' in window \? 'pointerup' : 'touchend',\s*handleFallbackPlayerControlActionCapture/
 );
+assert.doesNotMatch(content, /nativeCaptions\.click\(\)/);
 assert.match(content, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
 assert.match(content, /action: 'native-settings'/);
 assert.match(
@@ -116,7 +125,11 @@ assert.match(content, /page-subtype='channels'/);
 assert.match(content, /ytd-channel-video-player-renderer/);
 assert.match(
   content,
-  /\[data-fyp-player-option\], \[data-fyp-player-action\]/
+  /target\.closest\(\s*'\[data-fyp-player-option\]'\s*\)/
+);
+assert.match(
+  content,
+  /target\.closest\(\s*'\[data-fyp-player-action\]'\s*\)/
 );
 assert.match(content, /grid-column: 1 \/ -1 !important/);
 assert.match(content, /max-height: min\(42svh, 18rem\) !important/);

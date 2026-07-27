@@ -1,5 +1,14 @@
 # Patch Notes
 
+## v2.1.4
+
+- Fixed: Captions and More dropdowns scroll on Orion/iOS (`overflow-y` + touch pan); option taps no longer block scrolling.
+- Added: Lucide-style up-arrow collapse control at the top of Captions and More menus.
+- Fixed: Captions use YouTube’s caption module only (no native subtitles-button fight); WebKit `::cue` hides only when custom caption segments exist.
+- Fixed: More menu leads with a clear **Video quality** section populated from player levels (with a durable fallback ladder) using the same apply + 120ms retry as speed.
+- Preserved: Seven-button toolbar, playback-speed options, History layout, and Now Playing sync from 2.1.3 / 2.1.2.
+- Packaging: The numeric manifest version is `2.1.4`, and the recommended Orion installer is `2.1.4_release.zip`.
+
 ## v2.1.3
 
 - Fixed: Caption and playback-speed menu options apply again on Orion; option taps no longer vanish via a ghost click that re-hits Captions/More under the closed menu.

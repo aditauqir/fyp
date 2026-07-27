@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);
@@ -61,15 +61,29 @@ assert.match(source, /player\.setOption\('captions', 'track', youtubeTrack\)/);
 assert.match(source, /player\.setOption\('captions', 'reload', true\)/);
 assert.match(source, /setTimeout\(applyCaptionSelection, 120\)/);
 assert.match(source, /function toggleMorePlayerMenu\(/);
-assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedTrack\)/);
+assert.match(source, /selectedCaptionTrackByVideo\.set\(video, matchedTextTrack\)/);
+assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedMeta\)/);
 assert.match(source, /action: 'captions-off'/);
 assert.match(source, /action: 'caption-track'/);
 assert.match(source, /action: 'playback-speed'/);
 assert.match(source, /action: 'playback-quality'/);
 assert.match(source, /function applyYouTubeQuality\(/);
 assert.match(source, /function youtubeQualityLevels\(/);
-assert.match(source, /appendPlayerMenuTitle\(menu, 'Quality'\)/);
 assert.match(source, /ignorePlayerControlActionsUntil = Date\.now\(\) \+ 500/);
+assert.match(source, /appendPlayerMenuTitle\(menu, 'Video quality'\)/);
+assert.match(source, /FALLBACK_QUALITY_LEVELS/);
+assert.match(source, /appendPlayerMenuCollapse\(/);
+assert.match(source, /dataset\.fypPlayerOption = 'menu-collapse'/);
+assert.match(source, /action === 'menu-collapse'/);
+assert.match(source, /-webkit-overflow-scrolling: touch/);
+assert.match(source, /touch-action: pan-y/);
+assert.match(source, /pendingMenuOptionGesture/);
+assert.match(
+  source,
+  /'PointerEvent' in window \? 'pointerup' : 'touchend',\s*handlePlayerControlActionCapture/
+);
+assert.match(source, /function currentYouTubeCaptionTrack\(/);
+assert.doesNotMatch(source, /nativeCaptions\.click\(\)/);
 assert.match(source, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
 assert.match(source, /action: 'native-settings'/);
 assert.match(
@@ -79,7 +93,11 @@ assert.match(
 assert.doesNotMatch(source, /setTimeout\(applyCaptionSelection, 350\)/);
 assert.match(
   source,
-  /\[data-fyp-player-option\], \[data-fyp-player-action\]/
+  /target\.closest\(\s*'\[data-fyp-player-option\]'\s*\)/
+);
+assert.match(
+  source,
+  /target\.closest\(\s*'\[data-fyp-player-action\]'\s*\)/
 );
 assert.match(source, /grid-column: 1 \/ -1;/);
 assert.match(source, /max-height: min\(42svh, 18rem\);/);

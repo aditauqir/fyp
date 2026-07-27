@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.1.3
-// @release-label 2.1.3
+// @version      2.1.4
+// @release-label 2.1.4
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,19 +18,19 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.3');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.4');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v215-v220-layout-history-stack';
+  const NAV_LAYOUT_VERSION = 'ext-v214-menu-scroll-collapse';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -42,6 +42,16 @@
     'ytd-masthead yt-icon-button[aria-label="Search"]',
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
+  const MENU_OPTION_TAP_SLOP_PX = 12;
+  const FALLBACK_QUALITY_LEVELS = Object.freeze([
+    'auto',
+    'hd1080',
+    'hd720',
+    'large',
+    'medium',
+    'small',
+    'tiny',
+  ]);
   /*
    * Orion's floating address bar overlays the bottom of the page (like Safari).
    * Keep floating controls above that chrome so they stay tappable.
@@ -51,6 +61,7 @@
   const selectedCaptionTrackByVideo = new WeakMap();
   const selectedQualityByVideo = new WeakMap();
   let ignorePlayerControlActionsUntil = 0;
+  let pendingMenuOptionGesture = null;
   let lastMediaSessionMetadataKey = '';
   function channelVideosUrl(input) {
     let target;
@@ -487,6 +498,8 @@
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
     more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>',
+    collapse:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
 
   function playerControlButtonMarkup(action, label, icon) {
@@ -579,14 +592,21 @@
     );
     if (captionsButton instanceof HTMLButtonElement) {
       const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+      const player = video?.closest?.('#movie_player, .html5-video-player');
       const captionsActive =
         nativeCaptions?.getAttribute('aria-pressed') === 'true' ||
+        Boolean(video && selectedCaptionTrackByVideo.has(video)) ||
+        Boolean(
+          player?.querySelector(
+            '.ytp-caption-window-container .ytp-caption-segment'
+          )
+        ) ||
         Boolean(
           video &&
             [...video.textTracks].some(
               (track) =>
                 (track.kind === 'captions' || track.kind === 'subtitles') &&
-                track.mode === 'showing'
+                (track.mode === 'showing' || track.mode === 'hidden')
             )
         );
       captionsButton.setAttribute('aria-pressed', String(captionsActive));
@@ -649,6 +669,18 @@
     menu.appendChild(title);
   }
 
+  function appendPlayerMenuCollapse(menu) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fyp-player-menu-collapse';
+    button.dataset.fypPlayerOption = 'menu-collapse';
+    button.setAttribute('aria-label', 'Collapse menu');
+    button.title = 'Collapse menu';
+    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    menu.appendChild(button);
+    return button;
+  }
+
   function appendPlayerMenuOption(
     menu,
     {
@@ -659,6 +691,8 @@
       trackIndex,
       speed,
       quality,
+      captionLanguage,
+      captionLabel,
     }
   ) {
     const option = document.createElement('button');
@@ -670,6 +704,12 @@
     }
     if (speed !== undefined) option.dataset.fypSpeed = String(speed);
     if (quality !== undefined) option.dataset.fypQuality = String(quality);
+    if (captionLanguage !== undefined) {
+      option.dataset.fypCaptionLanguage = String(captionLanguage);
+    }
+    if (captionLabel !== undefined) {
+      option.dataset.fypCaptionLabel = String(captionLabel);
+    }
     option.setAttribute('role', 'menuitemradio');
     option.setAttribute('aria-checked', String(checked));
     option.disabled = disabled;
@@ -719,10 +759,21 @@
     try {
       player.loadModule?.('captions');
     } catch {}
-    const selectedLabel = String(selectedTrack.label || '').trim().toLowerCase();
-    const selectedLanguage = String(selectedTrack.language || '').toLowerCase();
-    const youtubeTrack =
-      youtubeCaptionTrackList().find((track) => {
+    const selectedLabel = String(
+      selectedTrack?.label || selectedTrack?.captionLabel || ''
+    )
+      .trim()
+      .toLowerCase();
+    const selectedLanguage = String(
+      selectedTrack?.language ||
+        selectedTrack?.languageCode ||
+        selectedTrack?.captionLanguage ||
+        selectedTrack?.lang ||
+        ''
+    ).toLowerCase();
+    const youtubeTrackList = youtubeCaptionTrackList();
+    let youtubeTrack =
+      youtubeTrackList.find((track) => {
         const label = captionOptionText(
           track.displayName || track.name || track.label
         ).toLowerCase();
@@ -733,20 +784,49 @@
           (selectedLabel && label === selectedLabel) ||
           (selectedLanguage && language === selectedLanguage)
         );
-      }) ||
-      (selectedLanguage
-        ? {
-            languageCode: selectedTrack.language,
-            language: selectedTrack.language,
-          }
-        : null);
+      }) || null;
+    if (!youtubeTrack && selectedTrack && typeof selectedTrack === 'object') {
+      if (
+        selectedTrack.languageCode ||
+        selectedTrack.language ||
+        selectedTrack.lang
+      ) {
+        youtubeTrack = selectedTrack;
+      } else if (selectedLanguage) {
+        youtubeTrack = {
+          languageCode: selectedLanguage,
+          language: selectedLanguage,
+        };
+      }
+    }
     if (!youtubeTrack) return false;
     try {
+      // Drive YouTube's caption module exclusively; do not click the native
+      // subtitles button or force textTrack mode here.
       player.setOption('captions', 'track', youtubeTrack);
       player.setOption('captions', 'reload', true);
       return true;
     } catch {
       return false;
+    }
+  }
+
+  function currentYouTubeCaptionTrack() {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.getOption !== 'function') return null;
+    try {
+      const track = player.getOption('captions', 'track');
+      if (!track || typeof track !== 'object') return null;
+      const language = String(
+        track.languageCode || track.language || track.lang || ''
+      ).trim();
+      const label = captionOptionText(
+        track.displayName || track.name || track.label
+      );
+      if (!language && !label) return null;
+      return track;
+    } catch {
+      return null;
     }
   }
 
@@ -768,7 +848,7 @@
 
   function youtubeQualityLevels() {
     const player = document.querySelector('#movie_player');
-    if (!player) return ['auto'];
+    if (!player) return [...FALLBACK_QUALITY_LEVELS];
     let levels = [];
     try {
       if (typeof player.getAvailableQualityLevels === 'function') {
@@ -783,11 +863,25 @@
         levels = [];
       }
     }
-    const normalized = levels
-      .map((level) => String(level || '').trim())
-      .filter(Boolean);
+    if (!levels.length) {
+      try {
+        const qualityData = player.getAvailableQualityData?.() || [];
+        levels = qualityData
+          .map((entry) => entry?.quality || entry?.id || entry)
+          .filter(Boolean);
+      } catch {
+        levels = [];
+      }
+    }
+    const normalized = [
+      ...new Set(
+        levels.map((level) => String(level || '').trim()).filter(Boolean)
+      ),
+    ];
     if (!normalized.includes('auto')) normalized.unshift('auto');
-    return normalized.length ? normalized : ['auto'];
+    // Orion sometimes reports only "auto" before levels settle; keep a usable ladder.
+    if (normalized.length <= 1) return [...FALLBACK_QUALITY_LEVELS];
+    return normalized;
   }
 
   function currentYouTubeQuality(video) {
@@ -830,27 +924,76 @@
     );
     if (!menu) return;
 
-    const tracks = captionTracks(video);
-    const selectedTrack =
-      selectedCaptionTrackByVideo.get(video) ||
-      tracks.find((track) => track.mode !== 'disabled');
+    appendPlayerMenuCollapse(menu);
     appendPlayerMenuTitle(menu, 'Captions');
+
+    const youtubeTracks = youtubeCaptionTrackList();
+    const textTracks = captionTracks(video);
+    const currentYoutubeTrack = currentYouTubeCaptionTrack();
+    const currentLanguage = String(
+      currentYoutubeTrack?.languageCode ||
+        currentYoutubeTrack?.language ||
+        currentYoutubeTrack?.lang ||
+        ''
+    ).toLowerCase();
+    const currentLabel = captionOptionText(
+      currentYoutubeTrack?.displayName ||
+        currentYoutubeTrack?.name ||
+        currentYoutubeTrack?.label
+    ).toLowerCase();
+    const selectedTextTrack =
+      selectedCaptionTrackByVideo.get(video) ||
+      textTracks.find((track) => track.mode !== 'disabled');
+    const captionsAreOff = !(
+      currentYoutubeTrack ||
+      selectedTextTrack ||
+      selectedCaptionTrackByVideo.has(video)
+    );
+
     appendPlayerMenuOption(menu, {
       action: 'captions-off',
       label: 'Off',
-      checked: !selectedTrack,
+      checked: captionsAreOff,
     });
-    tracks.forEach((track, index) => {
+
+    if (youtubeTracks.length) {
+      youtubeTracks.forEach((track, index) => {
+        const label =
+          captionOptionText(track.displayName || track.name || track.label) ||
+          String(track.languageCode || track.language || '').trim() ||
+          `Captions ${index + 1}`;
+        const language = String(
+          track.languageCode || track.language || track.lang || ''
+        ).trim();
+        const checked = Boolean(
+          (currentLanguage && language.toLowerCase() === currentLanguage) ||
+            (currentLabel && label.toLowerCase() === currentLabel)
+        );
+        appendPlayerMenuOption(menu, {
+          action: 'caption-track',
+          label,
+          checked,
+          trackIndex: index,
+          captionLanguage: language,
+          captionLabel: label,
+        });
+      });
+      return;
+    }
+
+    textTracks.forEach((track, index) => {
       appendPlayerMenuOption(menu, {
         action: 'caption-track',
         label:
           String(track.label || track.language || '').trim() ||
           `Captions ${index + 1}`,
-        checked: track === selectedTrack,
+        checked: track === selectedTextTrack,
         trackIndex: index,
+        captionLanguage: track.language || '',
+        captionLabel: track.label || '',
       });
     });
-    if (!tracks.length) {
+    if (!textTracks.length) {
       appendPlayerMenuOption(menu, {
         action: 'caption-unavailable',
         label: 'No captions available',
@@ -869,6 +1012,20 @@
     );
     if (!menu) return;
 
+    appendPlayerMenuCollapse(menu);
+
+    const qualities = youtubeQualityLevels();
+    const currentQuality = String(currentYouTubeQuality(video) || 'auto');
+    appendPlayerMenuTitle(menu, 'Video quality');
+    for (const quality of qualities) {
+      appendPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: qualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
+
     appendPlayerMenuTitle(menu, 'Playback speed');
     for (const speed of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
       appendPlayerMenuOption(menu, {
@@ -876,18 +1033,6 @@
         label: speed === 1 ? 'Normal' : `${speed}×`,
         checked: Math.abs(video.playbackRate - speed) < 0.01,
         speed,
-      });
-    }
-
-    const qualities = youtubeQualityLevels();
-    const currentQuality = String(currentYouTubeQuality(video) || 'auto');
-    appendPlayerMenuTitle(menu, 'Quality');
-    for (const quality of qualities) {
-      appendPlayerMenuOption(menu, {
-        action: 'playback-quality',
-        label: qualityOptionLabel(quality),
-        checked: currentQuality === quality,
-        quality,
       });
     }
 
@@ -907,39 +1052,59 @@
     /*
      * Playback-speed is the known-good Orion pattern: apply immediately, retry
      * once at 120ms, avoid native UI clicks that steal the gesture. Captions
-     * and quality follow that same shape.
+     * and quality follow that same shape. Caption ownership stays with YouTube's
+     * caption module — never click .ytp-subtitles-button from this menu.
      */
-    if (action === 'captions-off') {
+    if (action === 'menu-collapse') {
+      // Close only; shared cleanup below still runs.
+    } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          document
-            .querySelector('#movie_player')
-            ?.setOption?.('captions', 'track', {});
+          const player = document.querySelector('#movie_player');
+          player?.loadModule?.('captions');
+          player?.setOption?.('captions', 'track', {});
         } catch {}
-        captionTracks(video).forEach((track) => {
-          track.mode = 'disabled';
-        });
         selectedCaptionTrackByVideo.delete(video);
         delete video.dataset.fypNativeCaptionsHidden;
-        const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-        if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
-          nativeCaptions.click();
-        }
       };
       applyCaptionsOff();
       setTimeout(applyCaptionsOff, 120);
     } else if (action === 'caption-track') {
-      const selectedTrack =
-        captionTracks(video)[Number(option.dataset.fypTrackIndex)];
-      if (!selectedTrack) return;
+      const language = String(option.dataset.fypCaptionLanguage || '').trim();
+      const label = String(option.dataset.fypCaptionLabel || '').trim();
+      const trackIndex = Number(option.dataset.fypTrackIndex);
+      const youtubeTracks = youtubeCaptionTrackList();
+      const textTracks = captionTracks(video);
+      const selectedMeta =
+        (Number.isFinite(trackIndex) && youtubeTracks[trackIndex]) ||
+        {
+          language,
+          languageCode: language,
+          label,
+          captionLanguage: language,
+          captionLabel: label,
+        };
       const applyCaptionSelection = () => {
-        selectYouTubeCaptionTrack(selectedTrack);
-        for (const track of captionTracks(video)) {
-          track.mode = track === selectedTrack ? 'hidden' : 'disabled';
+        selectYouTubeCaptionTrack(selectedMeta);
+        const matchedTextTrack =
+          (Number.isFinite(trackIndex) && textTracks[trackIndex]) ||
+          textTracks.find((track) => {
+            const trackLanguage = String(track.language || '').toLowerCase();
+            const trackLabel = String(track.label || '')
+              .trim()
+              .toLowerCase();
+            return (
+              (language && trackLanguage === language.toLowerCase()) ||
+              (label && trackLabel === label.toLowerCase())
+            );
+          });
+        if (matchedTextTrack) {
+          selectedCaptionTrackByVideo.set(video, matchedTextTrack);
+        } else {
+          selectedCaptionTrackByVideo.set(video, selectedMeta);
         }
-        selectedCaptionTrackByVideo.set(video, selectedTrack);
-        video.dataset.fypNativeCaptionsHidden = 'true';
-        suppressDuplicateNativeCaptions(video);
+        // Deduplicate only after YouTube's custom caption layer can paint.
+        setTimeout(() => suppressDuplicateNativeCaptions(video), 250);
       };
       applyCaptionSelection();
       setTimeout(applyCaptionSelection, 120);
@@ -1089,6 +1254,25 @@
     return true;
   }
 
+  function eventClientPoint(event) {
+    if (event.changedTouches?.[0]) {
+      return {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY,
+      };
+    }
+    if (event.touches?.[0]) {
+      return {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      };
+    }
+    return {
+      x: Number(event.clientX) || 0,
+      y: Number(event.clientY) || 0,
+    };
+  }
+
   function handlePlayerControlActionCapture(event) {
     if (Date.now() < ignorePlayerControlActionsUntil) {
       if (event.cancelable) event.preventDefault();
@@ -1097,20 +1281,60 @@
     }
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest(
-      '[data-fyp-player-option], [data-fyp-player-action]'
-    );
+
+    const optionButton = target.closest('[data-fyp-player-option]');
+    if (optionButton instanceof HTMLButtonElement) {
+      /*
+       * Dropdown options must remain scrollable on Orion/iOS. Do not
+       * preventDefault on pointerdown/touchstart — that kills overflow-y
+       * scrolling. Activate only on a short, low-slop pointerup/touchend.
+       */
+      if (event.type === 'pointerdown' || event.type === 'touchstart') {
+        const point = eventClientPoint(event);
+        pendingMenuOptionGesture = {
+          button: optionButton,
+          x: point.x,
+          y: point.y,
+        };
+        event.stopPropagation();
+        return;
+      }
+      if (
+        event.type === 'pointercancel' ||
+        event.type === 'touchcancel'
+      ) {
+        pendingMenuOptionGesture = null;
+        return;
+      }
+      if (event.type === 'pointerup' || event.type === 'touchend') {
+        const gesture = pendingMenuOptionGesture;
+        pendingMenuOptionGesture = null;
+        if (!gesture || gesture.button !== optionButton) return;
+        const point = eventClientPoint(event);
+        const moved =
+          Math.abs(point.x - gesture.x) > MENU_OPTION_TAP_SLOP_PX ||
+          Math.abs(point.y - gesture.y) > MENU_OPTION_TAP_SLOP_PX;
+        if (moved) return;
+        if (event.cancelable) event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!acceptSinglePlayerControlAction(optionButton)) return;
+        ignorePlayerControlActionsUntil = Date.now() + 500;
+        void runPlayerControlOption(optionButton);
+        return;
+      }
+      if (event.type === 'click') {
+        if (event.cancelable) event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+      return;
+    }
+
+    const button = target.closest('[data-fyp-player-action]');
     if (!(button instanceof HTMLButtonElement)) return;
     if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
     if (!acceptSinglePlayerControlAction(button)) return;
-    if (button.dataset.fypPlayerOption) {
-      // Block the synthetic click that lands on the toolbar after the menu closes.
-      ignorePlayerControlActionsUntil = Date.now() + 500;
-      void runPlayerControlOption(button);
-    } else {
-      void runPlayerControlAction(button.dataset.fypPlayerAction, button);
-    }
+    void runPlayerControlAction(button.dataset.fypPlayerAction, button);
   }
 
   function closePlayerControlMenuFromOutside(event) {
@@ -1435,75 +1659,35 @@
     const player = video.closest('#movie_player, .html5-video-player');
     if (!player) return;
 
-    const tracks = [];
-    for (let index = 0; index < video.textTracks.length; index += 1) {
-      const track = video.textTracks[index];
-      if (track.kind === 'captions' || track.kind === 'subtitles') {
-        tracks.push(track);
-      }
-    }
-    if (!tracks.length) return;
-
     const customCaptionsVisible = Boolean(
       player.querySelector('.ytp-caption-window-container .ytp-caption-segment')
     );
-    const captionsButtonState = player
-      .querySelector('.ytp-subtitles-button')
-      ?.getAttribute('aria-pressed');
-    const captionsButtonPressed = captionsButtonState === 'true';
-    const activeTracks = tracks.filter((track) => track.mode !== 'disabled');
-    const previousTrack = selectedCaptionTrackByVideo.get(video);
-    if (
-      previousTrack &&
-      !activeTracks.length &&
-      captionsButtonState !== 'true'
-    ) {
-      selectedCaptionTrackByVideo.delete(video);
+
+    /*
+     * Caption contract: YouTube's custom caption DOM is the sole visible owner.
+     * Only hide WebKit's native ::cue when custom segments exist. Do not click
+     * .ytp-subtitles-button, do not globally disable captions, and do not force
+     * a competing TextTrack selection that fights YouTube's caption module.
+     */
+    if (!customCaptionsVisible) {
       delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
-    if (!customCaptionsVisible && !captionsButtonPressed && !activeTracks.length) {
-      selectedCaptionTrackByVideo.delete(video);
-      return;
-    }
 
-    const newlyActiveTracks = activeTracks.filter(
-      (track) => track !== previousTrack
-    );
-    let selectedTrack;
-    if (previousTrack && newlyActiveTracks.length) {
-      // A native Languages-menu tap selected another track. Respect it while
-      // still disabling every other simultaneously selected subtitle.
-      selectedTrack = chooseBestCaptionTrack(newlyActiveTracks);
-    } else if (
-      previousTrack &&
-      tracks.includes(previousTrack) &&
-      previousTrack.mode !== 'disabled'
-    ) {
-      selectedTrack = previousTrack;
-    } else {
-      // Default: authored English, then English auto-generated, then the best
-      // remaining active or available subtitle.
-      selectedTrack = chooseBestCaptionTrack(
-        activeTracks.length ? activeTracks : tracks
-      );
-    }
-    if (!selectedTrack) return;
-
-    /*
-     * Exactly one hidden track keeps cues active for YouTube's renderer while
-     * preventing WebKit from drawing a native copy. Disabling every other
-     * track also repairs Orion's native menu allowing multiple selections.
-     */
-    for (const track of tracks) {
-      try {
-        track.mode = track === selectedTrack ? 'hidden' : 'disabled';
-      } catch {
-        // The WebKit pseudo-element fallback below handles locked tracks.
+    video.dataset.fypNativeCaptionsHidden = 'true';
+    for (let index = 0; index < video.textTracks.length; index += 1) {
+      const track = video.textTracks[index];
+      if (
+        (track.kind === 'captions' || track.kind === 'subtitles') &&
+        track.mode === 'showing'
+      ) {
+        try {
+          track.mode = 'hidden';
+        } catch {
+          // CSS ::cue hiding still covers locked WebKit tracks.
+        }
       }
     }
-    selectedCaptionTrackByVideo.set(video, selectedTrack);
-    video.dataset.fypNativeCaptionsHidden = 'true';
   }
 
   function metadataContent(selector) {
@@ -2704,7 +2888,38 @@
         box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
         overflow-x: hidden;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
+        touch-action: pan-y;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
+        appearance: none;
+        box-sizing: border-box;
+        align-self: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: clamp(2.6rem, 12vw, 3.1rem);
+        min-height: clamp(1.7rem, 7vw, 2rem);
+        margin: 0;
+        padding: 0;
+        color: rgba(255, 255, 255, .88);
+        background: rgba(255, 255, 255, .08);
+        border: 1px solid rgba(255, 255, 255, .14);
+        border-radius: 999px;
+        touch-action: manipulation;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
+        display: block;
+        width: clamp(1.05rem, 4.5vw, 1.25rem);
+        height: clamp(1.05rem, 4.5vw, 1.25rem);
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
@@ -2726,7 +2941,7 @@
         border-radius: clamp(.6rem, 2.5vw, .8rem);
         text-align: left;
         font: 600 clamp(.8rem, 3.4vw, .95rem)/1.25 Roboto, Arial, sans-serif;
-        touch-action: manipulation;
+        touch-action: pan-y;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -4098,6 +4313,16 @@
     'PointerEvent' in window ? 'pointerdown' : 'touchstart',
     handlePlayerControlActionCapture,
     { capture: true, passive: false }
+  );
+  nativeDocumentAddEventListener(
+    'PointerEvent' in window ? 'pointerup' : 'touchend',
+    handlePlayerControlActionCapture,
+    { capture: true, passive: false }
+  );
+  nativeDocumentAddEventListener(
+    'PointerEvent' in window ? 'pointercancel' : 'touchcancel',
+    handlePlayerControlActionCapture,
+    { capture: true, passive: true }
   );
   nativeDocumentAddEventListener(
     'PointerEvent' in window ? 'pointerdown' : 'touchstart',

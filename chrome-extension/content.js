@@ -27,12 +27,22 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.3';
+  const EXPECTED_PAGE_VERSION = '2.1.4';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v213-speed-pattern-menus';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner';
+  const MENU_OPTION_TAP_SLOP_PX = 12;
+  const FALLBACK_QUALITY_LEVELS = Object.freeze([
+    'auto',
+    'hd1080',
+    'hd720',
+    'large',
+    'medium',
+    'small',
+    'tiny',
+  ]);
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -41,6 +51,7 @@
   const fallbackSelectedCaptionTrackByVideo = new WeakMap();
   const fallbackSelectedQualityByVideo = new WeakMap();
   let ignoreFallbackPlayerControlActionsUntil = 0;
+  let pendingFallbackMenuOptionGesture = null;
   const fallbackPlaybackState = {
     video: null,
     wantsPlayback: false,
@@ -57,6 +68,8 @@
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
     more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>',
+    collapse:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
 
   function playerControlButtonMarkup(action, label, icon) {
@@ -428,14 +441,21 @@
     );
     if (captionsButton instanceof HTMLButtonElement) {
       const nativeCaptions = document.querySelector('.ytp-subtitles-button');
+      const player = video?.closest?.('#movie_player, .html5-video-player');
       const active =
         nativeCaptions?.getAttribute('aria-pressed') === 'true' ||
+        Boolean(video && fallbackSelectedCaptionTrackByVideo.has(video)) ||
+        Boolean(
+          player?.querySelector(
+            '.ytp-caption-window-container .ytp-caption-segment'
+          )
+        ) ||
         Boolean(
           video &&
             [...video.textTracks].some(
               (track) =>
                 (track.kind === 'captions' || track.kind === 'subtitles') &&
-                track.mode === 'showing'
+                (track.mode === 'showing' || track.mode === 'hidden')
             )
         );
       captionsButton.setAttribute('aria-pressed', String(active));
@@ -496,6 +516,18 @@
     menu.appendChild(title);
   }
 
+  function appendFallbackPlayerMenuCollapse(menu) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'fyp-player-menu-collapse';
+    button.dataset.fypPlayerOption = 'menu-collapse';
+    button.setAttribute('aria-label', 'Collapse menu');
+    button.title = 'Collapse menu';
+    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    menu.appendChild(button);
+    return button;
+  }
+
   function appendFallbackPlayerMenuOption(
     menu,
     {
@@ -506,6 +538,8 @@
       trackIndex,
       speed,
       quality,
+      captionLanguage,
+      captionLabel,
     }
   ) {
     const option = document.createElement('button');
@@ -517,6 +551,12 @@
     }
     if (speed !== undefined) option.dataset.fypSpeed = String(speed);
     if (quality !== undefined) option.dataset.fypQuality = String(quality);
+    if (captionLanguage !== undefined) {
+      option.dataset.fypCaptionLanguage = String(captionLanguage);
+    }
+    if (captionLabel !== undefined) {
+      option.dataset.fypCaptionLabel = String(captionLabel);
+    }
     option.setAttribute('role', 'menuitemradio');
     option.setAttribute('aria-checked', String(checked));
     option.disabled = disabled;
@@ -566,10 +606,21 @@
     try {
       player.loadModule?.('captions');
     } catch {}
-    const selectedLabel = String(selectedTrack.label || '').trim().toLowerCase();
-    const selectedLanguage = String(selectedTrack.language || '').toLowerCase();
-    const youtubeTrack =
-      fallbackYouTubeCaptionTrackList().find((track) => {
+    const selectedLabel = String(
+      selectedTrack?.label || selectedTrack?.captionLabel || ''
+    )
+      .trim()
+      .toLowerCase();
+    const selectedLanguage = String(
+      selectedTrack?.language ||
+        selectedTrack?.languageCode ||
+        selectedTrack?.captionLanguage ||
+        selectedTrack?.lang ||
+        ''
+    ).toLowerCase();
+    const youtubeTrackList = fallbackYouTubeCaptionTrackList();
+    let youtubeTrack =
+      youtubeTrackList.find((track) => {
         const label = fallbackCaptionOptionText(
           track.displayName || track.name || track.label
         ).toLowerCase();
@@ -580,13 +631,21 @@
           (selectedLabel && label === selectedLabel) ||
           (selectedLanguage && language === selectedLanguage)
         );
-      }) ||
-      (selectedLanguage
-        ? {
-            languageCode: selectedTrack.language,
-            language: selectedTrack.language,
-          }
-        : null);
+      }) || null;
+    if (!youtubeTrack && selectedTrack && typeof selectedTrack === 'object') {
+      if (
+        selectedTrack.languageCode ||
+        selectedTrack.language ||
+        selectedTrack.lang
+      ) {
+        youtubeTrack = selectedTrack;
+      } else if (selectedLanguage) {
+        youtubeTrack = {
+          languageCode: selectedLanguage,
+          language: selectedLanguage,
+        };
+      }
+    }
     if (!youtubeTrack) return false;
     try {
       player.setOption('captions', 'track', youtubeTrack);
@@ -594,6 +653,25 @@
       return true;
     } catch {
       return false;
+    }
+  }
+
+  function currentFallbackYouTubeCaptionTrack() {
+    const player = document.querySelector('#movie_player');
+    if (!player || typeof player.getOption !== 'function') return null;
+    try {
+      const track = player.getOption('captions', 'track');
+      if (!track || typeof track !== 'object') return null;
+      const language = String(
+        track.languageCode || track.language || track.lang || ''
+      ).trim();
+      const label = fallbackCaptionOptionText(
+        track.displayName || track.name || track.label
+      );
+      if (!language && !label) return null;
+      return track;
+    } catch {
+      return null;
     }
   }
 
@@ -615,7 +693,7 @@
 
   function fallbackYouTubeQualityLevels() {
     const player = document.querySelector('#movie_player');
-    if (!player) return ['auto'];
+    if (!player) return [...FALLBACK_QUALITY_LEVELS];
     let levels = [];
     try {
       if (typeof player.getAvailableQualityLevels === 'function') {
@@ -630,11 +708,24 @@
         levels = [];
       }
     }
-    const normalized = levels
-      .map((level) => String(level || '').trim())
-      .filter(Boolean);
+    if (!levels.length) {
+      try {
+        const qualityData = player.getAvailableQualityData?.() || [];
+        levels = qualityData
+          .map((entry) => entry?.quality || entry?.id || entry)
+          .filter(Boolean);
+      } catch {
+        levels = [];
+      }
+    }
+    const normalized = [
+      ...new Set(
+        levels.map((level) => String(level || '').trim()).filter(Boolean)
+      ),
+    ];
     if (!normalized.includes('auto')) normalized.unshift('auto');
-    return normalized.length ? normalized : ['auto'];
+    if (normalized.length <= 1) return [...FALLBACK_QUALITY_LEVELS];
+    return normalized;
   }
 
   function currentFallbackYouTubeQuality(video) {
@@ -677,27 +768,78 @@
     );
     if (!menu) return;
 
-    const tracks = fallbackCaptionTracks(video);
-    const selectedTrack =
-      fallbackSelectedCaptionTrackByVideo.get(video) ||
-      tracks.find((track) => track.mode !== 'disabled');
+    appendFallbackPlayerMenuCollapse(menu);
     appendFallbackPlayerMenuTitle(menu, 'Captions');
+
+    const youtubeTracks = fallbackYouTubeCaptionTrackList();
+    const textTracks = fallbackCaptionTracks(video);
+    const currentYoutubeTrack = currentFallbackYouTubeCaptionTrack();
+    const currentLanguage = String(
+      currentYoutubeTrack?.languageCode ||
+        currentYoutubeTrack?.language ||
+        currentYoutubeTrack?.lang ||
+        ''
+    ).toLowerCase();
+    const currentLabel = fallbackCaptionOptionText(
+      currentYoutubeTrack?.displayName ||
+        currentYoutubeTrack?.name ||
+        currentYoutubeTrack?.label
+    ).toLowerCase();
+    const selectedTextTrack =
+      fallbackSelectedCaptionTrackByVideo.get(video) ||
+      textTracks.find((track) => track.mode !== 'disabled');
+    const captionsAreOff = !(
+      currentYoutubeTrack ||
+      selectedTextTrack ||
+      fallbackSelectedCaptionTrackByVideo.has(video)
+    );
+
     appendFallbackPlayerMenuOption(menu, {
       action: 'captions-off',
       label: 'Off',
-      checked: !selectedTrack,
+      checked: captionsAreOff,
     });
-    tracks.forEach((track, index) => {
+
+    if (youtubeTracks.length) {
+      youtubeTracks.forEach((track, index) => {
+        const label =
+          fallbackCaptionOptionText(
+            track.displayName || track.name || track.label
+          ) ||
+          String(track.languageCode || track.language || '').trim() ||
+          `Captions ${index + 1}`;
+        const language = String(
+          track.languageCode || track.language || track.lang || ''
+        ).trim();
+        const checked = Boolean(
+          (currentLanguage && language.toLowerCase() === currentLanguage) ||
+            (currentLabel && label.toLowerCase() === currentLabel)
+        );
+        appendFallbackPlayerMenuOption(menu, {
+          action: 'caption-track',
+          label,
+          checked,
+          trackIndex: index,
+          captionLanguage: language,
+          captionLabel: label,
+        });
+      });
+      return;
+    }
+
+    textTracks.forEach((track, index) => {
       appendFallbackPlayerMenuOption(menu, {
         action: 'caption-track',
         label:
           String(track.label || track.language || '').trim() ||
           `Captions ${index + 1}`,
-        checked: track === selectedTrack,
+        checked: track === selectedTextTrack,
         trackIndex: index,
+        captionLanguage: track.language || '',
+        captionLabel: track.label || '',
       });
     });
-    if (!tracks.length) {
+    if (!textTracks.length) {
       appendFallbackPlayerMenuOption(menu, {
         action: 'caption-unavailable',
         label: 'No captions available',
@@ -716,6 +858,20 @@
     );
     if (!menu) return;
 
+    appendFallbackPlayerMenuCollapse(menu);
+
+    const qualities = fallbackYouTubeQualityLevels();
+    const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
+    appendFallbackPlayerMenuTitle(menu, 'Video quality');
+    for (const quality of qualities) {
+      appendFallbackPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: fallbackQualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
+
     appendFallbackPlayerMenuTitle(menu, 'Playback speed');
     for (const speed of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
       appendFallbackPlayerMenuOption(menu, {
@@ -723,18 +879,6 @@
         label: speed === 1 ? 'Normal' : `${speed}×`,
         checked: Math.abs(video.playbackRate - speed) < 0.01,
         speed,
-      });
-    }
-
-    const qualities = fallbackYouTubeQualityLevels();
-    const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
-    appendFallbackPlayerMenuTitle(menu, 'Quality');
-    for (const quality of qualities) {
-      appendFallbackPlayerMenuOption(menu, {
-        action: 'playback-quality',
-        label: fallbackQualityOptionLabel(quality),
-        checked: currentQuality === quality,
-        quality,
       });
     }
 
@@ -751,34 +895,53 @@
     const preservePlayback = !video.paused;
     const action = option.dataset.fypPlayerOption;
 
-    if (action === 'captions-off') {
+    if (action === 'menu-collapse') {
+      // Close only; shared cleanup below still runs.
+    } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          document
-            .querySelector('#movie_player')
-            ?.setOption?.('captions', 'track', {});
+          const player = document.querySelector('#movie_player');
+          player?.loadModule?.('captions');
+          player?.setOption?.('captions', 'track', {});
         } catch {}
-        fallbackCaptionTracks(video).forEach((track) => {
-          track.mode = 'disabled';
-        });
         fallbackSelectedCaptionTrackByVideo.delete(video);
-        const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-        if (nativeCaptions?.getAttribute('aria-pressed') === 'true') {
-          nativeCaptions.click();
-        }
       };
       applyCaptionsOff();
       setTimeout(applyCaptionsOff, 120);
     } else if (action === 'caption-track') {
-      const selectedTrack =
-        fallbackCaptionTracks(video)[Number(option.dataset.fypTrackIndex)];
-      if (!selectedTrack) return;
+      const language = String(option.dataset.fypCaptionLanguage || '').trim();
+      const label = String(option.dataset.fypCaptionLabel || '').trim();
+      const trackIndex = Number(option.dataset.fypTrackIndex);
+      const youtubeTracks = fallbackYouTubeCaptionTrackList();
+      const textTracks = fallbackCaptionTracks(video);
+      const selectedMeta =
+        (Number.isFinite(trackIndex) && youtubeTracks[trackIndex]) ||
+        {
+          language,
+          languageCode: language,
+          label,
+          captionLanguage: language,
+          captionLabel: label,
+        };
       const applyCaptionSelection = () => {
-        selectFallbackYouTubeCaptionTrack(selectedTrack);
-        for (const track of fallbackCaptionTracks(video)) {
-          track.mode = track === selectedTrack ? 'hidden' : 'disabled';
+        selectFallbackYouTubeCaptionTrack(selectedMeta);
+        const matchedTextTrack =
+          (Number.isFinite(trackIndex) && textTracks[trackIndex]) ||
+          textTracks.find((track) => {
+            const trackLanguage = String(track.language || '').toLowerCase();
+            const trackLabel = String(track.label || '')
+              .trim()
+              .toLowerCase();
+            return (
+              (language && trackLanguage === language.toLowerCase()) ||
+              (label && trackLabel === label.toLowerCase())
+            );
+          });
+        if (matchedTextTrack) {
+          fallbackSelectedCaptionTrackByVideo.set(video, matchedTextTrack);
+        } else {
+          fallbackSelectedCaptionTrackByVideo.set(video, selectedMeta);
         }
-        fallbackSelectedCaptionTrackByVideo.set(video, selectedTrack);
       };
       applyCaptionSelection();
       setTimeout(applyCaptionSelection, 120);
@@ -924,6 +1087,25 @@
     return true;
   }
 
+  function fallbackEventClientPoint(event) {
+    if (event.changedTouches?.[0]) {
+      return {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY,
+      };
+    }
+    if (event.touches?.[0]) {
+      return {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      };
+    }
+    return {
+      x: Number(event.clientX) || 0,
+      y: Number(event.clientY) || 0,
+    };
+  }
+
   function handleFallbackPlayerControlActionCapture(event) {
     if (pageRuntimeReady()) return;
     if (Date.now() < ignoreFallbackPlayerControlActionsUntil) {
@@ -933,22 +1115,55 @@
     }
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest(
-      '[data-fyp-player-option], [data-fyp-player-action]'
-    );
+
+    const optionButton = target.closest('[data-fyp-player-option]');
+    if (optionButton instanceof HTMLButtonElement) {
+      if (event.type === 'pointerdown' || event.type === 'touchstart') {
+        const point = fallbackEventClientPoint(event);
+        pendingFallbackMenuOptionGesture = {
+          button: optionButton,
+          x: point.x,
+          y: point.y,
+        };
+        event.stopPropagation();
+        return;
+      }
+      if (event.type === 'pointercancel' || event.type === 'touchcancel') {
+        pendingFallbackMenuOptionGesture = null;
+        return;
+      }
+      if (event.type === 'pointerup' || event.type === 'touchend') {
+        const gesture = pendingFallbackMenuOptionGesture;
+        pendingFallbackMenuOptionGesture = null;
+        if (!gesture || gesture.button !== optionButton) return;
+        const point = fallbackEventClientPoint(event);
+        const moved =
+          Math.abs(point.x - gesture.x) > MENU_OPTION_TAP_SLOP_PX ||
+          Math.abs(point.y - gesture.y) > MENU_OPTION_TAP_SLOP_PX;
+        if (moved) return;
+        if (event.cancelable) event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!acceptSingleFallbackPlayerControlAction(optionButton)) return;
+        ignoreFallbackPlayerControlActionsUntil = Date.now() + 500;
+        void runFallbackPlayerControlOption(optionButton);
+        return;
+      }
+      if (event.type === 'click') {
+        if (event.cancelable) event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+      return;
+    }
+
+    const button = target.closest('[data-fyp-player-action]');
     if (!(button instanceof HTMLButtonElement)) return;
     if (event.cancelable) event.preventDefault();
     event.stopImmediatePropagation();
     if (!acceptSingleFallbackPlayerControlAction(button)) return;
-    if (button.dataset.fypPlayerOption) {
-      ignoreFallbackPlayerControlActionsUntil = Date.now() + 500;
-      void runFallbackPlayerControlOption(button);
-    } else {
-      void runFallbackPlayerControlAction(
-        button.dataset.fypPlayerAction,
-        button
-      );
-    }
+    void runFallbackPlayerControlAction(
+      button.dataset.fypPlayerAction,
+      button
+    );
   }
 
   function closeFallbackPlayerControlMenuFromOutside(event) {
@@ -1207,6 +1422,16 @@
       'PointerEvent' in window ? 'pointerdown' : 'touchstart',
       handleFallbackPlayerControlActionCapture,
       { capture: true, passive: false }
+    );
+    document.addEventListener(
+      'PointerEvent' in window ? 'pointerup' : 'touchend',
+      handleFallbackPlayerControlActionCapture,
+      { capture: true, passive: false }
+    );
+    document.addEventListener(
+      'PointerEvent' in window ? 'pointercancel' : 'touchcancel',
+      handleFallbackPlayerControlActionCapture,
+      { capture: true, passive: true }
     );
     document.addEventListener(
       'PointerEvent' in window ? 'pointerdown' : 'touchstart',
@@ -1624,7 +1849,38 @@
           box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45) !important;
           overflow-x: hidden !important;
           overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
           overscroll-behavior: contain !important;
+          touch-action: pan-y !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
+          appearance: none !important;
+          box-sizing: border-box !important;
+          align-self: center !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: clamp(2.6rem, 12vw, 3.1rem) !important;
+          min-height: clamp(1.7rem, 7vw, 2rem) !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: rgba(255, 255, 255, .88) !important;
+          background: rgba(255, 255, 255, .08) !important;
+          border: 1px solid rgba(255, 255, 255, .14) !important;
+          border-radius: 999px !important;
+          touch-action: manipulation !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
+          display: block !important;
+          width: clamp(1.05rem, 4.5vw, 1.25rem) !important;
+          height: clamp(1.05rem, 4.5vw, 1.25rem) !important;
+          fill: none !important;
+          stroke: currentColor !important;
+          stroke-width: 2 !important;
+          stroke-linecap: round !important;
+          stroke-linejoin: round !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
@@ -1649,7 +1905,7 @@
           text-align: left !important;
           font: 600 clamp(.8rem, 3.4vw, .95rem)/1.25
             Roboto, Arial, sans-serif !important;
-          touch-action: manipulation !important;
+          touch-action: pan-y !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
