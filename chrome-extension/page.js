@@ -3,16 +3,14 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.5');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.6');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CHROME_EXTRAS_ID = `${SCRIPT_ID}-chrome-extras`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality';
-  const PLAYER_CHROME_LAYOUT_VERSION = 'chrome-speed-quality-v215';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality';
   const SEARCH_OVERLAY_ID = `${SCRIPT_ID}-search-overlay`;
   const SEARCH_TRIGGER_ID = `${SCRIPT_ID}-search-trigger`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
@@ -440,7 +438,7 @@
     if (!(target instanceof Element)) return;
     if (
       target.closest(
-        `#movie_player, .html5-video-player, .html5-video-container, #${PLAYER_CHROME_EXTRAS_ID}, #${PLAYER_CONTROLS_TOOLBAR_ID}`
+        `#movie_player, .html5-video-player, .html5-video-container, #${PLAYER_CONTROLS_TOOLBAR_ID}`
       )
     ) {
       holdPlayerControlsVisible();
@@ -542,22 +540,15 @@
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
       ),
-    ].join('');
-  }
-
-  function playerChromeExtrasMarkup() {
-    return [
       playerControlButtonMarkup(
         'speed',
         'Playback speed',
-        PLAYER_CONTROL_ICONS.speed,
-        'fyp-chrome-control'
+        PLAYER_CONTROL_ICONS.speed
       ),
       playerControlButtonMarkup(
         'quality',
         'Video quality',
-        PLAYER_CONTROL_ICONS.quality,
-        'fyp-chrome-control'
+        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -619,7 +610,6 @@
   function playerMenuHosts() {
     return [
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID),
-      document.getElementById(PLAYER_CHROME_EXTRAS_ID),
     ].filter((node) => node instanceof HTMLElement);
   }
 
@@ -906,10 +896,7 @@
   }
 
   function menuHostForButton(sourceButton) {
-    return (
-      sourceButton.closest(`#${PLAYER_CHROME_EXTRAS_ID}`) ||
-      sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
-    );
+    return sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
   }
 
   function toggleSpeedMenu(video, sourceButton) {
@@ -1246,8 +1233,7 @@
     const target = event.target;
     if (
       target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`) &&
-      !target.closest(`#${PLAYER_CHROME_EXTRAS_ID}`)
+      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
     ) {
       closePlayerControlMenu();
     }
@@ -2883,82 +2869,6 @@
         display: none !important;
       }
 
-      #${PLAYER_CHROME_EXTRAS_ID} {
-        box-sizing: border-box;
-        position: absolute;
-        right: max(8px, env(safe-area-inset-right, 0px));
-        bottom: clamp(46px, 12vw, 58px);
-        z-index: 70;
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        gap: 2px;
-        margin: 0;
-        padding: 2px;
-        border-radius: 999px;
-        background: rgba(0, 0, 0, .35);
-        pointer-events: auto;
-      }
-
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control {
-        appearance: none;
-        box-sizing: border-box;
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        min-width: 36px;
-        height: 36px;
-        margin: 0;
-        padding: 7px;
-        color: #fff;
-        background: transparent;
-        border: 0;
-        border-radius: 999px;
-        cursor: pointer;
-        touch-action: manipulation;
-      }
-
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control[aria-expanded='true'] {
-        background: rgba(255, 255, 255, .16);
-      }
-
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control svg {
-        display: block;
-        width: 22px;
-        height: 22px;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu {
-        box-sizing: border-box;
-        position: absolute;
-        right: 0;
-        bottom: calc(100% + 8px);
-        z-index: 80;
-        display: flex;
-        flex-direction: column;
-        width: min(72vw, 16rem);
-        max-height: min(42svh, 18rem);
-        margin: 0;
-        padding: clamp(.4rem, 2vw, .65rem);
-        gap: clamp(.25rem, 1vw, .4rem);
-        color: #fff;
-        background: rgba(15, 15, 15, .97);
-        border: 1px solid rgba(255, 255, 255, .16);
-        border-radius: clamp(.75rem, 3vw, 1rem);
-        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
-        overflow-x: hidden;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        touch-action: pan-y;
-      }
-
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
         box-sizing: border-box;
         flex: 1 0 100%;
@@ -2982,8 +2892,7 @@
         touch-action: pan-y;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
         appearance: none;
         box-sizing: border-box;
         align-self: center;
@@ -3001,8 +2910,7 @@
         touch-action: manipulation;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse svg {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
         display: block;
         width: clamp(1.05rem, 4.5vw, 1.25rem);
         height: clamp(1.05rem, 4.5vw, 1.25rem);
@@ -3013,15 +2921,13 @@
         stroke-linejoin: round;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-title {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
         padding: clamp(.25rem, 1vw, .4rem) clamp(.7rem, 3vw, .95rem);
         color: rgba(255, 255, 255, .72);
         font: 700 clamp(.78rem, 3.2vw, .9rem)/1.2 Roboto, Arial, sans-serif;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option {
         appearance: none;
         box-sizing: border-box;
         width: 100%;
@@ -3038,20 +2944,16 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
-        .fyp-player-menu-option[aria-checked='true'],
-      #${PLAYER_CHROME_EXTRAS_ID}
         .fyp-player-menu-option[aria-checked='true'] {
         background: #ff0033;
         border-color: #ff0033;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:disabled {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled {
         opacity: .55;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:focus-visible,
-      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:focus-visible {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:focus-visible {
         outline: 2px solid #fff;
         outline-offset: -2px;
       }
@@ -4410,35 +4312,6 @@
     });
   }
 
-  function ensurePlayerChromeExtras() {
-    if (location.pathname !== '/watch') {
-      document.getElementById(PLAYER_CHROME_EXTRAS_ID)?.remove();
-      return;
-    }
-    const player = document.querySelector('#movie_player, .html5-video-player');
-    if (!(player instanceof HTMLElement)) return;
-
-    let host = document.getElementById(PLAYER_CHROME_EXTRAS_ID);
-    if (
-      !(host instanceof HTMLElement) ||
-      host.dataset.fypChromeLayout !== PLAYER_CHROME_LAYOUT_VERSION
-    ) {
-      host?.remove();
-      host = document.createElement('div');
-      host.id = PLAYER_CHROME_EXTRAS_ID;
-      host.dataset.fypChromeLayout = PLAYER_CHROME_LAYOUT_VERSION;
-      host.setAttribute('role', 'toolbar');
-      host.setAttribute('aria-label', 'Playback speed and quality');
-      host.innerHTML = playerChromeExtrasMarkup();
-    }
-
-    // Mount on the player root as an overlay. Injecting into .ytp-right-controls
-    // is fragile on Orion because YouTube rebuilds native chrome frequently.
-    if (host.parentElement !== player) {
-      player.appendChild(host);
-    }
-  }
-
   function ensurePlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
@@ -4491,7 +4364,6 @@
     ) {
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
-    ensurePlayerChromeExtras();
     syncCustomPlayerControls();
   }
 
@@ -4509,7 +4381,6 @@
     showWelcomeOnce();
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
-    ensurePlayerChromeExtras();
     ensureSearchTrigger();
     updateMediaSessionMetadata();
     hideAskGeminiControls();
@@ -4540,7 +4411,6 @@
     hideUploadControls();
     dismissMiniplayer();
     ensurePlayerControlsToolbar();
-    ensurePlayerChromeExtras();
     ensureSearchTrigger();
     arrangeWatchComments();
     enhanceComments();
@@ -4643,7 +4513,6 @@
   setInterval(() => {
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
-    ensurePlayerChromeExtras();
     ensureSearchTrigger();
     syncCustomPlayerControls();
     installMediaSessionHandlers();

@@ -30,11 +30,11 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality'/
 );
-assert.match(source, /const PLAYER_CHROME_EXTRAS_ID = `\$\{SCRIPT_ID\}-chrome-extras`/);
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
-assert.match(source, /function ensurePlayerChromeExtras\(\)/);
+assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
+assert.doesNotMatch(source, /PLAYER_CHROME_EXTRAS_ID/);
 assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);
 for (const action of [
   'rewind',
@@ -135,4 +135,4 @@ assert.match(source, /ytd-enforcement-message-view-model/);
 assert.doesNotMatch(source, /duration - 0\.05/);
 assert.match(source, /\.ytp-settings-button[\s\S]*display: none !important/);
 
-console.log('10-second native hold and centered five-button strip + chrome speed/quality: ok');
+console.log('10-second native hold and centered strip with inline speed/quality: ok');

@@ -27,14 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.5';
+  const EXPECTED_PAGE_VERSION = '2.1.6';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CHROME_EXTRAS_ID = 'yt-mobile-orion-ext-chrome-extras';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality';
-  const PLAYER_CHROME_LAYOUT_VERSION = 'chrome-speed-quality-v215';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v216-centered-inline-quality';
   const MENU_OPTION_TAP_SLOP_PX = 12;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
@@ -118,22 +116,15 @@
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
       ),
-    ].join('');
-  }
-
-  function playerChromeExtrasMarkup() {
-    return [
       playerControlButtonMarkup(
         'speed',
         'Playback speed',
-        PLAYER_CONTROL_ICONS.speed,
-        'fyp-chrome-control'
+        PLAYER_CONTROL_ICONS.speed
       ),
       playerControlButtonMarkup(
         'quality',
         'Video quality',
-        PLAYER_CONTROL_ICONS.quality,
-        'fyp-chrome-control'
+        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -473,7 +464,6 @@
   function fallbackPlayerMenuHosts() {
     return [
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID),
-      document.getElementById(PLAYER_CHROME_EXTRAS_ID),
     ].filter((node) => node instanceof HTMLElement);
   }
 
@@ -758,7 +748,6 @@
 
   function fallbackMenuHostForButton(sourceButton) {
     return (
-      sourceButton.closest(`#${PLAYER_CHROME_EXTRAS_ID}`) ||
       sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
     );
   }
@@ -1082,8 +1071,7 @@
     const target = event.target;
     if (
       target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`) &&
-      !target.closest(`#${PLAYER_CHROME_EXTRAS_ID}`)
+      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
     ) {
       closeFallbackPlayerControlMenu();
     }
@@ -1169,31 +1157,6 @@
     });
   }
 
-  function ensureFallbackPlayerChromeExtras() {
-    if (location.pathname !== '/watch') {
-      document.getElementById(PLAYER_CHROME_EXTRAS_ID)?.remove();
-      return;
-    }
-    const player = document.querySelector('#movie_player, .html5-video-player');
-    if (!(player instanceof HTMLElement)) return;
-    let host = document.getElementById(PLAYER_CHROME_EXTRAS_ID);
-    if (
-      !(host instanceof HTMLElement) ||
-      host.dataset.fypChromeLayout !== PLAYER_CHROME_LAYOUT_VERSION
-    ) {
-      host?.remove();
-      host = document.createElement('div');
-      host.id = PLAYER_CHROME_EXTRAS_ID;
-      host.dataset.fypChromeLayout = PLAYER_CHROME_LAYOUT_VERSION;
-      host.setAttribute('role', 'toolbar');
-      host.setAttribute('aria-label', 'Playback speed and quality');
-      host.innerHTML = playerChromeExtrasMarkup();
-    }
-    if (host.parentElement !== player) {
-      player.appendChild(host);
-    }
-  }
-
   function ensureFallbackPlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
@@ -1243,7 +1206,6 @@
     ) {
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
-    ensureFallbackPlayerChromeExtras();
     syncFallbackPlayerControls();
   }
 
@@ -1253,7 +1215,6 @@
     setTimeout(() => {
       fallbackUiQueued = false;
       ensureFallbackPlayerControlsToolbar();
-      ensureFallbackPlayerChromeExtras();
     }, 0);
   }
 
@@ -1329,7 +1290,6 @@
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
     ensureFallbackPlayerControlsToolbar();
-      ensureFallbackPlayerChromeExtras();
 
     const videoObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -1420,7 +1380,6 @@
         if (!redirectChannelRootToVideos()) {
           markFallbackHistoryFeedBrowse();
           ensureFallbackPlayerControlsToolbar();
-      ensureFallbackPlayerChromeExtras();
         }
       },
       true
@@ -1438,7 +1397,6 @@
     setInterval(() => {
       markFallbackHistoryFeedBrowse();
       ensureFallbackPlayerControlsToolbar();
-      ensureFallbackPlayerChromeExtras();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
     }, 1200);
@@ -1787,77 +1745,6 @@
           display: none !important;
         }
 
-        #${PLAYER_CHROME_EXTRAS_ID} {
-          box-sizing: border-box !important;
-          position: absolute !important;
-          right: max(8px, env(safe-area-inset-right, 0px)) !important;
-          bottom: clamp(46px, 12vw, 58px) !important;
-          z-index: 70 !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 2px !important;
-          margin: 0 !important;
-          padding: 2px !important;
-          border-radius: 999px !important;
-          background: rgba(0, 0, 0, .35) !important;
-          pointer-events: auto !important;
-        }
-
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control {
-          appearance: none !important;
-          box-sizing: border-box !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          width: 36px !important;
-          min-width: 36px !important;
-          height: 36px !important;
-          margin: 0 !important;
-          padding: 7px !important;
-          color: #fff !important;
-          background: transparent !important;
-          border: 0 !important;
-          border-radius: 999px !important;
-          touch-action: manipulation !important;
-        }
-
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control svg {
-          display: block !important;
-          width: 22px !important;
-          height: 22px !important;
-          fill: none !important;
-          stroke: currentColor !important;
-          stroke-width: 2 !important;
-          stroke-linecap: round !important;
-          stroke-linejoin: round !important;
-        }
-
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu {
-          box-sizing: border-box !important;
-          position: absolute !important;
-          right: 0 !important;
-          bottom: calc(100% + 8px) !important;
-          z-index: 80 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          width: min(72vw, 16rem) !important;
-          max-height: min(42svh, 18rem) !important;
-          margin: 0 !important;
-          padding: clamp(.4rem, 2vw, .65rem) !important;
-          gap: clamp(.25rem, 1vw, .4rem) !important;
-          color: #fff !important;
-          background: rgba(15, 15, 15, .97) !important;
-          border: 1px solid rgba(255, 255, 255, .16) !important;
-          border-radius: clamp(.75rem, 3vw, 1rem) !important;
-          box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45) !important;
-          overflow-x: hidden !important;
-          overflow-y: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-          overscroll-behavior: contain !important;
-          touch-action: pan-y !important;
-        }
-
         #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
           box-sizing: border-box !important;
           flex: 1 0 100% !important;
@@ -1881,8 +1768,7 @@
           touch-action: pan-y !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse,
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
           appearance: none !important;
           box-sizing: border-box !important;
           align-self: center !important;
@@ -1900,8 +1786,7 @@
           touch-action: manipulation !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg,
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse svg {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
           display: block !important;
           width: clamp(1.05rem, 4.5vw, 1.25rem) !important;
           height: clamp(1.05rem, 4.5vw, 1.25rem) !important;
@@ -1912,8 +1797,7 @@
           stroke-linejoin: round !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title,
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-title {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
           padding: clamp(.25rem, 1vw, .4rem)
             clamp(.7rem, 3vw, .95rem) !important;
           color: rgba(255, 255, 255, .72) !important;
@@ -1921,8 +1805,7 @@
             Roboto, Arial, sans-serif !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option,
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option {
           appearance: none !important;
           box-sizing: border-box !important;
           width: 100% !important;
@@ -1940,21 +1823,16 @@
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
-          .fyp-player-menu-option[aria-checked='true'],
-        #${PLAYER_CHROME_EXTRAS_ID}
           .fyp-player-menu-option[aria-checked='true'] {
           background: #ff0033 !important;
           border-color: #ff0033 !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled,
-        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:disabled {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled {
           opacity: .55 !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
-          .fyp-player-menu-option:focus-visible,
-        #${PLAYER_CHROME_EXTRAS_ID}
           .fyp-player-menu-option:focus-visible {
           outline: 2px solid #fff !important;
           outline-offset: -2px !important;
