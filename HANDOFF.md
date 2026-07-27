@@ -1,13 +1,15 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.2.3`** (branch `fix/search-menus`; caption activation fix on top of 2.2.1 search recovery + 2.2.2 single-track dedupe)
+> **Current ship version: `2.2.4`** (branch `fix/performance-fixes`; CPU/energy timer tamer on top of shipped 2.2.3)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
-> **Active fix checklist:** read and update [`FIX-BRANCH.md`](./FIX-BRANCH.md) before any search/menu work. It documents the **2.1.5–2.2.0 search failure** as **REVERTED / FAILED — do not revive without user approval**. After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
+> **Active performance branch:** if the user says they switched agents / “read the files” / performance work — read [`PERFORMANCE-FIXES.md`](./PERFORMANCE-FIXES.md) **first**, then this file.
+>
+> **Search/menu checklist (historical):** [`FIX-BRANCH.md`](./FIX-BRANCH.md) documents the **2.1.5–2.2.0 search failure** as **REVERTED / FAILED — do not revive without user approval**. After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
 
 ---
 
@@ -35,7 +37,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ```
 ./
 ├── HANDOFF.md
-├── FIX-BRANCH.md                       ← active search/menu fix cleaning list
+├── PERFORMANCE-FIXES.md                ← active CPU/energy branch handoff (`fix/performance-fixes`)
+├── FIX-BRANCH.md                       ← search/menu history (2.2.3 shipped; S1–S5 reverted)
 ├── ARCHITECTURE.md                     ← product and technical contract
 ├── PATCH_NOTES.md                      ← release and popup changelog source
 ├── INSTALL-ORION.md                    ← install troubleshooting for the user
@@ -43,7 +46,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 2.2.3_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 2.2.4_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -89,7 +92,12 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.2.3)
+## Latest changes (through 2.2.4)
+
+### 2.2.4 — YouTube CPU / energy tamer (Orion iPhone)
+- Ports CY Fung’s AnimationFrame timer tamer into page-world `window` timers so YouTube’s busy `setTimeout`/`setInterval` work coalesces with rAF.
+- Keeps FYP recovery / controls / scan timers on pristine bindings so background audio is not stalled when WebKit pauses rAF in hidden documents.
+- Soft-skips when WebGL/GPU probe fails; do not double-install the GreasyFork userscript.
 
 ### 2.2.3 — caption activation fix
 - Defers single-track TextTrack dedupe until YouTube custom caption segments are visible, so captions can turn on again after 2.2.2 blocked activation.

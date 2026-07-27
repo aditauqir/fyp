@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.2.4
+
+- Added: YouTube CPU Tamer by AnimationFrame (CY Fung, MIT) adapted into the page-world runtime — throttles YouTube’s `setTimeout`/`setInterval` chatter via `requestAnimationFrame` to cut CPU and energy use on Orion iPhone.
+- Preserved: FYP-owned timers (background-audio recovery, controls hold, DOM scans, caption retries) stay on pristine APIs so WebKit’s hidden-document rAF pause cannot stall playback recovery.
+- Notes: Requires GPU/WebGL; if unavailable the tamer skips silently and the rest of the extension still runs. Do not also install the GreasyFork userscript alongside this build.
+- Packaging: Numeric version `2.2.4`; recommended Orion installer `2.2.4_release.zip` (Chrome MV3).
+
 ## v2.2.3
 
 - Fixed: Subtitles turn on again — single-track dedupe now waits until YouTube’s custom caption segments are visible before forcing TextTrack `hidden`/`disabled` modes. 2.2.2 applied that enforcement too early and blocked activation entirely.

@@ -3,7 +3,19 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.3');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.4');
+
+  /*
+   * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
+   * YouTube CPU Tamer patches window.* for YouTube only — see installYoutubeCpuTamer.
+   * On Orion iPhone, rAF does not run while the document is hidden; FYP must not
+   * route recoverPlayback through rAF-gated timers.
+   */
+  const setTimeout = window.setTimeout.bind(window);
+  const setInterval = window.setInterval.bind(window);
+  const clearTimeout = window.clearTimeout.bind(window);
+  const clearInterval = window.clearInterval.bind(window);
+  const requestAnimationFrame = window.requestAnimationFrame.bind(window);
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -15,7 +27,8 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v223-caption-activation';
+  const NAV_LAYOUT_VERSION = 'ext-v224-cpu-tamer';
+  const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -78,6 +91,349 @@
     if (host) host.appendChild(style);
   }
   injectCriticalAskHideStyle();
+
+  /*
+   * YouTube CPU Tamer by AnimationFrame — adapted for FYP page-world on Orion iOS.
+   * Original: CY Fung, MIT — https://greasyfork.org/en/scripts/431573
+   * Requires GPU acceleration. Fail soft (skip) if WebGL or clean timers unavailable.
+   * Patches window timers only; FYP locals above stay pristine for background audio.
+   */
+  function installYoutubeCpuTamer(win = window) {
+    try {
+      if (win[CPU_TAMER_FLAG]) return;
+      win[CPU_TAMER_FLAG] = true;
+    } catch {
+      return;
+    }
+
+    const isGPUAccelerationAvailable = (() => {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(
+          canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!isGPUAccelerationAvailable) {
+      try {
+        delete win[CPU_TAMER_FLAG];
+      } catch {
+        win[CPU_TAMER_FLAG] = false;
+      }
+      return;
+    }
+
+    /** @type {globalThis.PromiseConstructor} */
+    const PromiseCtor = (async () => {})().constructor;
+    const PromiseExternal = ((resolve_, reject_) => {
+      const h = (resolve, reject) => {
+        resolve_ = resolve;
+        reject_ = reject;
+      };
+      return class PromiseExternal extends PromiseCtor {
+        constructor(cb = h) {
+          super(cb);
+          if (cb === h) {
+            this.resolve = resolve_;
+            this.reject = reject_;
+          }
+        }
+      };
+    })();
+
+    const timeupdateDT = (() => {
+      win.__fypCpuTamerTimeupdate__ = 1;
+      document.addEventListener(
+        'timeupdate',
+        () => {
+          win.__fypCpuTamerTimeupdate__ = Date.now();
+        },
+        true
+      );
+      let kz = -1;
+      try {
+        kz = win.top.__fypCpuTamerTimeupdate__;
+      } catch {
+        // Cross-origin top frame.
+      }
+      return kz >= 1
+        ? () => win.top.__fypCpuTamerTimeupdate__
+        : () => win.__fypCpuTamerTimeupdate__;
+    })();
+
+    const cleanContext = async (targetWin) => {
+      const waitFn = requestAnimationFrame;
+      try {
+        let mx = 16;
+        const frameId = 'fyp-vanillajs-iframe-v1';
+        let frame = document.getElementById(frameId);
+        let removeIframeFn = null;
+        if (!frame) {
+          frame = document.createElement('iframe');
+          frame.id = frameId;
+          // Upstream skips blob URL when `kagi` is defined (Orion/Kagi) or non-WebKit.
+          const blobURL =
+            typeof webkitCancelAnimationFrame === 'function' &&
+            typeof kagi === 'undefined'
+              ? (frame.src = URL.createObjectURL(
+                  new Blob([], { type: 'text/html' })
+                ))
+              : null;
+          frame.sandbox = 'allow-same-origin';
+          let noscriptHost = document.createElement('noscript');
+          noscriptHost.appendChild(frame);
+          while (!document.documentElement && mx-- > 0) {
+            await new PromiseCtor(waitFn);
+          }
+          const root = document.documentElement;
+          if (!root) return null;
+          root.appendChild(noscriptHost);
+          if (blobURL) {
+            PromiseCtor.resolve().then(() => URL.revokeObjectURL(blobURL));
+          }
+
+          removeIframeFn = (nativeSetTimeout) => {
+            const removeIframeOnDocumentReady = (e) => {
+              e &&
+                targetWin.removeEventListener(
+                  'DOMContentLoaded',
+                  removeIframeOnDocumentReady,
+                  false
+                );
+              e = noscriptHost;
+              noscriptHost = targetWin = removeIframeFn = null;
+              nativeSetTimeout ? nativeSetTimeout(() => e.remove(), 200) : e.remove();
+            };
+            if (!nativeSetTimeout || document.readyState !== 'loading') {
+              removeIframeOnDocumentReady();
+            } else {
+              targetWin.addEventListener(
+                'DOMContentLoaded',
+                removeIframeOnDocumentReady,
+                false
+              );
+            }
+          };
+        }
+        while (!frame.contentWindow && mx-- > 0) {
+          await new PromiseCtor(waitFn);
+        }
+        const fc = frame.contentWindow;
+        if (!fc) return null;
+        try {
+          const {
+            requestAnimationFrame: raf,
+            setInterval: si,
+            setTimeout: st,
+            clearInterval: ci,
+            clearTimeout: ct,
+          } = fc;
+          const res = {
+            requestAnimationFrame: raf,
+            setInterval: si,
+            setTimeout: st,
+            clearInterval: ci,
+            clearTimeout: ct,
+          };
+          for (const k of Object.keys(res)) {
+            res[k] = res[k].bind(targetWin);
+          }
+          if (removeIframeFn) {
+            PromiseCtor.resolve(res.setTimeout).then(removeIframeFn);
+          }
+          return res;
+        } catch {
+          if (removeIframeFn) removeIframeFn();
+          return null;
+        }
+      } catch (e) {
+        console.warn('[FYP] CPU tamer cleanContext failed', e);
+        return null;
+      }
+    };
+
+    cleanContext(win).then((ctx) => {
+      if (!ctx) {
+        try {
+          delete win[CPU_TAMER_FLAG];
+        } catch {
+          win[CPU_TAMER_FLAG] = false;
+        }
+        return;
+      }
+
+      const {
+        requestAnimationFrame: pristineRAF,
+        setTimeout: pristineSetTimeout,
+        setInterval: pristineSetInterval,
+        clearTimeout: pristineClearTimeout,
+        clearInterval: pristineClearInterval,
+      } = ctx;
+
+      let afInterupter = null;
+
+      const getRAFHelper = () => {
+        const asc = document.createElement('a-f');
+        if (!('onanimationiteration' in asc)) {
+          return (resolve) => pristineRAF((afInterupter = resolve));
+        }
+        asc.id = 'a-f';
+        let qr = null;
+        asc.onanimationiteration = function () {
+          if (qr !== null) qr = (qr(), null);
+        };
+        if (!document.getElementById('fyp-afscript')) {
+          const style = document.createElement('style');
+          style.id = 'fyp-afscript';
+          style.textContent = `
+            @keyframes fypAF1 {
+              0% { order: 0; }
+              100% { order: 1; }
+            }
+            #a-f[id] {
+              visibility: collapse !important;
+              position: fixed !important;
+              display: block !important;
+              top: -100px !important;
+              left: -100px !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              outline: 0 !important;
+              border: 0 !important;
+              z-index: -1 !important;
+              width: 0px !important;
+              height: 0px !important;
+              contain: strict !important;
+              pointer-events: none !important;
+              animation: 1ms steps(2, jump-none) 0ms infinite alternate forwards running fypAF1 !important;
+            }
+          `;
+          (document.head || document.documentElement).appendChild(style);
+        }
+        document.documentElement.insertBefore(
+          asc,
+          document.documentElement.firstChild
+        );
+        return (resolve) => (qr = afInterupter = resolve);
+      };
+
+      const rafPN = getRAFHelper();
+
+      (() => {
+        let afPromiseP;
+        let afPromiseQ;
+        afPromiseP = afPromiseQ = { resolved: true };
+        let afix = 0;
+        const afResolve = async (rX) => {
+          await new PromiseCtor(rafPN);
+          rX.resolved = true;
+          const t = (afix = (afix & 1073741823) + 1);
+          return rX.resolve(t), t;
+        };
+        const eFunc = async () => {
+          const uP = !afPromiseP.resolved ? afPromiseP : null;
+          const uQ = !afPromiseQ.resolved ? afPromiseQ : null;
+          let t = 0;
+          if (uP && uQ) {
+            const t1 = await uP;
+            const t2 = await uQ;
+            t = ((t1 - t2) & 536870912) === 0 ? t1 : t2;
+          } else {
+            const vP = !uP ? (afPromiseP = new PromiseExternal()) : null;
+            const vQ = !uQ ? (afPromiseQ = new PromiseExternal()) : null;
+            if (uQ) await uQ;
+            else if (uP) await uP;
+            if (vP) t = await afResolve(vP);
+            if (vQ) t = await afResolve(vQ);
+          }
+          return t;
+        };
+        const inExec = new Set();
+        const wFunc = async (handler, wStore) => {
+          try {
+            const ct = Date.now();
+            if (ct - timeupdateDT() < 800 && ct - wStore.dt < 800) {
+              const cid = wStore.cid;
+              inExec.add(cid);
+              const t = await eFunc();
+              const didNotRemove = inExec.delete(cid);
+              if (!didNotRemove || t === wStore.lastExecution) return;
+              wStore.lastExecution = t;
+            }
+            wStore.dt = ct;
+            handler();
+          } catch (e) {
+            console.error(e);
+            throw e;
+          }
+        };
+        const sFunc = (propFunc) => {
+          return (func, ms = 0, ...args) => {
+            if (typeof func === 'function') {
+              const wStore = { dt: Date.now() };
+              return (wStore.cid = propFunc(
+                wFunc,
+                ms,
+                args.length > 0 ? func.bind(null, ...args) : func,
+                wStore
+              ));
+            }
+            return propFunc(func, ms, ...args);
+          };
+        };
+        win.setTimeout = sFunc(pristineSetTimeout);
+        win.setInterval = sFunc(pristineSetInterval);
+
+        const dFunc = (propFunc) => {
+          return (cid) => {
+            if (cid) inExec.delete(cid) || propFunc(cid);
+          };
+        };
+
+        win.clearTimeout = dFunc(pristineClearTimeout);
+        win.clearInterval = dFunc(pristineClearInterval);
+
+        try {
+          win.setTimeout.toString = pristineSetTimeout.toString.bind(
+            pristineSetTimeout
+          );
+          win.setInterval.toString = pristineSetInterval.toString.bind(
+            pristineSetInterval
+          );
+          win.clearTimeout.toString = pristineClearTimeout.toString.bind(
+            pristineClearTimeout
+          );
+          win.clearInterval.toString = pristineClearInterval.toString.bind(
+            pristineClearInterval
+          );
+        } catch (e) {
+          console.warn(e);
+        }
+      })();
+
+      let mInterupter = null;
+      pristineSetInterval(() => {
+        if (mInterupter === afInterupter) {
+          if (mInterupter !== null) {
+            afInterupter = mInterupter = (mInterupter(), null);
+          }
+        } else {
+          mInterupter = afInterupter;
+        }
+      }, 125);
+
+      try {
+        document.documentElement?.setAttribute('data-fyp-cpu-tamer', '1');
+      } catch {
+        // Attribute is diagnostics-only.
+      }
+    });
+  }
+
+  installYoutubeCpuTamer(window);
 
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
