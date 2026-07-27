@@ -25,9 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Home\/Watch search chips; no masthead float\./);
-assert.match(popup, /Bigger transport strip; YouTube-like play\/pause\./);
-assert.match(popup, /Skeleton loader prevents search\/control jump\./);
+assert.match(popup, /Reverted broken search; native masthead path restored\./);
+assert.match(popup, /Kept enlarged 5-button transport strip\./);
+assert.match(popup, /Ask\/voice clutter still hidden\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
@@ -52,6 +52,7 @@ assert.match(
 assert.match(popupStyle, /width: min\(92vw, 24rem\)/);
 assert.match(popupStyle, /max-height: min\(38svh, 21rem\)/);
 assert.doesNotMatch(actionCard, /toggleActionCard|attachShadow/);
+assert.match(patchNotes, /## v2\.2\.1/);
 assert.match(patchNotes, /## v2\.2\.0/);
 assert.match(patchNotes, /## v2\.1\.9/);
 assert.match(patchNotes, /## v2\.1\.8/);

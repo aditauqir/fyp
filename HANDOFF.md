@@ -1,13 +1,13 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.2.0`** (branch `fix/search-menus`; Home/Watch search placement, skeleton loader, larger strip, play/pause icons)
+> **Current ship version: `2.2.1`** (branch `fix/search-menus`; recovery — revert broken search; keep enlarged 5-button transport strip)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
-> **Active fix checklist:** read and update [`FIX-BRANCH.md`](./FIX-BRANCH.md) before any search/menu work. It is the cleaning list (issue → status → suggested fix). After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
+> **Active fix checklist:** read and update [`FIX-BRANCH.md`](./FIX-BRANCH.md) before any search/menu work. It documents the **2.1.5–2.2.0 search failure** as **REVERTED / FAILED — do not revive without user approval**. After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
 
 ---
 
@@ -43,7 +43,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 2.2.0_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 2.2.1_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -89,7 +89,13 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.0.16)
+## Latest changes (through 2.2.1)
+
+### 2.2.1 — search recovery
+- Reverts broken 2.1.5–2.2.0 custom search (Home chip, Watch pill, capsule, masthead float, overlay, skeleton).
+- Restores 2.1.2-style native masthead mobile search; Ask/voice/AI stay CSS-hidden.
+- Keeps enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen).
+- See `FIX-BRANCH.md` failure log: **REVERTED / FAILED — do not revive without user approval**.
 
 ### 2.0.16 — recommendations first + reply/caption/control polish
 - Places YouTube recommendations before native comments and removes forced comment expansion.

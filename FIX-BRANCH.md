@@ -1,7 +1,8 @@
 # FIX-BRANCH — `fix/search-menus`
 
-> Combined cleaning checklist after merging `fix/inline-quality-gear` (2.1.6) + `fix/search-overlay-ui` (2.1.7).
-> Ship version: **2.2.0**. Baseline: 2.1.9 `6b29d53`. Masthead-forced search placement was rejected and replaced.
+> **2.2.1 RECOVERY.** Ship version: **2.2.1**.
+> Baseline restored search: `origin/main` / `1ca4f57` (2.1.2 native masthead path).
+> Kept from later work: enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen).
 
 ---
 
@@ -9,21 +10,24 @@
 
 1. Read this file + `HANDOFF.md` + `ARCHITECTURE.md` before editing.
 2. Source of truth: `youtube-mobile-background.user.js` → `./rebuild-extension.sh`.
-3. Mirror toolbar + search hide/icons in `firefox-extension/content.template.js`.
+3. Mirror Ask/voice hide (only) in `firefox-extension/content.template.js`. Do **not** hide native masthead `#center` / search buttons.
 4. Webpage strip stays centered **transport-only**: rewind / play-pause / forward / pip / fullscreen. No speed, no gear, no Captions / More. Captions stay native YouTube CC. Speed/quality via native `.ytp-settings-button`.
 5. Prefer the **playback-speed apply pattern** (apply now + retry at 120ms, no native UI click) only if a custom menu is reintroduced later.
 6. Do **not** re-add in-player clock/timer or gear overlays on the video.
-7. Search placement (2.2.0):
-   - **Home:** half-width chip over the first feed video thumbnail.
-   - **Watch:** rectangular pill below the inline transport strip (must not cover player chrome).
-   - Overlay: Lucide X + “Searching for something?” + input; keep backdrop/ease + recents/suggestions; strip Ask YouTube / voice / AI.
-   - **Do not** revive masthead top-right fixed search (user rejected; caused FOUC).
-8. Loading jump: early critical CSS + **skeleton placeholders** matching final Home chip / Watch strip+pill footprints until real UI is mounted (`data-fyp-ui-ready`).
+7. **Search (2.2.1):** restore / keep **2.1.2-style native-assisted masthead search**. Tap native search icon → phone-width `#center` overlay. Strip Ask YouTube / voice / AI with CSS only.
+8. **Do not revive** without explicit user approval:
+   - Home first-video search chip
+   - Watch search pill under the strip
+   - Bottom Search capsule
+   - Masthead top-right forced Lucide float
+   - Custom “Searching for something?” overlay
+   - Recents / autocomplete overlay UI
+   - Skeleton / FOUC placeholder loaders for search
 9. After each issue is addressed, update the Status column below.
 10. **Before starting the next issue, ask the user** whether to continue on:
-   - **this branch** (`fix/search-menus`),
-   - a **separate branch**,
-   - or **stop**.
+    - **this branch** (`fix/search-menus`),
+    - a **separate branch**,
+    - or **stop**.
 
 ---
 
@@ -38,57 +42,80 @@
 | M5 | Cannot scroll Captions / More dropdowns | **Fixed in 2.1.4** | Option `pointerup`/`touchend` + pan-y scrolling preserved for strip menus. |
 | M6 | Need Lucide-style up-arrow collapse control | **Fixed in 2.1.4** | Collapse chevron kept on speed/quality menus (code retained, strip buttons gone). |
 | M7 | Captions broken — native vs menu fight | **Fixed in 2.1.5** | Webpage captions menu removed; native `.ytp-subtitles-button` is the path. |
-| M8 | Center webpage transport strip | **Fixed in 2.1.9 / kept in 2.2.0** | Transport-only centered strip; buttons enlarged in 2.2.0. |
+| M8 | Center webpage transport strip | **Kept** | Transport-only centered strip; buttons enlarged (2.2.0 → 2.2.1). |
 | M9 | Native speed timer + quality gear icons | **Fixed in 2.1.9** | Removed from strip and video chrome; native settings gear restored. |
 | M10 | Settings dropdown broken / clash | **Fixed in 2.1.9** | Stopped hiding `.ytp-settings-button`; narrowed capture to `#fyp-…` / `[data-fyp-…]` only. |
-| M11 | Play/Pause icon mismatch vs native player | **Fixed in 2.2.0** | Filled Material/YouTube-like triangle + bars; aria/state synced to paused/playing. |
-| S1 | Search mashed / cluttered (Ask YouTube, etc.) | **Fixed in 2.2.0** | Native masthead + Ask/voice/AI chrome hidden; overlay is X + prompt + input only. |
-| S2 | Search hard to find / wrong placement | **Fixed in 2.2.0** | Home chip on first video; Watch pill below strip. Masthead float removed. |
-| S3 | Close + input overlay polish | **Fixed in 2.2.0** | Lucide X, “Searching for something?”, input, backdrop, ease-in/out. |
-| S4 | Suggestions / recent searches under field | **Kept** | Recents + YouTube autocomplete unchanged. |
-| S5 | Search FOUC / right→center jump on load | **Fixed in 2.2.0** | No masthead fixed slot; skeleton shimmer reserves final footprint until UI ready. |
+| M11 | Play/Pause icon mismatch vs native player | **Kept** | Filled Material/YouTube-like triangle + bars; aria/state synced to paused/playing. |
+| S1–S5 | Custom search experiments (2.1.5–2.2.0) | **REVERTED / FAILED — do not revive without user approval** | See failure log below. Native 2.1.2 path restored in 2.2.1. |
 
 ---
 
-## WebKit / Orion research takeaways (applied through 2.2.0)
+## Failure log — 2.1.5–2.2.0 search (REVERTED)
 
-Sources: [WKUserScript injection times](https://github.com/WebKit/webkit/blob/master/Source/WebKit/UIProcess/API/Cocoa/WKUserScript.h), [WKWebView gotchas (safe-area / fixed)](https://takazudomodular.com/pj/zudo-tauri/docs/mobile/wkwebview-gotchas/), [Orion iOS extensions](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html), [Orion macOS extensions / MV2+MV3](https://help.kagi.com/orion/browser-extensions/macos-extensions.html), [Orion vs Chrome content-script install injection](https://github.com/w3c/webextensions/issues/617).
+**Status: REVERTED / FAILED — do not revive without user approval.**
+
+What failed (user: “2.2.0 broke everything”):
+
+| Experiment | Versions | Why it failed |
+|------------|----------|---------------|
+| Global search overlay + Lucide chrome | 2.1.5+ | Fought native search; hard to find / invisible on Orion |
+| Bottom black Search capsule | 2.1.7 | Covered by Orion floating URL bar; control clashes |
+| Masthead top-right forced Lucide float | 2.1.9 | Right→center FOUC / load jump; still hard under browser chrome |
+| Home first-video chip | 2.2.0 | Inventive placement; load jumps; feed host races |
+| Watch rectangular pill below strip | 2.2.0 | Clashed with transport strip / player chrome |
+| “Searching for something?” overlay + recents/autocomplete | 2.1.7–2.2.0 | Extra UI surface; settings/control clashes reported |
+| Skeleton shimmer / FOUC placeholders | 2.2.0 | Weird loading; did not fix root placement failures |
+
+**What 2.2.1 kept:**
+
+- Enlarged inline player control tap targets (`clamp(2.9rem …)`)
+- Which buttons appear: rewind / play-pause / forward / pip / fullscreen only
+- YouTube-like play/pause glyphs
+- Ask YouTube / voice / AI CSS hide (small, non-inventive)
+- Native-assisted masthead search from 2.1.2 (`MOBILE_SEARCH_OPEN_ATTR` + `#center` phone overlay)
+
+**Suggestions for any future search attempt:**
+
+1. Must be **minimal** — prefer leaving native YouTube search alone.
+2. Test on **Orion iOS** before claiming fixed (desktop WebKit is not enough).
+3. Do **not** cover player controls or the transport strip.
+4. Prefer masthead / native slot over inventive floats, chips, pills, bottom capsules.
+5. **Ask the user** before another search redesign.
+6. No skeleton loaders unless the user explicitly asks and accepts load flicker risk.
+
+---
+
+## WebKit / Orion research takeaways (still true)
+
+Sources: [WKUserScript injection times](https://github.com/WebKit/webkit/blob/master/Source/WebKit/UIProcess/API/Cocoa/WKUserScript.h), [WKWebView gotchas (safe-area / fixed)](https://takazudomodular.com/pj/zudo-tauri/docs/mobile/wkwebview-gotchas/), [Orion iOS extensions](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html).
 
 | Finding | Implication for FYP |
 |---------|---------------------|
-| `document_start` = after `<html>` exists, before page content/scripts | Keep `run_at: document_start` + inject **critical CSS immediately** so native search/Ask/voice is hidden before first paint. |
-| `env(safe-area-inset-*)` can be `0` on first paint (WebKit 191872) | Skeleton/Home offsets use `max(env(safe-area-inset-top), 20px)`. |
-| Bottom `position: fixed` is covered by keyboard / browser chrome; Orion has a floating URL bar | Do **not** put search at the bottom. |
-| Masthead top-right fixed icon still caused right→center FOUC when later remounted | Do **not** use masthead-slot fixed search. Use Home chip / Watch flow pill + skeleton until ready. |
-| `position: fixed` under transformed ancestors re-roots / flickers on WKWebView | Prefer in-flow Watch pill and thumbnail-hosted Home chip; use `translateZ(0)` when fixed skeletons are needed. |
-| Orion iOS extension support is preliminary; Chrome + Firefox zips both work; MV2/MV3 are both supported | Prefer Chrome MV3 `*_release.zip`. Hard-refresh after install. |
-| Orion floating chrome is outside the webview | Leave `.ytp-*` chrome free of FYP capture; Watch search sits below the webpage strip only. |
+| Bottom `position: fixed` is covered by Orion’s floating URL bar | Do **not** put search at the bottom. |
+| Masthead top-right forced float caused FOUC | Do **not** force a Lucide icon into a remounted masthead slot. |
+| Inventive Home chip / Watch pill still failed in real Orion use | Prefer native masthead search path (2.1.2). |
+| Orion floating chrome is outside the webview | Leave `.ytp-*` chrome free of FYP capture. |
 
 ---
 
-## What 2.2.0 fixes
+## What 2.2.1 does
 
-- Home half-width search chip on first video; Watch rectangular pill below transport strip.
-- Overlay prompt “Searching for something?” + Lucide X + input; Ask/voice/AI stripped.
-- Skeleton shimmer placeholders prevent load jump until `data-fyp-ui-ready`.
-- Larger strip buttons; YouTube-like play/pause icons.
-- Recommended installer: `2.2.0_release.zip` (Chrome MV3).
-
-## What 2.1.9 fixed (superseded search placement)
-
-- Forced-visible Lucide Search in the native masthead search-icon slot (top-right fixed + safe-area) — **rejected / removed in 2.2.0**.
-- Early critical CSS for FOUC; transport-only strip; native settings restored.
+- Reverts broken 2.1.5–2.2.0 custom search UI.
+- Restores 2.1.2-style native masthead mobile search.
+- Keeps enlarged 5-button transport strip + play/pause glyphs.
+- Recommended installer: `2.2.1_release.zip` (Chrome MV3).
 
 ## Verification (Orion iPhone)
 
-1. Uninstall old build → install `2.2.0_release.zip` → hard-refresh YouTube.
-2. Home: half-width Search chip over first video; skeleton may flash first, then real chip (no right→center slide).
-3. Watch: transport strip, then search pill below it; does not cover player chrome.
-4. Overlay: X / “Searching for something?” / input; recents + suggestions; no Ask YouTube / voice.
-5. Play/pause glyph matches playing state; buttons feel larger to tap.
+1. Uninstall old build → install `2.2.1_release.zip` → hard-refresh YouTube.
+2. Search: native masthead search icon works; phone-width overlay; no Home chip / Watch pill / “Searching for something?” overlay / skeleton.
+3. Watch: enlarged transport strip only (5 buttons); native settings gear works; no on-video clock/gear overlays.
+4. Ask YouTube / voice / AI chrome stays hidden.
 
 ## Next agent prompt template
 
 After reading this file, summarize open rows (`Not fixed`), propose the smallest patch, then ask:
 
 > Continue the next fix on **this branch** (`fix/search-menus`), a **separate branch**, or **stop**?
+
+**Do not** reopen S1–S5 custom search designs without explicit user approval.

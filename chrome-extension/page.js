@@ -3,51 +3,28 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.0');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.1');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
-  const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger';
-  const SEARCH_OVERLAY_ID = `${SCRIPT_ID}-search-overlay`;
-  const SEARCH_TRIGGER_ID = `${SCRIPT_ID}-search-trigger`;
-  const UI_SKELETON_ID = `${SCRIPT_ID}-ui-skeleton`;
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v220-home-watch-search';
-  const SEARCH_TRIGGER_LAYOUT_VERSION = 'home-feed-watch-pill-v220';
-  const SEARCH_OVERLAY_LAYOUT_VERSION = 'prompt-recents-v220';
-  const SEARCH_RECENTS_KEY = `${SCRIPT_ID}:search-recents`;
-  const SEARCH_RECENTS_MAX = 8;
-  const SEARCH_SUGGEST_MAX = 8;
+  const NAV_LAYOUT_VERSION = 'ext-v221-native-search-recovery';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
-  const ROUTE_ATTR = 'data-fyp-route';
-  const SEARCH_HOST_ATTR = 'data-fyp-search-host';
-  const UI_READY_ATTR = 'data-fyp-ui-ready';
-  const NATIVE_SEARCH_HIDE_SELECTOR = [
+  const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
     'ytd-masthead #search-icon-legacy',
     'ytd-masthead button[aria-label="Search"]',
     'ytd-masthead [role="button"][aria-label="Search"]',
     'ytd-masthead yt-icon-button[aria-label="Search"]',
-    'ytd-masthead #center',
-    'ytd-masthead ytd-searchbox',
-    'ytd-masthead yt-searchbox',
-    'ytd-masthead #voice-search-button',
-    'ytd-masthead button[aria-label*="Search with your voice" i]',
-    'ytd-masthead button[aria-label*="Voice search" i]',
-    'ytd-masthead [aria-label*="Ask YouTube" i]',
-    'ytd-masthead [aria-label*="Ask Gemini" i]',
-    '#voice-search-button',
-    'button[aria-label*="Search with your voice" i]',
-    'button[aria-label*="Voice search" i]',
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
   const MENU_OPTION_TAP_SLOP_PX = 12;
@@ -65,320 +42,43 @@
    * Keep floating controls above that chrome so they stay tappable.
    */
   const ORION_NAV_GAP = '72px';
-  /*
-   * Phone-width gauge (~iPhone 17 logical CSS ~402×874). Show Home/Watch search
-   * triggers whenever the mobile layout media query is active (≤700px).
-   */
-  const PHONE_WIDTH_MAX_PX = 700;
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
-    `#${SEARCH_TRIGGER_ID}`,
-    `#${SEARCH_OVERLAY_ID}`,
-    `#${UI_SKELETON_ID}`,
     '[data-fyp-player-action]',
     '[data-fyp-player-option]',
-    '[data-fyp-search-action]',
   ].join(',');
 
-  function currentSearchRoute() {
-    const path = location.pathname || '/';
-    if (path === '/' || path === '') return 'home';
-    if (path === '/watch') return 'watch';
-    return 'other';
-  }
-
-  function syncRouteAttr() {
-    const next = currentSearchRoute();
-    const prev = document.documentElement?.getAttribute(ROUTE_ATTR);
-    document.documentElement?.setAttribute(ROUTE_ATTR, next);
-    if (prev && prev !== next) {
-      document.documentElement?.removeAttribute(UI_READY_ATTR);
-    }
-  }
-
-  function injectCriticalSearchStyle() {
+  /*
+   * 2.2.1 recovery: do not hide native masthead search. Only strip Ask/voice/AI
+   * clutter that fights usable search on Orion. Custom Home chip / Watch pill /
+   * overlay / skeleton from 2.1.5–2.2.0 are intentionally gone.
+   */
+  const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
+  function injectCriticalAskHideStyle() {
     if (document.getElementById(CRITICAL_STYLE_ID)) return;
-    syncRouteAttr();
     const style = document.createElement('style');
     style.id = CRITICAL_STYLE_ID;
     style.textContent = `
-      @media (max-width: ${PHONE_WIDTH_MAX_PX}px) {
-        ytd-masthead #center,
-        ytd-masthead #search-button,
-        ytd-masthead #search-button-narrow,
-        ytd-masthead #search-icon-legacy,
-        ytd-masthead ytd-searchbox,
-        ytd-masthead yt-searchbox,
-        ytd-masthead button[aria-label='Search'],
-        ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'],
-        ytd-masthead #voice-search-button,
-        ytd-masthead button[aria-label*='Search with your voice' i],
-        ytd-masthead button[aria-label*='Voice search' i],
-        ytd-masthead [aria-label*='Ask YouTube' i],
-        ytd-masthead [aria-label*='Ask Gemini' i],
-        #voice-search-button,
-        button[aria-label*='Search with your voice' i],
-        button[aria-label*='Voice search' i],
-        [aria-label*='Ask YouTube' i],
-        [aria-label*='Ask Gemini' i] {
-          display: none !important;
-          visibility: hidden !important;
-          pointer-events: none !important;
-          width: 0 !important;
-          min-width: 0 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-        }
-
-        /*
-         * Stable trigger skeleton before paint — final Home/Watch geometry only.
-         * Never use masthead top-right fixed (caused right→center FOUC in 2.1.9).
-         * Dimensions reserved so later JS remount cannot slide the control.
-         */
-        #${SEARCH_TRIGGER_ID} {
-          appearance: none !important;
-          box-sizing: border-box !important;
-          z-index: 40 !important;
-          display: none !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 8px !important;
-          height: 44px !important;
-          min-height: 44px !important;
-          margin: 0 !important;
-          padding: 0 14px !important;
-          color: #fff !important;
-          background: rgba(15, 15, 15, .88) !important;
-          border: 1px solid rgba(255, 255, 255, .18) !important;
-          border-radius: 14px !important;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, .28) !important;
-          cursor: pointer !important;
-          touch-action: manipulation !important;
-          transform: translateZ(0) !important;
-          -webkit-transform: translateZ(0) !important;
-          font: 600 14px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
-          letter-spacing: .01em !important;
-          opacity: 1 !important;
-          visibility: visible !important;
-          pointer-events: auto !important;
-        }
-
-        html[${ROUTE_ATTR}='home'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--home {
-          position: absolute !important;
-          left: 50% !important;
-          top: 38% !important;
-          right: auto !important;
-          bottom: auto !important;
-          width: min(50%, 15.5rem) !important;
-          min-width: min(50%, 15.5rem) !important;
-          display: inline-flex !important;
-          transform: translate(-50%, -50%) translateZ(0) !important;
-          -webkit-transform: translate(-50%, -50%) translateZ(0) !important;
-        }
-
-        html[${ROUTE_ATTR}='watch'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--watch {
-          position: relative !important;
-          left: auto !important;
-          top: auto !important;
-          right: auto !important;
-          bottom: auto !important;
-          width: min(92%, 22rem) !important;
-          min-width: 0 !important;
-          margin: .45rem auto .15rem !important;
-          display: inline-flex !important;
-          transform: none !important;
-          -webkit-transform: none !important;
-        }
-
-        html[${ROUTE_ATTR}='other'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--other {
-          position: relative !important;
-          width: min(50%, 15.5rem) !important;
-          margin: .65rem auto .25rem !important;
-          display: inline-flex !important;
-          transform: none !important;
-          -webkit-transform: none !important;
-        }
-
-        [${SEARCH_HOST_ATTR}='true'] {
-          position: relative !important;
-        }
-
-        html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
-          opacity: 0 !important;
-          visibility: hidden !important;
-          pointer-events: none !important;
-        }
-
-        /*
-         * Skeleton placeholders match final Home chip / Watch strip+pill footprint
-         * so layout never jumps from a wrong slot into the real UI.
-         */
-        @keyframes fyp-skel-shimmer {
-          0% { background-position: 100% 0; }
-          100% { background-position: -100% 0; }
-        }
-
-        #${UI_SKELETON_ID} {
-          pointer-events: none !important;
-          z-index: 36 !important;
-        }
-
-        html[${UI_READY_ATTR}='true'] #${UI_SKELETON_ID} {
-          display: none !important;
-          visibility: hidden !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-bar,
-        #${UI_SKELETON_ID} .fyp-skel-dot {
-          background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, .08) 0%,
-            rgba(255, 255, 255, .18) 45%,
-            rgba(255, 255, 255, .08) 90%
-          ) !important;
-          background-size: 200% 100% !important;
-          animation: fyp-skel-shimmer 1.15s ease-in-out infinite !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-home-search,
-        #${UI_SKELETON_ID} .fyp-skel-other-search {
-          display: none !important;
-          box-sizing: border-box !important;
-          position: fixed !important;
-          left: 50% !important;
-          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 78px) !important;
-          width: min(50%, 15.5rem) !important;
-          height: 44px !important;
-          min-height: 44px !important;
-          border-radius: 14px !important;
-          transform: translateX(-50%) translateZ(0) !important;
-          -webkit-transform: translateX(-50%) translateZ(0) !important;
-        }
-
-        html[${ROUTE_ATTR}='home']:not([${UI_READY_ATTR}='true'])
-          #${UI_SKELETON_ID} .fyp-skel-home-search {
-          display: block !important;
-        }
-
-        html[${ROUTE_ATTR}='other']:not([${UI_READY_ATTR}='true'])
-          #${UI_SKELETON_ID} .fyp-skel-other-search {
-          display: block !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-watch {
-          display: none !important;
-          position: fixed !important;
-          left: 50% !important;
-          top: calc(max(env(safe-area-inset-top, 0px), 20px) + 56vw + 18px) !important;
-          width: min(92vw, 22rem) !important;
-          transform: translateX(-50%) translateZ(0) !important;
-          -webkit-transform: translateX(-50%) translateZ(0) !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          gap: 10px !important;
-        }
-
-        html[${ROUTE_ATTR}='watch']:not([${UI_READY_ATTR}='true'])
-          #${UI_SKELETON_ID} .fyp-skel-watch {
-          display: flex !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-strip {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 10px !important;
-          width: fit-content !important;
-          padding: 8px !important;
-          border-radius: 1rem !important;
-          background: rgba(255, 255, 255, .06) !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-dot {
-          width: 2.9rem !important;
-          height: 2.75rem !important;
-          border-radius: 999px !important;
-          flex: 0 0 auto !important;
-        }
-
-        #${UI_SKELETON_ID} .fyp-skel-watch-search {
-          width: 100% !important;
-          height: 44px !important;
-          min-height: 44px !important;
-          border-radius: 14px !important;
-        }
+      ytd-masthead #voice-search-button,
+      ytd-masthead button[aria-label*='Search with your voice' i],
+      ytd-masthead button[aria-label*='Voice search' i],
+      ytd-masthead [aria-label*='Ask YouTube' i],
+      ytd-masthead [aria-label*='Ask Gemini' i],
+      #voice-search-button,
+      button[aria-label*='Search with your voice' i],
+      button[aria-label*='Voice search' i],
+      [aria-label*='Ask YouTube' i],
+      [aria-label*='Ask Gemini' i] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
       }
     `;
     const host = document.documentElement || document.head;
     if (host) host.appendChild(style);
-    ensureUiSkeleton();
   }
+  injectCriticalAskHideStyle();
 
-  function uiSkeletonMarkup() {
-    return (
-      `<div class="fyp-skel-bar fyp-skel-home-search" aria-hidden="true"></div>` +
-      `<div class="fyp-skel-bar fyp-skel-other-search" aria-hidden="true"></div>` +
-      `<div class="fyp-skel-watch" aria-hidden="true">` +
-      `<div class="fyp-skel-strip">` +
-      `<span class="fyp-skel-dot"></span>`.repeat(5) +
-      `</div>` +
-      `<div class="fyp-skel-bar fyp-skel-watch-search"></div>` +
-      `</div>`
-    );
-  }
-
-  function ensureUiSkeleton() {
-    syncRouteAttr();
-    if (document.documentElement?.getAttribute(UI_READY_ATTR) === 'true') {
-      document.getElementById(UI_SKELETON_ID)?.remove();
-      return;
-    }
-    let skeleton = document.getElementById(UI_SKELETON_ID);
-    if (!(skeleton instanceof HTMLElement)) {
-      skeleton = document.createElement('div');
-      skeleton.id = UI_SKELETON_ID;
-      skeleton.setAttribute('aria-hidden', 'true');
-      skeleton.innerHTML = uiSkeletonMarkup();
-      const host = document.body || document.documentElement;
-      if (host) host.appendChild(skeleton);
-    }
-  }
-
-  function isSearchUiStable() {
-    const route = currentSearchRoute();
-    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
-    if (!(trigger instanceof HTMLElement) || !trigger.isConnected) return false;
-    if (route === 'home') {
-      return Boolean(trigger.closest(`[${SEARCH_HOST_ATTR}='true']`));
-    }
-    if (route === 'watch') {
-      const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
-      return (
-        toolbar instanceof HTMLElement &&
-        toolbar.isConnected &&
-        toolbar.nextElementSibling === trigger
-      );
-    }
-    return trigger.isConnected;
-  }
-
-  function dismissUiSkeletonIfReady() {
-    if (!isSearchUiStable()) {
-      document.documentElement?.removeAttribute(UI_READY_ATTR);
-      ensureUiSkeleton();
-      return false;
-    }
-    document.documentElement?.setAttribute(UI_READY_ATTR, 'true');
-    document.getElementById(UI_SKELETON_ID)?.remove();
-    return true;
-  }
-
-  injectCriticalSearchStyle();
-
-  let searchSuggestTimer = null;
-  let searchSuggestRequestId = 0;
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
   const selectedQualityByVideo = new WeakMap();
@@ -823,12 +523,6 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
     quality:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-    search:
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>',
-    close:
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
-    recent:
-      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
@@ -2854,28 +2548,21 @@
         }
 
         /*
-         * Hide native masthead search chrome on phone widths. The Lucide Search
-         * trigger is forced into the masthead search-icon slot via early CSS
-         * (critical style) so first paint never shows a right→center jump.
+         * 2.2.1: restore 2.1.2-style native masthead search. Keep the desktop
+         * search form, but present it as a phone-width overlay after the
+         * search icon is tapped. 16px input prevents WebKit keyboard zoom.
+         * Ask/voice/AI clutter stays hidden (critical style + below).
          */
         ytd-masthead,
         ytd-masthead #container,
         ytd-masthead #start,
+        ytd-masthead #center,
         ytd-masthead #end {
           box-sizing: border-box !important;
           min-width: 0 !important;
           max-width: 100vw !important;
         }
 
-        ytd-masthead #center,
-        ytd-masthead #search-button,
-        ytd-masthead #search-button-narrow,
-        ytd-masthead #search-icon-legacy,
-        ytd-masthead ytd-searchbox,
-        ytd-masthead yt-searchbox,
-        ytd-masthead button[aria-label='Search'],
-        ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'],
         ytd-masthead #voice-search-button,
         ytd-masthead button[aria-label*='Search with your voice' i],
         ytd-masthead button[aria-label*='Voice search' i],
@@ -2889,341 +2576,62 @@
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
-          width: 0 !important;
-          min-width: 0 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
         }
 
-      }
-
-      /*
-       * Home: half-width pill over first feed thumbnail.
-       * Watch: rectangular pill below the transport strip (flow layout).
-       * Never masthead top-right fixed — that caused the 2.1.9 load jump.
-       */
-      @media (max-width: ${PHONE_WIDTH_MAX_PX}px) {
-        #${SEARCH_TRIGGER_ID} {
-          appearance: none !important;
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
+          position: fixed !important;
+          top: calc(env(safe-area-inset-top, 0px) + 8px) !important;
+          right: 12px !important;
+          left: 12px !important;
+          z-index: 2147483646 !important;
           box-sizing: border-box !important;
-          z-index: 40 !important;
-          display: none !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 8px !important;
-          height: 44px !important;
-          min-height: 44px !important;
-          margin: 0 !important;
-          padding: 0 14px !important;
-          color: #fff !important;
-          background: rgba(15, 15, 15, .88) !important;
-          border: 1px solid rgba(255, 255, 255, .18) !important;
-          border-radius: 14px !important;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, .28) !important;
-          cursor: pointer !important;
-          touch-action: manipulation !important;
-          transform: translateZ(0) !important;
-          -webkit-transform: translateZ(0) !important;
-          font: 600 14px/1 "SF Pro Text", Roboto, system-ui, sans-serif !important;
-          letter-spacing: .01em !important;
-          transition:
-            opacity .28s ease-in-out,
-            visibility .28s ease-in-out !important;
-        }
-
-        html[${ROUTE_ATTR}='home'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--home {
-          position: absolute !important;
-          left: 50% !important;
-          top: 38% !important;
-          right: auto !important;
-          bottom: auto !important;
-          width: min(50%, 15.5rem) !important;
-          min-width: min(50%, 15.5rem) !important;
-          display: inline-flex !important;
-          transform: translate(-50%, -50%) translateZ(0) !important;
-          -webkit-transform: translate(-50%, -50%) translateZ(0) !important;
-        }
-
-        html[${ROUTE_ATTR}='watch'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--watch {
-          position: relative !important;
-          left: auto !important;
-          top: auto !important;
-          right: auto !important;
-          bottom: auto !important;
-          width: min(92%, 22rem) !important;
+          display: flex !important;
+          width: auto !important;
           min-width: 0 !important;
-          margin: .45rem auto .15rem !important;
-          display: inline-flex !important;
-          transform: none !important;
-          -webkit-transform: none !important;
+          max-width: none !important;
+          height: 48px !important;
+          margin: 0 !important;
+          padding: 4px !important;
+          align-items: center !important;
+          background: rgb(15, 15, 15) !important;
+          border: 1px solid rgba(255, 255, 255, .22) !important;
+          border-radius: 24px !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
         }
 
-        html[${ROUTE_ATTR}='other'] #${SEARCH_TRIGGER_ID}.fyp-search-trigger--other {
-          position: relative !important;
-          width: min(50%, 15.5rem) !important;
-          margin: .65rem auto .25rem !important;
-          display: inline-flex !important;
-          transform: none !important;
-          -webkit-transform: none !important;
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] form {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          height: 40px !important;
+          align-items: center !important;
         }
 
-        [${SEARCH_HOST_ATTR}='true'] {
-          position: relative !important;
-        }
-
-        html[${MOBILE_SEARCH_OPEN_ATTR}='true'] #${SEARCH_TRIGGER_ID} {
-          opacity: 0 !important;
-          visibility: hidden !important;
-          pointer-events: none !important;
-        }
-
-        #${SEARCH_TRIGGER_ID} .fyp-search-trigger-label {
-          display: inline !important;
-          white-space: nowrap !important;
-        }
-
-        #${SEARCH_TRIGGER_ID} svg {
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
+          box-sizing: border-box !important;
           display: block !important;
-          width: 18px !important;
-          height: 18px !important;
-          flex: 0 0 auto !important;
-          fill: none !important;
-          stroke: currentColor !important;
-          stroke-width: 2 !important;
-          stroke-linecap: round !important;
-          stroke-linejoin: round !important;
+          flex: 1 1 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          height: 40px !important;
+          padding: 0 12px !important;
+          color: #fff !important;
+          background: transparent !important;
+          font-size: 16px !important;
+          line-height: 40px !important;
+          opacity: 1 !important;
+          visibility: visible !important;
         }
-      }
 
-      @media (min-width: ${PHONE_WIDTH_MAX_PX + 1}px) {
-        #${SEARCH_TRIGGER_ID} {
-          display: none !important;
-          visibility: hidden !important;
-          pointer-events: none !important;
-        }
-      }
-
-      #${SEARCH_OVERLAY_ID} {
-        position: fixed;
-        inset: 0;
-        z-index: 2147483646;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 12px;
-        pointer-events: none;
-        opacity: 0;
-        visibility: hidden;
-        transition:
-          opacity .28s ease-in-out,
-          visibility .28s ease-in-out;
-      }
-
-      #${SEARCH_OVERLAY_ID}.is-open {
-        pointer-events: auto;
-        opacity: 1;
-        visibility: visible;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, .52);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        opacity: 0;
-        transition: opacity .28s ease-in-out;
-      }
-
-      #${SEARCH_OVERLAY_ID}.is-open .fyp-search-backdrop {
-        opacity: 1;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-panel {
-        position: relative;
-        z-index: 1;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: min(100%, 28rem);
-        margin-top: 0;
-        padding: 10px 10px 8px;
-        align-items: stretch;
-        gap: 8px;
-        color: #fff;
-        background: rgba(18, 18, 18, .96);
-        border: 1px solid rgba(255, 255, 255, .2);
-        border-radius: 24px;
-        box-shadow: 0 10px 32px rgba(0, 0, 0, .45);
-        transform: translateY(-12px) scale(.98);
-        opacity: 0;
-        overflow: hidden;
-        transition:
-          transform .28s ease-in-out,
-          opacity .28s ease-in-out;
-      }
-
-      #${SEARCH_OVERLAY_ID}.is-open .fyp-search-panel {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-header {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        width: 100%;
-        min-height: 40px;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-prompt {
-        flex: 1 1 auto;
-        margin: 0;
-        padding: 0 4px;
-        color: rgba(255, 255, 255, .92);
-        font: 600 16px/1.25 "SF Pro Text", Roboto, system-ui, sans-serif;
-        text-align: left;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-row {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        width: 100%;
-        min-height: 48px;
-        padding: 0;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, .06);
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn {
-        appearance: none;
-        box-sizing: border-box;
-        display: inline-flex;
-        flex: 0 0 auto;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        margin: 0;
-        padding: 8px;
-        color: #fff;
-        background: transparent;
-        border: 0;
-        border-radius: 999px;
-        cursor: pointer;
-        touch-action: manipulation;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn svg {
-        display: block;
-        width: 20px;
-        height: 20px;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-input {
-        box-sizing: border-box;
-        display: block;
-        flex: 1 1 auto;
-        width: 100%;
-        min-width: 0;
-        height: 40px;
-        margin: 0;
-        padding: 0 8px;
-        color: #fff;
-        background: transparent;
-        border: 0;
-        outline: none;
-        font-size: 16px;
-        line-height: 40px;
-        text-align: left;
-        -webkit-appearance: none;
-        appearance: none;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-decoration,
-      #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-cancel-button {
-        -webkit-appearance: none;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions {
-        display: none;
-        box-sizing: border-box;
-        width: 100%;
-        margin: 0;
-        padding: 4px 4px 8px;
-        list-style: none;
-        max-height: min(48vh, 22rem);
-        overflow-x: hidden;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        border-top: 1px solid rgba(255, 255, 255, .1);
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions.is-visible {
-        display: block;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestions-label {
-        padding: 8px 12px 4px;
-        color: rgba(255, 255, 255, .55);
-        font: 600 11px/1.2 "SF Pro Text", Roboto, system-ui, sans-serif;
-        letter-spacing: .04em;
-        text-transform: uppercase;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion {
-        appearance: none;
-        box-sizing: border-box;
-        display: flex;
-        width: 100%;
-        min-height: 44px;
-        margin: 0;
-        padding: 0 10px;
-        align-items: center;
-        gap: 10px;
-        color: #fff;
-        background: transparent;
-        border: 0;
-        border-radius: 14px;
-        text-align: left;
-        font: 500 15px/1.25 "SF Pro Text", Roboto, system-ui, sans-serif;
-        cursor: pointer;
-        touch-action: manipulation;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion:active,
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion:focus-visible {
-        background: rgba(255, 255, 255, .1);
-        outline: none;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion svg {
-        display: block;
-        width: 18px;
-        height: 18px;
-        flex: 0 0 auto;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        opacity: .72;
-      }
-
-      #${SEARCH_OVERLAY_ID} .fyp-search-suggestion-text {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -3927,455 +3335,61 @@
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
-  function isSearchOverlayOpen() {
-    return document.documentElement.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
-  }
-
   function closeMobileSearch() {
-    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
-    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
-    document.documentElement.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
-    trigger?.setAttribute('aria-expanded', 'false');
-    if (searchSuggestTimer) {
-      clearTimeout(searchSuggestTimer);
-      searchSuggestTimer = null;
-    }
-    if (!(overlay instanceof HTMLElement)) return;
-    overlay.classList.remove('is-open');
-    const finalize = () => {
-      if (!isSearchOverlayOpen()) overlay.hidden = true;
-    };
-    overlay.addEventListener('transitionend', finalize, { once: true });
-    setTimeout(finalize, 320);
-  }
-
-  function readRecentSearches() {
-    try {
-      const raw = localStorage.getItem(SEARCH_RECENTS_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter(Boolean)
-        .slice(0, SEARCH_RECENTS_MAX);
-    } catch {
-      return [];
-    }
-  }
-
-  function writeRecentSearches(items) {
-    try {
-      localStorage.setItem(
-        SEARCH_RECENTS_KEY,
-        JSON.stringify(items.slice(0, SEARCH_RECENTS_MAX))
-      );
-    } catch {
-      // Private mode / quota — ignore.
-    }
-  }
-
-  function rememberRecentSearch(query) {
-    const normalized = String(query || '').trim();
-    if (!normalized) return;
-    const next = [
-      normalized,
-      ...readRecentSearches().filter(
-        (item) => item.toLowerCase() !== normalized.toLowerCase()
-      ),
-    ].slice(0, SEARCH_RECENTS_MAX);
-    writeRecentSearches(next);
-  }
-
-  function searchOverlayMarkup() {
-    return (
-      `<div class="fyp-search-backdrop" data-fyp-search-action="close"></div>` +
-      `<div class="fyp-search-panel" role="dialog" aria-label="Search YouTube">` +
-      `<div class="fyp-search-header">` +
-      `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="close" ` +
-      `aria-label="Close search" title="Close">${PLAYER_CONTROL_ICONS.close}</button>` +
-      `<p class="fyp-search-prompt">Searching for something?</p>` +
-      `</div>` +
-      `<div class="fyp-search-row">` +
-      `<input type="search" class="fyp-search-input" enterkeyhint="search" ` +
-      `autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" ` +
-      `placeholder="Search YouTube" aria-label="Search YouTube" />` +
-      `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="submit" ` +
-      `aria-label="Search" title="Search">${PLAYER_CONTROL_ICONS.search}</button>` +
-      `</div>` +
-      `<div class="fyp-search-suggestions" role="listbox" aria-label="Search suggestions"></div>` +
-      `</div>`
-    );
-  }
-
-  function ensureSearchOverlay() {
-    let overlay = document.getElementById(SEARCH_OVERLAY_ID);
-    if (
-      overlay instanceof HTMLElement &&
-      overlay.dataset.fypSearchOverlayLayout === SEARCH_OVERLAY_LAYOUT_VERSION
-    ) {
-      return overlay;
-    }
-    if (overlay instanceof HTMLElement) overlay.remove();
-    overlay = document.createElement('div');
-    overlay.id = SEARCH_OVERLAY_ID;
-    overlay.hidden = true;
-    overlay.dataset.fypSearchOverlayLayout = SEARCH_OVERLAY_LAYOUT_VERSION;
-    overlay.innerHTML = searchOverlayMarkup();
-    const input = overlay.querySelector('.fyp-search-input');
-    if (input instanceof HTMLInputElement) {
-      input.addEventListener('input', handleMobileSearchInput);
-      input.addEventListener('focus', () => {
-        refreshSearchSuggestions(input.value);
-      });
-    }
-    (document.body || document.documentElement).appendChild(overlay);
-    return overlay;
-  }
-
-  function clearSearchHostMarks() {
-    document.querySelectorAll(`[${SEARCH_HOST_ATTR}='true']`).forEach((node) => {
-      node.removeAttribute(SEARCH_HOST_ATTR);
-    });
-  }
-
-  function findHomeFirstVideoHost() {
-    const item = document.querySelector(
-      [
-        'ytd-browse[page-subtype="home"] ytd-rich-item-renderer',
-        'ytd-browse[page-subtype="home"] yt-lockup-view-model',
-        'ytd-two-column-browse-results-renderer ytd-rich-item-renderer',
-        '#contents ytd-rich-item-renderer',
-      ].join(',')
-    );
-    if (!(item instanceof Element)) return null;
-    const thumb =
-      item.querySelector(
-        [
-          'ytd-thumbnail',
-          'a#thumbnail',
-          '#thumbnail',
-          '.ytCoreImageHost',
-          '.ytLockupViewModelContentImage',
-          'yt-image',
-        ].join(',')
-      ) || item;
-    return thumb instanceof Element ? thumb : item;
-  }
-
-  function findOtherBrowseSearchAnchor() {
-    return (
-      visiblePlacementTarget(
-        [
-          'ytd-browse #header',
-          'ytd-browse ytd-browse-feed-actions-renderer',
-          'ytd-search #header',
-          'ytd-browse #primary',
-          '#primary',
-        ].join(',')
-      ) || null
-    );
-  }
-
-  function searchTriggerMarkup() {
-    return (
-      `${PLAYER_CONTROL_ICONS.search}` +
-      `<span class="fyp-search-trigger-label">Search</span>`
-    );
-  }
-
-  function ensureSearchTrigger() {
-    syncRouteAttr();
-    const route = currentSearchRoute();
-    clearSearchHostMarks();
-    ensureUiSkeleton();
-
-    let trigger = document.getElementById(SEARCH_TRIGGER_ID);
-    if (!(trigger instanceof HTMLButtonElement)) {
-      trigger = document.createElement('button');
-      trigger.type = 'button';
-      trigger.id = SEARCH_TRIGGER_ID;
-      trigger.setAttribute('aria-label', 'Search');
-      trigger.title = 'Search';
-      trigger.setAttribute('aria-haspopup', 'dialog');
-      trigger.setAttribute('aria-expanded', 'false');
-      trigger.setAttribute('data-fyp-search-action', 'open');
-    }
-
-    if (trigger.dataset.fypSearchLayout !== SEARCH_TRIGGER_LAYOUT_VERSION) {
-      trigger.dataset.fypSearchLayout = SEARCH_TRIGGER_LAYOUT_VERSION;
-      trigger.innerHTML = searchTriggerMarkup();
-    }
-
-    trigger.className = `fyp-search-trigger fyp-search-trigger--${route}`;
-
-    if (route === 'home') {
-      const host = findHomeFirstVideoHost();
-      if (!(host instanceof Element)) {
-        // Feed not ready — keep skeleton; never fall back to masthead/fixed slots.
-        trigger.remove();
-        document.documentElement?.removeAttribute(UI_READY_ATTR);
-        ensureUiSkeleton();
-        return;
-      }
-      host.setAttribute(SEARCH_HOST_ATTR, 'true');
-      if (trigger.parentElement !== host) host.appendChild(trigger);
-      dismissUiSkeletonIfReady();
-      return;
-    }
-
-    if (route === 'watch') {
-      const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
-      if (!(toolbar instanceof HTMLElement)) {
-        trigger.remove();
-        document.documentElement?.removeAttribute(UI_READY_ATTR);
-        ensureUiSkeleton();
-        return;
-      }
-      if (toolbar.nextElementSibling !== trigger) {
-        toolbar.insertAdjacentElement('afterend', trigger);
-      }
-      dismissUiSkeletonIfReady();
-      return;
-    }
-
-    const anchor = findOtherBrowseSearchAnchor();
-    const host = document.body || document.documentElement;
-    if (anchor instanceof Element) {
-      if (anchor.nextElementSibling !== trigger) {
-        anchor.insertAdjacentElement('afterend', trigger);
-      }
-    } else if (host instanceof Element && trigger.parentElement !== host) {
-      host.appendChild(trigger);
-    }
-    dismissUiSkeletonIfReady();
-  }
-
-  function renderSearchSuggestions(items, mode) {
-    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
-    const list = overlay?.querySelector('.fyp-search-suggestions');
-    if (!(list instanceof HTMLElement)) return;
-
-    const rows = Array.isArray(items) ? items.slice(0, SEARCH_SUGGEST_MAX) : [];
-    if (!rows.length) {
-      list.classList.remove('is-visible');
-      list.innerHTML = '';
-      return;
-    }
-
-    const label = mode === 'suggest' ? 'Suggestions' : 'Recent searches';
-    const icon =
-      mode === 'suggest'
-        ? PLAYER_CONTROL_ICONS.search
-        : PLAYER_CONTROL_ICONS.recent;
-    list.innerHTML =
-      `<div class="fyp-search-suggestions-label">${label}</div>` +
-      rows
-        .map((query) => {
-          const safe = String(query)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-          return (
-            `<button type="button" class="fyp-search-suggestion" role="option" ` +
-            `data-fyp-search-action="suggest" data-fyp-search-query="${safe}">` +
-            `${icon}<span class="fyp-search-suggestion-text">${safe}</span>` +
-            `</button>`
-          );
-        })
-        .join('');
-    list.classList.add('is-visible');
-  }
-
-  function fetchYouTubeSuggestions(query) {
-    const q = String(query || '').trim();
-    if (!q) return Promise.resolve([]);
-
-    return new Promise((resolve) => {
-      const callbackName = `__fypSearchSuggest_${Date.now().toString(36)}_${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-      let settled = false;
-      const finish = (items) => {
-        if (settled) return;
-        settled = true;
-        try {
-          delete window[callbackName];
-        } catch {
-          window[callbackName] = undefined;
-        }
-        script.remove();
-        resolve(Array.isArray(items) ? items : []);
-      };
-
-      window[callbackName] = (payload) => {
-        const list = Array.isArray(payload?.[1]) ? payload[1] : [];
-        const suggestions = list
-          .map((entry) => {
-            if (typeof entry === 'string') return entry;
-            if (Array.isArray(entry) && typeof entry[0] === 'string') return entry[0];
-            return '';
-          })
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .slice(0, SEARCH_SUGGEST_MAX);
-        finish(suggestions);
-      };
-
-      const script = document.createElement('script');
-      script.async = true;
-      script.src =
-        'https://suggestqueries.google.com/complete/search' +
-        `?client=youtube&ds=yt&q=${encodeURIComponent(q)}&callback=${callbackName}`;
-      script.onerror = () => finish([]);
-      setTimeout(() => finish([]), 1800);
-      (document.head || document.documentElement).appendChild(script);
-    });
-  }
-
-  async function refreshSearchSuggestions(rawQuery) {
-    const query = String(rawQuery || '').trim();
-    const requestId = ++searchSuggestRequestId;
-
-    if (!query) {
-      renderSearchSuggestions(readRecentSearches(), 'recent');
-      return;
-    }
-
-    const suggestions = await fetchYouTubeSuggestions(query);
-    if (requestId !== searchSuggestRequestId || !isSearchOverlayOpen()) return;
-
-    if (suggestions.length) {
-      renderSearchSuggestions(suggestions, 'suggest');
-      return;
-    }
-
-    const recents = readRecentSearches().filter((item) =>
-      item.toLowerCase().includes(query.toLowerCase())
-    );
-    renderSearchSuggestions(recents, 'recent');
-  }
-
-  function handleMobileSearchInput(event) {
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement)) return;
-    if (searchSuggestTimer) clearTimeout(searchSuggestTimer);
-    searchSuggestTimer = setTimeout(() => {
-      searchSuggestTimer = null;
-      refreshSearchSuggestions(input.value);
-    }, 160);
-  }
-
-  function openMobileSearch() {
-    ensureSearchTrigger();
-    const overlay = ensureSearchOverlay();
-    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
-    const input = overlay.querySelector('.fyp-search-input');
-    overlay.hidden = false;
-    document.documentElement.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
-    trigger?.setAttribute('aria-expanded', 'true');
-    refreshSearchSuggestions(
-      input instanceof HTMLInputElement ? input.value : ''
-    );
-    requestAnimationFrame(() => {
-      overlay.classList.add('is-open');
-      if (input instanceof HTMLInputElement) {
-        try {
-          input.focus({ preventScroll: true });
-        } catch {
-          input.focus();
-        }
-        const end = input.value.length;
-        input.setSelectionRange?.(end, end);
-      }
-    });
-  }
-
-  function submitMobileSearch(forcedQuery) {
-    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
-    const input = overlay?.querySelector('.fyp-search-input');
-    const query =
-      typeof forcedQuery === 'string' && forcedQuery.trim()
-        ? forcedQuery.trim()
-        : input instanceof HTMLInputElement
-          ? input.value.trim()
-          : '';
-    if (!query) {
-      if (input instanceof HTMLInputElement) {
-        try {
-          input.focus({ preventScroll: true });
-        } catch {
-          input.focus();
-        }
-      }
-      return;
-    }
-    if (input instanceof HTMLInputElement) input.value = query;
-    rememberRecentSearch(query);
-    const target = new URL('https://www.youtube.com/results');
-    target.searchParams.set('search_query', query);
-    target.searchParams.set('app', 'desktop');
-    target.searchParams.set('persist_app', '1');
-    closeMobileSearch();
-    location.assign(target.href);
+    const masthead = document.querySelector('ytd-masthead');
+    if (!masthead) return;
+    masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
+    masthead
+      .querySelectorAll(
+        '#search-button, #search-icon-legacy, button[aria-label="Search"], ' +
+          '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
+      )
+      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
   }
 
   function handleMobileSearchClick(event) {
+    if (!window.matchMedia?.('(max-width: 700px)').matches) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const trigger = target.closest(`#${SEARCH_TRIGGER_ID}`);
-    if (trigger) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (isSearchOverlayOpen()) closeMobileSearch();
-      else openMobileSearch();
-      return;
-    }
-
-    const actionNode = target.closest('[data-fyp-search-action]');
-    if (actionNode instanceof HTMLElement) {
-      const action = actionNode.dataset.fypSearchAction;
-      if (action === 'open') {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        if (isSearchOverlayOpen()) closeMobileSearch();
-        else openMobileSearch();
-        return;
-      }
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (action === 'close') closeMobileSearch();
-      else if (action === 'submit') submitMobileSearch();
-      else if (action === 'suggest') {
-        submitMobileSearch(actionNode.dataset.fypSearchQuery || '');
+    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
+    const masthead = target.closest('ytd-masthead');
+    if (!trigger || !masthead) {
+      const openMasthead = document.querySelector(
+        `ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true']`
+      );
+      if (openMasthead && !target.closest('ytd-masthead #center')) {
+        closeMobileSearch();
       }
       return;
     }
 
-    // Block native search chrome so it cannot fight the overlay.
-    if (target.closest(NATIVE_SEARCH_HIDE_SELECTOR)) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openMobileSearch();
-    }
-  }
-
-  function handleMobileSearchKeydown(event) {
-    if (event.key === 'Escape' && isSearchOverlayOpen()) {
-      event.preventDefault();
-      closeMobileSearch();
+    const alreadyOpen =
+      masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
+    if (alreadyOpen && trigger.closest('#center')) {
       return;
     }
-    if (event.key !== 'Enter') return;
-    const target = event.target;
-    if (
-      target instanceof HTMLInputElement &&
-      target.classList.contains('fyp-search-input')
-    ) {
-      event.preventDefault();
-      submitMobileSearch();
-    }
+
+    const input = masthead.querySelector(
+      'input#search, input[name="search_query"], .yt-searchbox-input'
+    );
+    if (!(input instanceof HTMLInputElement)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
+    trigger.setAttribute('aria-expanded', 'true');
+    requestAnimationFrame(() => {
+      input.removeAttribute('hidden');
+      input.setAttribute('aria-hidden', 'false');
+      try {
+        input.focus({ preventScroll: true });
+      } catch {
+        input.focus();
+      }
+      const end = input.value.length;
+      input.setSelectionRange?.(end, end);
+    });
   }
 
   function dismissMiniplayer() {
@@ -5204,7 +4218,6 @@
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
     syncCustomPlayerControls();
-    ensureSearchTrigger();
   }
 
   function scanPage() {
@@ -5221,7 +4234,6 @@
     showWelcomeOnce();
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
-    ensureSearchTrigger();
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
@@ -5251,7 +4263,7 @@
     hideUploadControls();
     dismissMiniplayer();
     ensurePlayerControlsToolbar();
-    ensureSearchTrigger();
+    closeMobileSearch();
     arrangeWatchComments();
     enhanceComments();
   }, true);
@@ -5299,18 +4311,24 @@
   });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
   nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
+  nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
   nativeDocumentAddEventListener(
-    'PointerEvent' in window ? 'pointerdown' : 'click',
-    handleMobileSearchClick,
-    { capture: true, passive: false }
+    'submit',
+    (event) => {
+      if (event.target?.closest?.('ytd-masthead')) {
+        setTimeout(closeMobileSearch, 0);
+      }
+    },
+    true
   );
-  if (!('PointerEvent' in window)) {
-    nativeDocumentAddEventListener('touchstart', handleMobileSearchClick, {
-      capture: true,
-      passive: false,
-    });
-  }
-  nativeDocumentAddEventListener('keydown', handleMobileSearchKeydown, true);
+  nativeDocumentAddEventListener(
+    'keydown',
+    (event) => {
+      if (event.key !== 'Escape') return;
+      closeMobileSearch();
+    },
+    true
+  );
   nativeWindowAddEventListener('blur', () => {
     if (state.video && !state.video.paused) prepareForBackground();
   }, true);
@@ -5353,7 +4371,6 @@
   setInterval(() => {
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
-    ensureSearchTrigger();
     syncCustomPlayerControls();
     installMediaSessionHandlers();
     updateMediaSessionMetadata();

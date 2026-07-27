@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.2.1
+
+- Removed: Broken 2.1.5–2.2.0 custom search (Home chip, Watch pill, bottom capsule, masthead float, “Searching for something?” overlay, recents/autocomplete UI, skeleton FOUC loaders).
+- Restored: 2.1.2-style native masthead mobile search (tap search icon → phone-width overlay). Ask YouTube / voice / AI chrome stays CSS-hidden only.
+- Preserved: Enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen) with YouTube-like play/pause glyphs.
+- Notes: Recovery build after 2.2.0 broke search/controls on Orion. Do not revive the reverted search experiments without user approval.
+- Packaging: Numeric version `2.2.1`; recommended Orion installer `2.2.1_release.zip` (Chrome MV3).
+
 ## v2.2.0
 
 - Changed: Home search is a half-width chip over the first feed video (not masthead top-right). Watch adds a rectangular search pill below the transport strip. Both open the same overlay.
@@ -7,6 +15,7 @@
 - Added: Shimmer skeleton placeholders matching the Home chip and Watch strip+pill footprint until the real UI mounts (prevents load jump / FOUC).
 - Changed: Inline transport buttons are larger for easier taps; play/pause glyphs use YouTube-like filled triangle/bars synced to paused/playing.
 - Packaging: Numeric version `2.2.0`; recommended Orion installer `2.2.0_release.zip` (Chrome MV3).
+- Notes: **Superseded / reverted in 2.2.1** — custom search placements failed on Orion.
 
 ## v2.1.9
 

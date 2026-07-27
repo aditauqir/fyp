@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.2.0';
+  const EXPECTED_PAGE_VERSION = '2.2.1';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1862,16 +1862,7 @@
           pointer-events: none !important;
         }
 
-        /* Mirror page.js: hide native masthead search + Ask/voice clutter. */
-        ytd-masthead #center,
-        ytd-masthead #search-button,
-        ytd-masthead #search-button-narrow,
-        ytd-masthead #search-icon-legacy,
-        ytd-masthead ytd-searchbox,
-        ytd-masthead yt-searchbox,
-        ytd-masthead button[aria-label='Search'],
-        ytd-masthead [role='button'][aria-label='Search'],
-        ytd-masthead yt-icon-button[aria-label='Search'],
+        /* Mirror page.js 2.2.1: leave native search alone; hide Ask/voice only. */
         ytd-masthead #voice-search-button,
         ytd-masthead button[aria-label*='Search with your voice' i],
         ytd-masthead button[aria-label*='Voice search' i],

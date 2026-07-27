@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v220-transport-larger'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
