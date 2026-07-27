@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.2.1
-// @release-label 2.2.1
+// @version      2.2.3
+// @release-label 2.2.3
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.1');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.3');
 
   const SCRIPT_ID = 'vm-yt-mobile-background';
   const STYLE_ID = `${SCRIPT_ID}-style`;
@@ -30,7 +30,7 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v221-native-search-recovery';
+  const NAV_LAYOUT_VERSION = 'ext-v223-caption-activation';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -762,7 +762,20 @@
     if (!player || typeof player.getOption !== 'function') return [];
     try {
       const tracks = player.getOption('captions', 'tracklist');
-      return Array.isArray(tracks) ? tracks : [];
+      if (!Array.isArray(tracks)) return [];
+      const seen = new Set();
+      return tracks.filter((track) => {
+        const label = captionOptionText(
+          track.displayName || track.name || track.label
+        ).toLowerCase();
+        const language = String(
+          track.languageCode || track.language || track.lang || ''
+        ).toLowerCase();
+        const key = `${label}|${language}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     } catch {
       return [];
     }
@@ -1588,39 +1601,130 @@
       .sort((left, right) => right.score - left.score)[0]?.track;
   }
 
+  function matchCaptionTrackByMeta(tracks, meta) {
+    if (!meta || !tracks.length) return null;
+    const language = String(
+      meta.languageCode || meta.language || meta.lang || meta.captionLanguage || ''
+    )
+      .trim()
+      .toLowerCase();
+    const label = captionOptionText(
+      meta.displayName || meta.name || meta.label || meta.captionLabel
+    ).toLowerCase();
+    return (
+      tracks.find((track) => {
+        const trackLanguage = String(track.language || '').toLowerCase();
+        const trackLabel = String(track.label || '')
+          .trim()
+          .toLowerCase();
+        return (
+          (label && trackLabel === label) ||
+          (language && trackLanguage === language)
+        );
+      }) || null
+    );
+  }
+
   function suppressDuplicateNativeCaptions(video = state.video || findVideo()) {
     if (!(video instanceof HTMLVideoElement)) return;
     const player = video.closest('#movie_player, .html5-video-player');
     if (!player) return;
 
+    const tracks = [];
+    for (let index = 0; index < video.textTracks.length; index += 1) {
+      const track = video.textTracks[index];
+      if (track.kind === 'captions' || track.kind === 'subtitles') {
+        tracks.push(track);
+      }
+    }
+    if (!tracks.length) return;
+
     const customCaptionsVisible = Boolean(
       player.querySelector('.ytp-caption-window-container .ytp-caption-segment')
     );
+    const captionsButtonState = player
+      .querySelector('.ytp-subtitles-button')
+      ?.getAttribute('aria-pressed');
+    const captionsButtonPressed = captionsButtonState === 'true';
+    const activeTracks = tracks.filter((track) => track.mode !== 'disabled');
+    const previousTrack = selectedCaptionTrackByVideo.get(video);
 
     /*
      * Caption contract: YouTube's custom caption DOM is the sole visible owner.
-     * Only hide WebKit's native ::cue when custom segments exist. Do not click
-     * .ytp-subtitles-button, do not globally disable captions, and do not force
-     * a competing TextTrack selection that fights YouTube's caption module.
+     * Keep exactly one TextTrack active (mode "hidden") so Orion's Languages
+     * menu cannot leave English+English selected, and hide WebKit ::cue only
+     * when custom segments exist. Do not click .ytp-subtitles-button or turn
+     * captions off globally.
+     */
+    if (
+      previousTrack &&
+      !activeTracks.length &&
+      captionsButtonState !== 'true'
+    ) {
+      selectedCaptionTrackByVideo.delete(video);
+      delete video.dataset.fypNativeCaptionsHidden;
+      return;
+    }
+    if (
+      !customCaptionsVisible &&
+      !captionsButtonPressed &&
+      !activeTracks.length
+    ) {
+      selectedCaptionTrackByVideo.delete(video);
+      delete video.dataset.fypNativeCaptionsHidden;
+      return;
+    }
+
+    /*
+     * Let YouTube's caption module finish enabling tracks and painting custom
+     * segments before we collapse duplicate TextTracks. Premature hidden/disabled
+     * enforcement (2.2.2) prevented captions from turning on at all.
      */
     if (!customCaptionsVisible) {
       delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
 
-    video.dataset.fypNativeCaptionsHidden = 'true';
-    for (let index = 0; index < video.textTracks.length; index += 1) {
-      const track = video.textTracks[index];
-      if (
-        (track.kind === 'captions' || track.kind === 'subtitles') &&
-        track.mode === 'showing'
-      ) {
-        try {
-          track.mode = 'hidden';
-        } catch {
-          // CSS ::cue hiding still covers locked WebKit tracks.
-        }
+    const newlyActiveTracks = activeTracks.filter(
+      (track) => track !== previousTrack
+    );
+    const youtubeTrack = currentYouTubeCaptionTrack();
+    let selectedTrack;
+    if (previousTrack && newlyActiveTracks.length) {
+      // A native Languages-menu tap selected another track. Respect it while
+      // still disabling every other simultaneously selected subtitle.
+      selectedTrack = chooseBestCaptionTrack(newlyActiveTracks);
+    } else if (
+      previousTrack &&
+      tracks.includes(previousTrack) &&
+      previousTrack.mode !== 'disabled'
+    ) {
+      selectedTrack = previousTrack;
+    } else {
+      selectedTrack =
+        matchCaptionTrackByMeta(
+          activeTracks.length ? activeTracks : tracks,
+          youtubeTrack
+        ) ||
+        chooseBestCaptionTrack(activeTracks.length ? activeTracks : tracks);
+    }
+    if (!selectedTrack) return;
+
+    // Exactly one track stays "hidden" for YouTube; every other row (including
+    // duplicate English entries Orion marks selected) becomes disabled.
+    for (const track of tracks) {
+      try {
+        track.mode = track === selectedTrack ? 'hidden' : 'disabled';
+      } catch {
+        // CSS ::cue hiding still covers locked WebKit tracks.
       }
+    }
+    selectedCaptionTrackByVideo.set(video, selectedTrack);
+
+    if (customCaptionsVisible) {
+      video.dataset.fypNativeCaptionsHidden = 'true';
+    } else {
+      delete video.dataset.fypNativeCaptionsHidden;
     }
   }
 

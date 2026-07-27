@@ -1,5 +1,20 @@
 # Patch Notes
 
+## v2.2.3
+
+- Fixed: Subtitles turn on again — single-track dedupe now waits until YouTube’s custom caption segments are visible before forcing TextTrack `hidden`/`disabled` modes. 2.2.2 applied that enforcement too early and blocked activation entirely.
+- Fixed: WebKit `::cue` still hides only when YouTube’s custom caption segments exist; caption containers stay visible.
+- Preserved: One active subtitle language when captions are on (authored English preferred); duplicate English rows stay collapsed in the Languages menu.
+- Notes: Builds on 2.2.1 recovery (native masthead search restored; enlarged 5-button transport strip kept). Search UI and transport button composition were not changed.
+- Packaging: Numeric version `2.2.3`; recommended Orion installer `2.2.3_release.zip` (Chrome MV3).
+
+## v2.2.2
+
+- Fixed: Exactly one subtitle language stays active — Orion no longer leaves English selected twice (duplicate authored rows / English+English) or paints double on-screen captions.
+- Fixed: WebKit `::cue` still hides only when YouTube’s custom caption segments exist; caption containers stay visible.
+- Notes: Builds on 2.2.1 recovery (native masthead search restored; enlarged 5-button transport strip kept). Search UI and which transport buttons appear were not changed.
+- Packaging: Numeric version `2.2.2`; recommended Orion installer `2.2.2_release.zip` (Chrome MV3).
+
 ## v2.2.1
 
 - Removed: Broken 2.1.5–2.2.0 custom search (Home chip, Watch pill, bottom capsule, masthead float, “Searching for something?” overlay, recents/autocomplete UI, skeleton FOUC loaders).

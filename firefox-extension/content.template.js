@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.2.1';
+  const EXPECTED_PAGE_VERSION = '2.2.3';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
@@ -1862,7 +1862,7 @@
           pointer-events: none !important;
         }
 
-        /* Mirror page.js 2.2.1: leave native search alone; hide Ask/voice only. */
+        /* Mirror page.js 2.2.3: leave native search alone; hide Ask/voice only. */
         ytd-masthead #voice-search-button,
         ytd-masthead button[aria-label*='Search with your voice' i],
         ytd-masthead button[aria-label*='Voice search' i],

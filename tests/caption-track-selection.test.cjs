@@ -29,6 +29,11 @@ const authoredEnglish = {
   language: 'en-US',
   mode: 'showing',
 };
+const duplicateAuthoredEnglish = {
+  label: 'English (United States)',
+  language: 'en-US',
+  mode: 'showing',
+};
 const automaticEnglish = {
   label: 'English (auto-generated)',
   language: 'en',
@@ -49,5 +54,9 @@ assert.equal(
   automaticEnglish
 );
 assert.equal(choose([authoredSpanish]), authoredSpanish);
+assert.equal(
+  choose([duplicateAuthoredEnglish, authoredEnglish, automaticEnglish]),
+  duplicateAuthoredEnglish
+);
 
 console.log('caption ranking prefers authored English then automatic English: ok');

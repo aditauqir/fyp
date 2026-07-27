@@ -7,8 +7,8 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /@version\s+2.2.1/);
-assert.match(source, /@release-label\s+2.2.1/);
+assert.match(source, /@version\s+2.2.3/);
+assert.match(source, /@release-label\s+2.2.3/);
 assert.match(source, /function installInlinePlaybackGuard\(\)/);
 assert.match(source, /video\.disablePictureInPicture = false/);
 assert.match(source, /video\.requestPictureInPicture\(\)/);

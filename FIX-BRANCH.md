@@ -1,8 +1,9 @@
 # FIX-BRANCH — `fix/search-menus`
 
-> **2.2.1 RECOVERY.** Ship version: **2.2.1**.
+> **2.2.3 TEST BUILD** (caption activation fix on top of 2.2.2). Ship version when approved: **2.2.3**.
 > Baseline restored search: `origin/main` / `1ca4f57` (2.1.2 native masthead path).
 > Kept from later work: enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen).
+> Do **not** merge/push main or create GitHub releases until the user says “it’s good”.
 
 ---
 
@@ -46,6 +47,7 @@
 | M9 | Native speed timer + quality gear icons | **Fixed in 2.1.9** | Removed from strip and video chrome; native settings gear restored. |
 | M10 | Settings dropdown broken / clash | **Fixed in 2.1.9** | Stopped hiding `.ytp-settings-button`; narrowed capture to `#fyp-…` / `[data-fyp-…]` only. |
 | M11 | Play/Pause icon mismatch vs native player | **Kept** | Filled Material/YouTube-like triangle + bars; aria/state synced to paused/playing. |
+| M12 | Double captions / English selected twice | **Fixed in 2.2.3 (test zip)** | Single-track enforcement deferred until custom caption segments exist; then `hidden` + disable duplicates. Do not touch search/buttons. |
 | S1–S5 | Custom search experiments (2.1.5–2.2.0) | **REVERTED / FAILED — do not revive without user approval** | See failure log below. Native 2.1.2 path restored in 2.2.1. |
 
 ---
@@ -74,6 +76,13 @@ What failed (user: “2.2.0 broke everything”):
 - Ask YouTube / voice / AI CSS hide (small, non-inventive)
 - Native-assisted masthead search from 2.1.2 (`MOBILE_SEARCH_OPEN_ATTR` + `#center` phone overlay)
 
+**What 2.2.3 adds (captions only):**
+
+- Restores subtitle activation — dedupe waits for YouTube custom segments before TextTrack mode changes
+- Keeps single active TextTrack once captions paint (authored English preferred)
+- Disables duplicate English rows so Languages cannot show English+English selected
+- Keeps YouTube custom caption DOM; hides native `::cue` only beside custom segments
+
 **Suggestions for any future search attempt:**
 
 1. Must be **minimal** — prefer leaving native YouTube search alone.
@@ -98,19 +107,20 @@ Sources: [WKUserScript injection times](https://github.com/WebKit/webkit/blob/ma
 
 ---
 
-## What 2.2.1 does
+## What 2.2.3 does
 
-- Reverts broken 2.1.5–2.2.0 custom search UI.
-- Restores 2.1.2-style native masthead mobile search.
-- Keeps enlarged 5-button transport strip + play/pause glyphs.
-- Recommended installer: `2.2.1_release.zip` (Chrome MV3).
+- Fixes subtitles not turning on (M12 follow-up).
+- Keeps 2.2.2 double-caption / English+English dedupe once custom segments exist.
+- Leaves 2.2.1 search recovery and enlarged transport strip unchanged.
+- Recommended test installer: `2.2.3_release.zip` (Chrome MV3). Copy also at `~/Downloads/2.2.3_release.zip`.
 
 ## Verification (Orion iPhone)
 
-1. Uninstall old build → install `2.2.1_release.zip` → hard-refresh YouTube.
+1. Uninstall old build → install `2.2.3_release.zip` → hard-refresh YouTube.
 2. Search: native masthead search icon works; phone-width overlay; no Home chip / Watch pill / “Searching for something?” overlay / skeleton.
 3. Watch: enlarged transport strip only (5 buttons); native settings gear works; no on-video clock/gear overlays.
-4. Ask YouTube / voice / AI chrome stays hidden.
+4. Captions: Languages shows one English selected (not English+English); on-screen captions appear once.
+5. Ask YouTube / voice / AI chrome stays hidden.
 
 ## Next agent prompt template
 
