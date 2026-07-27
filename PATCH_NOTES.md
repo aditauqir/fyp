@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.1.5
+
+- Changed: Webpage player strip is centered transport-only (rewind / play-pause / forward / pip / fullscreen); Captions and More were removed from that bar.
+- Added: In-player Lucide timer (playback speed) and gear (video quality) overlays with the durable apply + 120ms retry pattern.
+- Changed: Captions use native YouTube CC; caption deduplication still hides duplicate WebKit cues beside custom segments.
+- Added: Global search overlay everywhere (Home, Watch, History, browse) — translucent backdrop, close on the left, submit on the right; native Ask/voice/AI search chrome stays hidden.
+- Packaging: The numeric manifest version is `2.1.5`, and the recommended Orion installer is `2.1.5_release.zip`.
+
 ## v2.1.4
 
 - Fixed: Captions and More dropdowns scroll on Orion/iOS (`overflow-y` + touch pan); option taps no longer block scrolling.

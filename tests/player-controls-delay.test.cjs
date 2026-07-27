@@ -30,47 +30,59 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality'/
 );
+assert.match(source, /const PLAYER_CHROME_EXTRAS_ID = `\$\{SCRIPT_ID\}-chrome-extras`/);
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
+assert.match(source, /function ensurePlayerChromeExtras\(\)/);
 assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);
 for (const action of [
   'rewind',
   'play-pause',
   'forward',
-  'captions',
   'pip',
   'fullscreen',
-  'more',
 ]) {
   assert.match(
     source,
     new RegExp(`playerControlButtonMarkup\\(\\s*'${action}'`)
   );
 }
+assert.doesNotMatch(
+  source,
+  /playerControlButtonMarkup\(\s*'captions'/
+);
+assert.doesNotMatch(
+  source,
+  /playerControlButtonMarkup\(\s*'more'/
+);
+assert.match(
+  source,
+  /playerControlButtonMarkup\(\s*'speed'/
+);
+assert.match(
+  source,
+  /playerControlButtonMarkup\(\s*'quality'/
+);
 assert.match(source, /video\.currentTime \+ offset/);
 assert.match(source, /await video\.play\(\)/);
 assert.match(source, /video\.pause\(\)/);
 assert.match(source, /video\.requestPictureInPicture\(\)/);
 assert.match(source, /player\.requestFullscreen/);
-assert.match(source, /\.ytp-subtitles-button/);
-assert.match(source, /\.ytp-settings-button/);
-assert.match(source, /function toggleCaptionsMenu\(/);
+assert.match(source, /function toggleSpeedMenu\(/);
+assert.match(source, /function toggleQualityMenu\(/);
 assert.match(source, /function selectYouTubeCaptionTrack\(/);
 assert.match(source, /player\.setOption\('captions', 'track', youtubeTrack\)/);
 assert.match(source, /player\.setOption\('captions', 'reload', true\)/);
-assert.match(source, /setTimeout\(applyCaptionSelection, 120\)/);
-assert.match(source, /function toggleMorePlayerMenu\(/);
-assert.match(source, /selectedCaptionTrackByVideo\.set\(video, matchedTextTrack\)/);
-assert.match(source, /selectedCaptionTrackByVideo\.set\(video, selectedMeta\)/);
-assert.match(source, /action: 'captions-off'/);
-assert.match(source, /action: 'caption-track'/);
+assert.match(source, /setTimeout\(applyPlaybackRate, 120\)/);
+assert.match(source, /setTimeout\(applyQuality, 120\)/);
 assert.match(source, /action: 'playback-speed'/);
 assert.match(source, /action: 'playback-quality'/);
 assert.match(source, /function applyYouTubeQuality\(/);
 assert.match(source, /function youtubeQualityLevels\(/);
 assert.match(source, /ignorePlayerControlActionsUntil = Date\.now\(\) \+ 500/);
 assert.match(source, /appendPlayerMenuTitle\(menu, 'Video quality'\)/);
+assert.match(source, /appendPlayerMenuTitle\(menu, 'Playback speed'\)/);
 assert.match(source, /FALLBACK_QUALITY_LEVELS/);
 assert.match(source, /appendPlayerMenuCollapse\(/);
 assert.match(source, /dataset\.fypPlayerOption = 'menu-collapse'/);
@@ -85,23 +97,10 @@ assert.match(
 assert.match(source, /function currentYouTubeCaptionTrack\(/);
 assert.doesNotMatch(source, /nativeCaptions\.click\(\)/);
 assert.match(source, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
-assert.match(source, /action: 'native-settings'/);
-assert.match(
-  source,
-  /if \(!\('PointerEvent' in window\)\) \{\s*nativeDocumentAddEventListener\(\s*'click',\s*handlePlayerControlActionCapture/
-);
-assert.doesNotMatch(source, /setTimeout\(applyCaptionSelection, 350\)/);
-assert.match(
-  source,
-  /target\.closest\(\s*'\[data-fyp-player-option\]'\s*\)/
-);
-assert.match(
-  source,
-  /target\.closest\(\s*'\[data-fyp-player-action\]'\s*\)/
-);
-assert.match(source, /grid-column: 1 \/ -1;/);
-assert.match(source, /max-height: min\(42svh, 18rem\);/);
-assert.match(source, /grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);
+assert.match(source, /margin: clamp\(\.5rem, 2\.4vw, \.8rem\) auto/);
+assert.match(source, /display: flex !important;/);
+assert.match(source, /justify-content: center/);
+assert.doesNotMatch(source, /grid-template-columns: repeat\(7,/);
 assert.match(
   source,
   /'PointerEvent' in window \? 'pointerdown' : 'touchstart',\s*handlePlayerControlActionCapture/
@@ -134,5 +133,6 @@ assert.match(
 );
 assert.match(source, /ytd-enforcement-message-view-model/);
 assert.doesNotMatch(source, /duration - 0\.05/);
+assert.match(source, /\.ytp-settings-button[\s\S]*display: none !important/);
 
-console.log('10-second native hold and seven-button player strip: ok');
+console.log('10-second native hold and centered five-button strip + chrome speed/quality: ok');

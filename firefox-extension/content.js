@@ -27,12 +27,14 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.1.4';
+  const EXPECTED_PAGE_VERSION = '2.1.5';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner';
+  const PLAYER_CHROME_EXTRAS_ID = 'yt-mobile-orion-ext-chrome-extras';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality';
+  const PLAYER_CHROME_LAYOUT_VERSION = 'chrome-speed-quality-v215';
   const MENU_OPTION_TAP_SLOP_PX = 12;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
@@ -64,21 +66,26 @@
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
     pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1"></rect><rect x="15" y="4" width="4" height="16" rx="1"></rect></svg>',
     forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="M7 15h4"></path><path d="M13 15h4"></path><path d="M7 11h2"></path><path d="M15 11h2"></path></svg>',
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
-    more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>',
+    speed:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+    quality:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
 
-  function playerControlButtonMarkup(action, label, icon) {
+  function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
-      action === 'captions' || action === 'more'
+      action === 'speed' || action === 'quality'
         ? ' aria-haspopup="menu" aria-expanded="false"'
         : '';
+    const className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
     return (
-      `<button type="button" class="fyp-player-control" ` +
+      `<button type="button" class="${className}" ` +
       `data-fyp-player-action="${action}" aria-label="${label}" ` +
       `title="${label}" aria-pressed="false"${menuAttributes}>${icon}</button>`
     );
@@ -102,11 +109,6 @@
         PLAYER_CONTROL_ICONS.forward
       ),
       playerControlButtonMarkup(
-        'captions',
-        'Captions',
-        PLAYER_CONTROL_ICONS.captions
-      ),
-      playerControlButtonMarkup(
         'pip',
         'Picture in Picture',
         PLAYER_CONTROL_ICONS.pip
@@ -116,10 +118,22 @@
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
       ),
+    ].join('');
+  }
+
+  function playerChromeExtrasMarkup() {
+    return [
       playerControlButtonMarkup(
-        'more',
-        'More player options',
-        PLAYER_CONTROL_ICONS.more
+        'speed',
+        'Playback speed',
+        PLAYER_CONTROL_ICONS.speed,
+        'fyp-chrome-control'
+      ),
+      playerControlButtonMarkup(
+        'quality',
+        'Video quality',
+        PLAYER_CONTROL_ICONS.quality,
+        'fyp-chrome-control'
       ),
     ].join('');
   }
@@ -436,30 +450,6 @@
       playButton.title = label;
       playButton.setAttribute('aria-pressed', String(!paused));
     }
-    const captionsButton = toolbar.querySelector(
-      '[data-fyp-player-action="captions"]'
-    );
-    if (captionsButton instanceof HTMLButtonElement) {
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      const player = video?.closest?.('#movie_player, .html5-video-player');
-      const active =
-        nativeCaptions?.getAttribute('aria-pressed') === 'true' ||
-        Boolean(video && fallbackSelectedCaptionTrackByVideo.has(video)) ||
-        Boolean(
-          player?.querySelector(
-            '.ytp-caption-window-container .ytp-caption-segment'
-          )
-        ) ||
-        Boolean(
-          video &&
-            [...video.textTracks].some(
-              (track) =>
-                (track.kind === 'captions' || track.kind === 'subtitles') &&
-                (track.mode === 'showing' || track.mode === 'hidden')
-            )
-        );
-      captionsButton.setAttribute('aria-pressed', String(active));
-    }
     const pipButton = toolbar.querySelector('[data-fyp-player-action="pip"]');
     if (pipButton instanceof HTMLButtonElement) {
       const active =
@@ -480,32 +470,40 @@
     }
   }
 
-  function closeFallbackPlayerControlMenu(
-    toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)
-  ) {
-    if (!(toolbar instanceof HTMLElement)) return;
-    toolbar.querySelector('.fyp-player-menu')?.remove();
-    toolbar
-      .querySelectorAll('[aria-haspopup="menu"]')
-      .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  function fallbackPlayerMenuHosts() {
+    return [
+      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID),
+      document.getElementById(PLAYER_CHROME_EXTRAS_ID),
+    ].filter((node) => node instanceof HTMLElement);
   }
 
-  function createFallbackPlayerControlMenu(toolbar, sourceButton, label) {
-    const current = toolbar.querySelector('.fyp-player-menu');
+  function closeFallbackPlayerControlMenu(host) {
+    const hosts = host instanceof HTMLElement ? [host] : fallbackPlayerMenuHosts();
+    for (const menuHost of hosts) {
+      menuHost.querySelector('.fyp-player-menu')?.remove();
+      menuHost
+        .querySelectorAll('[aria-haspopup="menu"]')
+        .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    }
+  }
+
+  function createFallbackPlayerControlMenu(host, sourceButton, label) {
+    if (!(host instanceof HTMLElement)) return null;
+    const current = host.querySelector('.fyp-player-menu');
     if (
       current?.dataset.fypMenuOwner === sourceButton.dataset.fypPlayerAction
     ) {
-      closeFallbackPlayerControlMenu(toolbar);
+      closeFallbackPlayerControlMenu(host);
       return null;
     }
-    closeFallbackPlayerControlMenu(toolbar);
+    closeFallbackPlayerControlMenu();
     const menu = document.createElement('div');
     menu.className = 'fyp-player-menu';
     menu.dataset.fypMenuOwner = sourceButton.dataset.fypPlayerAction || '';
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', label);
     sourceButton.setAttribute('aria-expanded', 'true');
-    toolbar.appendChild(menu);
+    host.appendChild(menu);
     return menu;
   }
 
@@ -758,120 +756,23 @@
     } catch {}
   }
 
-  function toggleFallbackCaptionsMenu(video, sourceButton) {
-    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
-    if (!(toolbar instanceof HTMLElement)) return;
-    const menu = createFallbackPlayerControlMenu(
-      toolbar,
-      sourceButton,
-      'Caption options'
+  function fallbackMenuHostForButton(sourceButton) {
+    return (
+      sourceButton.closest(`#${PLAYER_CHROME_EXTRAS_ID}`) ||
+      sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
     );
-    if (!menu) return;
-
-    appendFallbackPlayerMenuCollapse(menu);
-    appendFallbackPlayerMenuTitle(menu, 'Captions');
-
-    const youtubeTracks = fallbackYouTubeCaptionTrackList();
-    const textTracks = fallbackCaptionTracks(video);
-    const currentYoutubeTrack = currentFallbackYouTubeCaptionTrack();
-    const currentLanguage = String(
-      currentYoutubeTrack?.languageCode ||
-        currentYoutubeTrack?.language ||
-        currentYoutubeTrack?.lang ||
-        ''
-    ).toLowerCase();
-    const currentLabel = fallbackCaptionOptionText(
-      currentYoutubeTrack?.displayName ||
-        currentYoutubeTrack?.name ||
-        currentYoutubeTrack?.label
-    ).toLowerCase();
-    const selectedTextTrack =
-      fallbackSelectedCaptionTrackByVideo.get(video) ||
-      textTracks.find((track) => track.mode !== 'disabled');
-    const captionsAreOff = !(
-      currentYoutubeTrack ||
-      selectedTextTrack ||
-      fallbackSelectedCaptionTrackByVideo.has(video)
-    );
-
-    appendFallbackPlayerMenuOption(menu, {
-      action: 'captions-off',
-      label: 'Off',
-      checked: captionsAreOff,
-    });
-
-    if (youtubeTracks.length) {
-      youtubeTracks.forEach((track, index) => {
-        const label =
-          fallbackCaptionOptionText(
-            track.displayName || track.name || track.label
-          ) ||
-          String(track.languageCode || track.language || '').trim() ||
-          `Captions ${index + 1}`;
-        const language = String(
-          track.languageCode || track.language || track.lang || ''
-        ).trim();
-        const checked = Boolean(
-          (currentLanguage && language.toLowerCase() === currentLanguage) ||
-            (currentLabel && label.toLowerCase() === currentLabel)
-        );
-        appendFallbackPlayerMenuOption(menu, {
-          action: 'caption-track',
-          label,
-          checked,
-          trackIndex: index,
-          captionLanguage: language,
-          captionLabel: label,
-        });
-      });
-      return;
-    }
-
-    textTracks.forEach((track, index) => {
-      appendFallbackPlayerMenuOption(menu, {
-        action: 'caption-track',
-        label:
-          String(track.label || track.language || '').trim() ||
-          `Captions ${index + 1}`,
-        checked: track === selectedTextTrack,
-        trackIndex: index,
-        captionLanguage: track.language || '',
-        captionLabel: track.label || '',
-      });
-    });
-    if (!textTracks.length) {
-      appendFallbackPlayerMenuOption(menu, {
-        action: 'caption-unavailable',
-        label: 'No captions available',
-        disabled: true,
-      });
-    }
   }
 
-  function toggleFallbackMorePlayerMenu(video, sourceButton) {
-    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
-    if (!(toolbar instanceof HTMLElement)) return;
+  function toggleFallbackSpeedMenu(video, sourceButton) {
+    const host = fallbackMenuHostForButton(sourceButton);
+    if (!(host instanceof HTMLElement)) return;
     const menu = createFallbackPlayerControlMenu(
-      toolbar,
+      host,
       sourceButton,
-      'More player options'
+      'Playback speed'
     );
     if (!menu) return;
-
     appendFallbackPlayerMenuCollapse(menu);
-
-    const qualities = fallbackYouTubeQualityLevels();
-    const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
-    appendFallbackPlayerMenuTitle(menu, 'Video quality');
-    for (const quality of qualities) {
-      appendFallbackPlayerMenuOption(menu, {
-        action: 'playback-quality',
-        label: fallbackQualityOptionLabel(quality),
-        checked: currentQuality === quality,
-        quality,
-      });
-    }
-
     appendFallbackPlayerMenuTitle(menu, 'Playback speed');
     for (const speed of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
       appendFallbackPlayerMenuOption(menu, {
@@ -881,12 +782,29 @@
         speed,
       });
     }
+  }
 
-    appendFallbackPlayerMenuTitle(menu, 'Player');
-    appendFallbackPlayerMenuOption(menu, {
-      action: 'native-settings',
-      label: 'Native player settings',
-    });
+  function toggleFallbackQualityMenu(video, sourceButton) {
+    const host = fallbackMenuHostForButton(sourceButton);
+    if (!(host instanceof HTMLElement)) return;
+    const menu = createFallbackPlayerControlMenu(
+      host,
+      sourceButton,
+      'Video quality'
+    );
+    if (!menu) return;
+    appendFallbackPlayerMenuCollapse(menu);
+    appendFallbackPlayerMenuTitle(menu, 'Video quality');
+    const qualities = fallbackYouTubeQualityLevels();
+    const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
+    for (const quality of qualities) {
+      appendFallbackPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: fallbackQualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
   }
 
   async function runFallbackPlayerControlOption(option) {
@@ -967,12 +885,6 @@
         applyQuality();
         setTimeout(applyQuality, 120);
       }
-    } else if (action === 'native-settings') {
-      document
-        .querySelector(
-          '.ytp-settings-button, .ytp-overflow-button, .ytp-more-button'
-        )
-        ?.click();
     }
 
     if (preservePlayback) {
@@ -1018,10 +930,15 @@
         video.pause();
       }
     } else if (
-      action === 'captions' &&
+      action === 'speed' &&
       sourceButton instanceof HTMLButtonElement
     ) {
-      toggleFallbackCaptionsMenu(video, sourceButton);
+      toggleFallbackSpeedMenu(video, sourceButton);
+    } else if (
+      action === 'quality' &&
+      sourceButton instanceof HTMLButtonElement
+    ) {
+      toggleFallbackQualityMenu(video, sourceButton);
     } else if (action === 'pip') {
       video.removeAttribute('disablepictureinpicture');
       try {
@@ -1059,11 +976,6 @@
           enter?.call(video);
         }
       }
-    } else if (
-      action === 'more' &&
-      sourceButton instanceof HTMLButtonElement
-    ) {
-      toggleFallbackMorePlayerMenu(video, sourceButton);
     }
     if (preservePlayback) {
       fallbackPlaybackState.wantsPlayback = true;
@@ -1170,7 +1082,8 @@
     const target = event.target;
     if (
       target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
+      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`) &&
+      !target.closest(`#${PLAYER_CHROME_EXTRAS_ID}`)
     ) {
       closeFallbackPlayerControlMenu();
     }
@@ -1256,6 +1169,31 @@
     });
   }
 
+  function ensureFallbackPlayerChromeExtras() {
+    if (location.pathname !== '/watch') {
+      document.getElementById(PLAYER_CHROME_EXTRAS_ID)?.remove();
+      return;
+    }
+    const player = document.querySelector('#movie_player, .html5-video-player');
+    if (!(player instanceof HTMLElement)) return;
+    let host = document.getElementById(PLAYER_CHROME_EXTRAS_ID);
+    if (
+      !(host instanceof HTMLElement) ||
+      host.dataset.fypChromeLayout !== PLAYER_CHROME_LAYOUT_VERSION
+    ) {
+      host?.remove();
+      host = document.createElement('div');
+      host.id = PLAYER_CHROME_EXTRAS_ID;
+      host.dataset.fypChromeLayout = PLAYER_CHROME_LAYOUT_VERSION;
+      host.setAttribute('role', 'toolbar');
+      host.setAttribute('aria-label', 'Playback speed and quality');
+      host.innerHTML = playerChromeExtrasMarkup();
+    }
+    if (host.parentElement !== player) {
+      player.appendChild(host);
+    }
+  }
+
   function ensureFallbackPlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
@@ -1305,6 +1243,7 @@
     ) {
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
+    ensureFallbackPlayerChromeExtras();
     syncFallbackPlayerControls();
   }
 
@@ -1314,6 +1253,7 @@
     setTimeout(() => {
       fallbackUiQueued = false;
       ensureFallbackPlayerControlsToolbar();
+      ensureFallbackPlayerChromeExtras();
     }, 0);
   }
 
@@ -1389,6 +1329,7 @@
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
     ensureFallbackPlayerControlsToolbar();
+      ensureFallbackPlayerChromeExtras();
 
     const videoObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -1479,6 +1420,7 @@
         if (!redirectChannelRootToVideos()) {
           markFallbackHistoryFeedBrowse();
           ensureFallbackPlayerControlsToolbar();
+      ensureFallbackPlayerChromeExtras();
         }
       },
       true
@@ -1496,6 +1438,7 @@
     setInterval(() => {
       markFallbackHistoryFeedBrowse();
       ensureFallbackPlayerControlsToolbar();
+      ensureFallbackPlayerChromeExtras();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
     }, 1200);
@@ -1760,15 +1703,18 @@
           box-sizing: border-box !important;
           position: relative !important;
           z-index: 5 !important;
-          display: grid !important;
+          display: flex !important;
           visibility: visible !important;
           opacity: 1 !important;
-          grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
-          width: 100% !important;
+          flex-wrap: wrap !important;
+          width: fit-content !important;
+          max-width: 100% !important;
           min-width: 0 !important;
-          margin: clamp(.5rem, 2.4vw, .8rem) 0 !important;
+          margin: clamp(.5rem, 2.4vw, .8rem) auto !important;
           padding: clamp(.35rem, 1.8vw, .55rem) !important;
           gap: clamp(.25rem, 1.4vw, .55rem) !important;
+          justify-content: center !important;
+          align-items: center !important;
           border: 1px solid rgba(255, 255, 255, .14) !important;
           border-radius: clamp(.85rem, 4vw, 1.2rem) !important;
           background: rgba(255, 255, 255, .08) !important;
@@ -1783,7 +1729,8 @@
           display: inline-flex !important;
           visibility: visible !important;
           opacity: 1 !important;
-          width: 100% !important;
+          flex: 0 0 auto !important;
+          width: clamp(2.45rem, 11vw, 3rem) !important;
           min-width: 0 !important;
           height: clamp(2.35rem, 10vw, 2.85rem) !important;
           margin: 0 !important;
@@ -1831,12 +1778,92 @@
           fill: currentColor !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+        #movie_player .ytp-settings-button,
+        .html5-video-player .ytp-settings-button,
+        #movie_player .ytp-overflow-button,
+        .html5-video-player .ytp-overflow-button,
+        #movie_player .ytp-more-button,
+        .html5-video-player .ytp-more-button {
+          display: none !important;
+        }
+
+        #${PLAYER_CHROME_EXTRAS_ID} {
           box-sizing: border-box !important;
-          grid-column: 1 / -1 !important;
+          position: absolute !important;
+          right: max(8px, env(safe-area-inset-right, 0px)) !important;
+          bottom: clamp(46px, 12vw, 58px) !important;
+          z-index: 70 !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 2px !important;
+          margin: 0 !important;
+          padding: 2px !important;
+          border-radius: 999px !important;
+          background: rgba(0, 0, 0, .35) !important;
+          pointer-events: auto !important;
+        }
+
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control {
+          appearance: none !important;
+          box-sizing: border-box !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 36px !important;
+          min-width: 36px !important;
+          height: 36px !important;
+          margin: 0 !important;
+          padding: 7px !important;
+          color: #fff !important;
+          background: transparent !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          touch-action: manipulation !important;
+        }
+
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control svg {
+          display: block !important;
+          width: 22px !important;
+          height: 22px !important;
+          fill: none !important;
+          stroke: currentColor !important;
+          stroke-width: 2 !important;
+          stroke-linecap: round !important;
+          stroke-linejoin: round !important;
+        }
+
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu {
+          box-sizing: border-box !important;
+          position: absolute !important;
+          right: 0 !important;
+          bottom: calc(100% + 8px) !important;
+          z-index: 80 !important;
           display: flex !important;
           flex-direction: column !important;
-          width: 100% !important;
+          width: min(72vw, 16rem) !important;
+          max-height: min(42svh, 18rem) !important;
+          margin: 0 !important;
+          padding: clamp(.4rem, 2vw, .65rem) !important;
+          gap: clamp(.25rem, 1vw, .4rem) !important;
+          color: #fff !important;
+          background: rgba(15, 15, 15, .97) !important;
+          border: 1px solid rgba(255, 255, 255, .16) !important;
+          border-radius: clamp(.75rem, 3vw, 1rem) !important;
+          box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45) !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          overscroll-behavior: contain !important;
+          touch-action: pan-y !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+          box-sizing: border-box !important;
+          flex: 1 0 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+          width: min(100vw - 24px, 22rem) !important;
           min-width: 0 !important;
           max-height: min(42svh, 18rem) !important;
           margin-top: clamp(.15rem, .8vw, .3rem) !important;
@@ -1854,7 +1881,8 @@
           touch-action: pan-y !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse,
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse {
           appearance: none !important;
           box-sizing: border-box !important;
           align-self: center !important;
@@ -1872,7 +1900,8 @@
           touch-action: manipulation !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg,
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse svg {
           display: block !important;
           width: clamp(1.05rem, 4.5vw, 1.25rem) !important;
           height: clamp(1.05rem, 4.5vw, 1.25rem) !important;
@@ -1883,7 +1912,8 @@
           stroke-linejoin: round !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title,
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-title {
           padding: clamp(.25rem, 1vw, .4rem)
             clamp(.7rem, 3vw, .95rem) !important;
           color: rgba(255, 255, 255, .72) !important;
@@ -1891,7 +1921,8 @@
             Roboto, Arial, sans-serif !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option,
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option {
           appearance: none !important;
           box-sizing: border-box !important;
           width: 100% !important;
@@ -1909,16 +1940,21 @@
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
+          .fyp-player-menu-option[aria-checked='true'],
+        #${PLAYER_CHROME_EXTRAS_ID}
           .fyp-player-menu-option[aria-checked='true'] {
           background: #ff0033 !important;
           border-color: #ff0033 !important;
         }
 
-        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled {
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled,
+        #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:disabled {
           opacity: .55 !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
+          .fyp-player-menu-option:focus-visible,
+        #${PLAYER_CHROME_EXTRAS_ID}
           .fyp-player-menu-option:focus-visible {
           outline: 2px solid #fff !important;
           outline-offset: -2px !important;

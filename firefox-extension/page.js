@@ -3,28 +3,35 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.4');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.1.5');
 
   const SCRIPT_ID = 'yt-mobile-orion-ext';
   const STYLE_ID = `${SCRIPT_ID}-style`;
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v214-scroll-collapse-caption-owner';
+  const PLAYER_CHROME_EXTRAS_ID = `${SCRIPT_ID}-chrome-extras`;
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v215-centered-chrome-speed-quality';
+  const PLAYER_CHROME_LAYOUT_VERSION = 'chrome-speed-quality-v215';
+  const SEARCH_OVERLAY_ID = `${SCRIPT_ID}-search-overlay`;
+  const SEARCH_TRIGGER_ID = `${SCRIPT_ID}-search-trigger`;
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v214-menu-scroll-collapse';
+  const NAV_LAYOUT_VERSION = 'ext-v215-search-overlay-chrome';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
-  const MOBILE_SEARCH_TRIGGER_SELECTOR = [
+  const NATIVE_SEARCH_HIDE_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
     'ytd-masthead #search-icon-legacy',
     'ytd-masthead button[aria-label="Search"]',
     'ytd-masthead [role="button"][aria-label="Search"]',
     'ytd-masthead yt-icon-button[aria-label="Search"]',
+    'ytd-masthead #center',
+    'ytd-masthead ytd-searchbox',
+    'ytd-masthead yt-searchbox',
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
   const MENU_OPTION_TAP_SLOP_PX = 12;
@@ -433,7 +440,7 @@
     if (!(target instanceof Element)) return;
     if (
       target.closest(
-        '#movie_player, .html5-video-player, .html5-video-container'
+        `#movie_player, .html5-video-player, .html5-video-container, #${PLAYER_CHROME_EXTRAS_ID}, #${PLAYER_CONTROLS_TOOLBAR_ID}`
       )
     ) {
       holdPlayerControlsVisible();
@@ -479,21 +486,30 @@
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>',
     pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="4" height="16" rx="1"></rect><rect x="15" y="4" width="4" height="16" rx="1"></rect></svg>',
     forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="14" x="3" y="5" rx="2"></rect><path d="M7 15h4"></path><path d="M13 15h4"></path><path d="M7 11h2"></path><path d="M15 11h2"></path></svg>',
     pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
     fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
-    more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>',
+    speed:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+    quality:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+    search:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>',
+    close:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
 
-  function playerControlButtonMarkup(action, label, icon) {
+  function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
-      action === 'captions' || action === 'more'
+      action === 'speed' || action === 'quality'
         ? ' aria-haspopup="menu" aria-expanded="false"'
         : '';
+    const className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
     return (
-      `<button type="button" class="fyp-player-control" ` +
+      `<button type="button" class="${className}" ` +
       `data-fyp-player-action="${action}" aria-label="${label}" ` +
       `title="${label}" aria-pressed="false"${menuAttributes}>${icon}</button>`
     );
@@ -517,11 +533,6 @@
         PLAYER_CONTROL_ICONS.forward
       ),
       playerControlButtonMarkup(
-        'captions',
-        'Captions',
-        PLAYER_CONTROL_ICONS.captions
-      ),
-      playerControlButtonMarkup(
         'pip',
         'Picture in Picture',
         PLAYER_CONTROL_ICONS.pip
@@ -531,10 +542,22 @@
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
       ),
+    ].join('');
+  }
+
+  function playerChromeExtrasMarkup() {
+    return [
       playerControlButtonMarkup(
-        'more',
-        'More player options',
-        PLAYER_CONTROL_ICONS.more
+        'speed',
+        'Playback speed',
+        PLAYER_CONTROL_ICONS.speed,
+        'fyp-chrome-control'
+      ),
+      playerControlButtonMarkup(
+        'quality',
+        'Video quality',
+        PLAYER_CONTROL_ICONS.quality,
+        'fyp-chrome-control'
       ),
     ].join('');
   }
@@ -572,31 +595,6 @@
       playButton.setAttribute('aria-pressed', String(!paused));
     }
 
-    const captionsButton = toolbar.querySelector(
-      '[data-fyp-player-action="captions"]'
-    );
-    if (captionsButton instanceof HTMLButtonElement) {
-      const nativeCaptions = document.querySelector('.ytp-subtitles-button');
-      const player = video?.closest?.('#movie_player, .html5-video-player');
-      const captionsActive =
-        nativeCaptions?.getAttribute('aria-pressed') === 'true' ||
-        Boolean(video && selectedCaptionTrackByVideo.has(video)) ||
-        Boolean(
-          player?.querySelector(
-            '.ytp-caption-window-container .ytp-caption-segment'
-          )
-        ) ||
-        Boolean(
-          video &&
-            [...video.textTracks].some(
-              (track) =>
-                (track.kind === 'captions' || track.kind === 'subtitles') &&
-                (track.mode === 'showing' || track.mode === 'hidden')
-            )
-        );
-      captionsButton.setAttribute('aria-pressed', String(captionsActive));
-    }
-
     const pipButton = toolbar.querySelector('[data-fyp-player-action="pip"]');
     if (pipButton instanceof HTMLButtonElement) {
       const pipActive =
@@ -618,32 +616,40 @@
     }
   }
 
-  function closePlayerControlMenu(
-    toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)
-  ) {
-    if (!(toolbar instanceof HTMLElement)) return;
-    toolbar.querySelector('.fyp-player-menu')?.remove();
-    toolbar
-      .querySelectorAll('[aria-haspopup="menu"]')
-      .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+  function playerMenuHosts() {
+    return [
+      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID),
+      document.getElementById(PLAYER_CHROME_EXTRAS_ID),
+    ].filter((node) => node instanceof HTMLElement);
   }
 
-  function createPlayerControlMenu(toolbar, sourceButton, label) {
-    const current = toolbar.querySelector('.fyp-player-menu');
+  function closePlayerControlMenu(host) {
+    const hosts = host instanceof HTMLElement ? [host] : playerMenuHosts();
+    for (const menuHost of hosts) {
+      menuHost.querySelector('.fyp-player-menu')?.remove();
+      menuHost
+        .querySelectorAll('[aria-haspopup="menu"]')
+        .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    }
+  }
+
+  function createPlayerControlMenu(host, sourceButton, label) {
+    if (!(host instanceof HTMLElement)) return null;
+    const current = host.querySelector('.fyp-player-menu');
     if (
       current?.dataset.fypMenuOwner === sourceButton.dataset.fypPlayerAction
     ) {
-      closePlayerControlMenu(toolbar);
+      closePlayerControlMenu(host);
       return null;
     }
-    closePlayerControlMenu(toolbar);
+    closePlayerControlMenu();
     const menu = document.createElement('div');
     menu.className = 'fyp-player-menu';
     menu.dataset.fypMenuOwner = sourceButton.dataset.fypPlayerAction || '';
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', label);
     sourceButton.setAttribute('aria-expanded', 'true');
-    toolbar.appendChild(menu);
+    host.appendChild(menu);
     return menu;
   }
 
@@ -899,118 +905,24 @@
     } catch {}
   }
 
-  function toggleCaptionsMenu(video, sourceButton) {
-    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
-    if (!(toolbar instanceof HTMLElement)) return;
-    const menu = createPlayerControlMenu(
-      toolbar,
-      sourceButton,
-      'Caption options'
+  function menuHostForButton(sourceButton) {
+    return (
+      sourceButton.closest(`#${PLAYER_CHROME_EXTRAS_ID}`) ||
+      sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
     );
-    if (!menu) return;
-
-    appendPlayerMenuCollapse(menu);
-    appendPlayerMenuTitle(menu, 'Captions');
-
-    const youtubeTracks = youtubeCaptionTrackList();
-    const textTracks = captionTracks(video);
-    const currentYoutubeTrack = currentYouTubeCaptionTrack();
-    const currentLanguage = String(
-      currentYoutubeTrack?.languageCode ||
-        currentYoutubeTrack?.language ||
-        currentYoutubeTrack?.lang ||
-        ''
-    ).toLowerCase();
-    const currentLabel = captionOptionText(
-      currentYoutubeTrack?.displayName ||
-        currentYoutubeTrack?.name ||
-        currentYoutubeTrack?.label
-    ).toLowerCase();
-    const selectedTextTrack =
-      selectedCaptionTrackByVideo.get(video) ||
-      textTracks.find((track) => track.mode !== 'disabled');
-    const captionsAreOff = !(
-      currentYoutubeTrack ||
-      selectedTextTrack ||
-      selectedCaptionTrackByVideo.has(video)
-    );
-
-    appendPlayerMenuOption(menu, {
-      action: 'captions-off',
-      label: 'Off',
-      checked: captionsAreOff,
-    });
-
-    if (youtubeTracks.length) {
-      youtubeTracks.forEach((track, index) => {
-        const label =
-          captionOptionText(track.displayName || track.name || track.label) ||
-          String(track.languageCode || track.language || '').trim() ||
-          `Captions ${index + 1}`;
-        const language = String(
-          track.languageCode || track.language || track.lang || ''
-        ).trim();
-        const checked = Boolean(
-          (currentLanguage && language.toLowerCase() === currentLanguage) ||
-            (currentLabel && label.toLowerCase() === currentLabel)
-        );
-        appendPlayerMenuOption(menu, {
-          action: 'caption-track',
-          label,
-          checked,
-          trackIndex: index,
-          captionLanguage: language,
-          captionLabel: label,
-        });
-      });
-      return;
-    }
-
-    textTracks.forEach((track, index) => {
-      appendPlayerMenuOption(menu, {
-        action: 'caption-track',
-        label:
-          String(track.label || track.language || '').trim() ||
-          `Captions ${index + 1}`,
-        checked: track === selectedTextTrack,
-        trackIndex: index,
-        captionLanguage: track.language || '',
-        captionLabel: track.label || '',
-      });
-    });
-    if (!textTracks.length) {
-      appendPlayerMenuOption(menu, {
-        action: 'caption-unavailable',
-        label: 'No captions available',
-        disabled: true,
-      });
-    }
   }
 
-  function toggleMorePlayerMenu(video, sourceButton) {
-    const toolbar = sourceButton.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`);
-    if (!(toolbar instanceof HTMLElement)) return;
+  function toggleSpeedMenu(video, sourceButton) {
+    const host = menuHostForButton(sourceButton);
+    if (!(host instanceof HTMLElement)) return;
     const menu = createPlayerControlMenu(
-      toolbar,
+      host,
       sourceButton,
-      'More player options'
+      'Playback speed'
     );
     if (!menu) return;
 
     appendPlayerMenuCollapse(menu);
-
-    const qualities = youtubeQualityLevels();
-    const currentQuality = String(currentYouTubeQuality(video) || 'auto');
-    appendPlayerMenuTitle(menu, 'Video quality');
-    for (const quality of qualities) {
-      appendPlayerMenuOption(menu, {
-        action: 'playback-quality',
-        label: qualityOptionLabel(quality),
-        checked: currentQuality === quality,
-        quality,
-      });
-    }
-
     appendPlayerMenuTitle(menu, 'Playback speed');
     for (const speed of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
       appendPlayerMenuOption(menu, {
@@ -1020,12 +932,30 @@
         speed,
       });
     }
+  }
 
-    appendPlayerMenuTitle(menu, 'Player');
-    appendPlayerMenuOption(menu, {
-      action: 'native-settings',
-      label: 'Native player settings',
-    });
+  function toggleQualityMenu(video, sourceButton) {
+    const host = menuHostForButton(sourceButton);
+    if (!(host instanceof HTMLElement)) return;
+    const menu = createPlayerControlMenu(
+      host,
+      sourceButton,
+      'Video quality'
+    );
+    if (!menu) return;
+
+    appendPlayerMenuCollapse(menu);
+    appendPlayerMenuTitle(menu, 'Video quality');
+    const qualities = youtubeQualityLevels();
+    const currentQuality = String(currentYouTubeQuality(video) || 'auto');
+    for (const quality of qualities) {
+      appendPlayerMenuOption(menu, {
+        action: 'playback-quality',
+        label: qualityOptionLabel(quality),
+        checked: currentQuality === quality,
+        quality,
+      });
+    }
   }
 
   async function runPlayerControlOption(option) {
@@ -1115,13 +1045,6 @@
         applyQuality();
         setTimeout(applyQuality, 120);
       }
-    } else if (action === 'native-settings') {
-      holdPlayerControlsVisible();
-      document
-        .querySelector(
-          '.ytp-settings-button, .ytp-overflow-button, .ytp-more-button'
-        )
-        ?.click();
     }
 
     if (preservePlayback) {
@@ -1168,10 +1091,12 @@
         video.pause();
       }
     } else if (
-      action === 'captions' &&
+      action === 'speed' &&
       sourceButton instanceof HTMLButtonElement
     ) {
-      toggleCaptionsMenu(video, sourceButton);
+      toggleSpeedMenu(video, sourceButton);
+    } else if (action === 'quality' && sourceButton instanceof HTMLButtonElement) {
+      toggleQualityMenu(video, sourceButton);
     } else if (action === 'pip') {
       video.removeAttribute('disablepictureinpicture');
       try {
@@ -1210,11 +1135,6 @@
           enter?.call(video);
         }
       }
-    } else if (
-      action === 'more' &&
-      sourceButton instanceof HTMLButtonElement
-    ) {
-      toggleMorePlayerMenu(video, sourceButton);
     }
 
     if (preservePlayback) {
@@ -1326,7 +1246,8 @@
     const target = event.target;
     if (
       target instanceof Element &&
-      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`)
+      !target.closest(`#${PLAYER_CONTROLS_TOOLBAR_ID}`) &&
+      !target.closest(`#${PLAYER_CHROME_EXTRAS_ID}`)
     ) {
       closePlayerControlMenu();
     }
@@ -2614,73 +2535,167 @@
         }
 
         /*
-         * Keep YouTube's native desktop search form, but present it as a
-         * phone-width overlay after the search icon is tapped. A 16px input
-         * also prevents WebKit from zooming the page when the keyboard opens.
+         * Hide native masthead search chrome and use the extension overlay
+         * everywhere. 16px input font prevents iOS keyboard zoom.
          */
         ytd-masthead,
         ytd-masthead #container,
         ytd-masthead #start,
-        ytd-masthead #center,
         ytd-masthead #end {
           box-sizing: border-box !important;
           min-width: 0 !important;
           max-width: 100vw !important;
         }
 
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
-          position: fixed !important;
-          top: calc(env(safe-area-inset-top, 0px) + 8px) !important;
-          right: 12px !important;
-          left: 12px !important;
-          z-index: 2147483646 !important;
-          box-sizing: border-box !important;
-          display: flex !important;
-          width: auto !important;
-          min-width: 0 !important;
-          max-width: none !important;
-          height: 48px !important;
-          margin: 0 !important;
-          padding: 4px !important;
-          align-items: center !important;
-          background: rgb(15, 15, 15) !important;
-          border: 1px solid rgba(255, 255, 255, .22) !important;
-          border-radius: 24px !important;
-          box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
+        ytd-masthead #center,
+        ytd-masthead #search-button,
+        ytd-masthead #search-button-narrow,
+        ytd-masthead #search-icon-legacy,
+        ytd-masthead ytd-searchbox,
+        ytd-masthead yt-searchbox,
+        ytd-masthead button[aria-label='Search'],
+        ytd-masthead [role='button'][aria-label='Search'],
+        ytd-masthead yt-icon-button[aria-label='Search'] {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
         }
 
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] form {
+        #${SEARCH_TRIGGER_ID} {
+          appearance: none !important;
           box-sizing: border-box !important;
-          display: flex !important;
-          flex: 1 1 auto !important;
-          width: 100% !important;
-          min-width: 0 !important;
-          max-width: 100% !important;
-          height: 40px !important;
+          display: inline-flex !important;
           align-items: center !important;
-        }
-
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
-          box-sizing: border-box !important;
-          display: block !important;
-          flex: 1 1 auto !important;
-          width: 100% !important;
-          min-width: 0 !important;
+          justify-content: center !important;
+          width: 40px !important;
+          min-width: 40px !important;
           height: 40px !important;
-          padding: 0 12px !important;
+          margin: 0 2px 0 0 !important;
+          padding: 8px !important;
           color: #fff !important;
           background: transparent !important;
-          font-size: 16px !important;
-          line-height: 40px !important;
-          opacity: 1 !important;
-          visibility: visible !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          cursor: pointer !important;
+          touch-action: manipulation !important;
+          z-index: 5 !important;
         }
+
+        #${SEARCH_TRIGGER_ID} svg {
+          display: block !important;
+          width: 22px !important;
+          height: 22px !important;
+          fill: none !important;
+          stroke: currentColor !important;
+          stroke-width: 2 !important;
+          stroke-linecap: round !important;
+          stroke-linejoin: round !important;
+        }
+      }
+
+      #${SEARCH_OVERLAY_ID} {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483646;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 12px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity .22s ease;
+      }
+
+      #${SEARCH_OVERLAY_ID}.is-open {
+        pointer-events: auto;
+        opacity: 1;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .48);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: opacity .22s ease;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-panel {
+        position: relative;
+        z-index: 1;
+        box-sizing: border-box;
+        display: flex;
+        width: min(100%, 28rem);
+        height: 48px;
+        margin-top: 0;
+        padding: 4px;
+        align-items: center;
+        gap: 2px;
+        color: #fff;
+        background: rgba(18, 18, 18, .96);
+        border: 1px solid rgba(255, 255, 255, .2);
+        border-radius: 24px;
+        box-shadow: 0 10px 32px rgba(0, 0, 0, .45);
+        transform: translateY(-8px);
+        transition: transform .22s ease;
+      }
+
+      #${SEARCH_OVERLAY_ID}.is-open .fyp-search-panel {
+        transform: translateY(0);
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn {
+        appearance: none;
+        box-sizing: border-box;
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin: 0;
+        padding: 8px;
+        color: #fff;
+        background: transparent;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-icon-btn svg {
+        display: block;
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-input {
+        box-sizing: border-box;
+        display: block;
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+        height: 40px;
+        margin: 0;
+        padding: 0 8px;
+        color: #fff;
+        background: transparent;
+        border: 0;
+        outline: none;
+        font-size: 16px;
+        line-height: 40px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-decoration,
+      #${SEARCH_OVERLAY_ID} .fyp-search-input::-webkit-search-cancel-button {
+        -webkit-appearance: none;
       }
 
       ytd-comment-view-model[data-vm-comment-enhanced='true'],
@@ -2774,15 +2789,18 @@
         box-sizing: border-box;
         position: relative;
         z-index: 5;
-        display: grid !important;
+        display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        width: 100%;
+        flex-wrap: wrap;
+        width: fit-content;
+        max-width: 100%;
         min-width: 0;
-        margin: clamp(.5rem, 2.4vw, .8rem) 0;
+        margin: clamp(.5rem, 2.4vw, .8rem) auto;
         padding: clamp(.35rem, 1.8vw, .55rem);
         gap: clamp(.25rem, 1.4vw, .55rem);
+        justify-content: center;
+        align-items: center;
         border: 1px solid rgba(255, 255, 255, .14);
         border-radius: clamp(.85rem, 4vw, 1.2rem);
         background: rgba(255, 255, 255, .08);
@@ -2797,7 +2815,8 @@
         display: inline-flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        width: 100%;
+        flex: 0 0 auto;
+        width: clamp(2.45rem, 11vw, 3rem);
         min-width: 0;
         height: clamp(2.35rem, 10vw, 2.85rem);
         margin: 0;
@@ -2855,12 +2874,97 @@
         fill: currentColor;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+      #movie_player .ytp-settings-button,
+      .html5-video-player .ytp-settings-button,
+      #movie_player .ytp-overflow-button,
+      .html5-video-player .ytp-overflow-button,
+      #movie_player .ytp-more-button,
+      .html5-video-player .ytp-more-button {
+        display: none !important;
+      }
+
+      #${PLAYER_CHROME_EXTRAS_ID} {
         box-sizing: border-box;
-        grid-column: 1 / -1;
+        position: absolute;
+        right: max(8px, env(safe-area-inset-right, 0px));
+        bottom: clamp(46px, 12vw, 58px);
+        z-index: 70;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        margin: 0;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, .35);
+        pointer-events: auto;
+      }
+
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control {
+        appearance: none;
+        box-sizing: border-box;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        margin: 0;
+        padding: 7px;
+        color: #fff;
+        background: transparent;
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control[aria-expanded='true'] {
+        background: rgba(255, 255, 255, .16);
+      }
+
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-chrome-control svg {
+        display: block;
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu {
+        box-sizing: border-box;
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 8px);
+        z-index: 80;
         display: flex;
         flex-direction: column;
-        width: 100%;
+        width: min(72vw, 16rem);
+        max-height: min(42svh, 18rem);
+        margin: 0;
+        padding: clamp(.4rem, 2vw, .65rem);
+        gap: clamp(.25rem, 1vw, .4rem);
+        color: #fff;
+        background: rgba(15, 15, 15, .97);
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: clamp(.75rem, 3vw, 1rem);
+        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+        box-sizing: border-box;
+        flex: 1 0 100%;
+        display: flex;
+        flex-direction: column;
+        width: min(100vw - 24px, 22rem);
         min-width: 0;
         max-height: min(42svh, 18rem);
         margin-top: clamp(.15rem, .8vw, .3rem);
@@ -2878,7 +2982,8 @@
         touch-action: pan-y;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse {
         appearance: none;
         box-sizing: border-box;
         align-self: center;
@@ -2896,7 +3001,8 @@
         touch-action: manipulation;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse svg,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-collapse svg {
         display: block;
         width: clamp(1.05rem, 4.5vw, 1.25rem);
         height: clamp(1.05rem, 4.5vw, 1.25rem);
@@ -2907,13 +3013,15 @@
         stroke-linejoin: round;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-title,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-title {
         padding: clamp(.25rem, 1vw, .4rem) clamp(.7rem, 3vw, .95rem);
         color: rgba(255, 255, 255, .72);
         font: 700 clamp(.78rem, 3.2vw, .9rem)/1.2 Roboto, Arial, sans-serif;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option {
         appearance: none;
         box-sizing: border-box;
         width: 100%;
@@ -2930,16 +3038,20 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-menu-option[aria-checked='true'],
+      #${PLAYER_CHROME_EXTRAS_ID}
         .fyp-player-menu-option[aria-checked='true'] {
         background: #ff0033;
         border-color: #ff0033;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:disabled,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:disabled {
         opacity: .55;
       }
 
-      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:focus-visible {
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-option:focus-visible,
+      #${PLAYER_CHROME_EXTRAS_ID} .fyp-player-menu-option:focus-visible {
         outline: 2px solid #fff;
         outline-offset: -2px;
       }
@@ -3363,61 +3475,171 @@
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
+  function isSearchOverlayOpen() {
+    return document.documentElement.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
+  }
+
   function closeMobileSearch() {
-    const masthead = document.querySelector('ytd-masthead');
-    if (!masthead) return;
-    masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
-    masthead
-      .querySelectorAll(
-        '#search-button, #search-icon-legacy, button[aria-label="Search"], ' +
-          '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
-      )
-      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
+    document.documentElement.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
+    trigger?.setAttribute('aria-expanded', 'false');
+    if (!(overlay instanceof HTMLElement)) return;
+    overlay.classList.remove('is-open');
+    const finalize = () => {
+      if (!isSearchOverlayOpen()) overlay.hidden = true;
+    };
+    overlay.addEventListener('transitionend', finalize, { once: true });
+    setTimeout(finalize, 280);
+  }
+
+  function searchOverlayMarkup() {
+    return (
+      `<div class="fyp-search-backdrop" data-fyp-search-action="close"></div>` +
+      `<div class="fyp-search-panel" role="dialog" aria-label="Search YouTube">` +
+      `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="close" ` +
+      `aria-label="Close search" title="Close">${PLAYER_CONTROL_ICONS.close}</button>` +
+      `<input type="search" class="fyp-search-input" enterkeyhint="search" ` +
+      `autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" ` +
+      `placeholder="Search YouTube" aria-label="Search YouTube" />` +
+      `<button type="button" class="fyp-search-icon-btn" data-fyp-search-action="submit" ` +
+      `aria-label="Search" title="Search">${PLAYER_CONTROL_ICONS.search}</button>` +
+      `</div>`
+    );
+  }
+
+  function ensureSearchOverlay() {
+    let overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    if (overlay instanceof HTMLElement) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = SEARCH_OVERLAY_ID;
+    overlay.hidden = true;
+    overlay.innerHTML = searchOverlayMarkup();
+    (document.body || document.documentElement).appendChild(overlay);
+    return overlay;
+  }
+
+  function ensureSearchTrigger() {
+    const end =
+      document.querySelector('ytd-masthead #end') ||
+      document.querySelector('ytd-masthead #container') ||
+      document.querySelector('ytd-masthead');
+    if (!(end instanceof Element)) return;
+
+    let trigger = document.getElementById(SEARCH_TRIGGER_ID);
+    if (!(trigger instanceof HTMLButtonElement)) {
+      trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.id = SEARCH_TRIGGER_ID;
+      trigger.className = 'fyp-search-trigger';
+      trigger.setAttribute('aria-label', 'Search');
+      trigger.title = 'Search';
+      trigger.setAttribute('aria-haspopup', 'dialog');
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.innerHTML = PLAYER_CONTROL_ICONS.search;
+    }
+
+    if (trigger.parentElement !== end) {
+      const buttons = end.querySelector('#buttons');
+      if (buttons instanceof Element) {
+        buttons.insertAdjacentElement('afterbegin', trigger);
+      } else {
+        end.insertAdjacentElement('afterbegin', trigger);
+      }
+    }
+  }
+
+  function openMobileSearch() {
+    ensureSearchTrigger();
+    const overlay = ensureSearchOverlay();
+    const trigger = document.getElementById(SEARCH_TRIGGER_ID);
+    const input = overlay.querySelector('.fyp-search-input');
+    overlay.hidden = false;
+    document.documentElement.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
+    trigger?.setAttribute('aria-expanded', 'true');
+    requestAnimationFrame(() => {
+      overlay.classList.add('is-open');
+      if (input instanceof HTMLInputElement) {
+        try {
+          input.focus({ preventScroll: true });
+        } catch {
+          input.focus();
+        }
+        const end = input.value.length;
+        input.setSelectionRange?.(end, end);
+      }
+    });
+  }
+
+  function submitMobileSearch() {
+    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    const input = overlay?.querySelector('.fyp-search-input');
+    const query =
+      input instanceof HTMLInputElement ? input.value.trim() : '';
+    if (!query) {
+      if (input instanceof HTMLInputElement) {
+        try {
+          input.focus({ preventScroll: true });
+        } catch {
+          input.focus();
+        }
+      }
+      return;
+    }
+    const target = new URL('https://www.youtube.com/results');
+    target.searchParams.set('search_query', query);
+    target.searchParams.set('app', 'desktop');
+    target.searchParams.set('persist_app', '1');
+    closeMobileSearch();
+    location.assign(target.href);
   }
 
   function handleMobileSearchClick(event) {
-    if (!window.matchMedia?.('(max-width: 700px)').matches) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
-    const masthead = target.closest('ytd-masthead');
-    if (!trigger || !masthead) {
-      const openMasthead = document.querySelector(
-        `ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true']`
-      );
-      if (openMasthead && !target.closest('ytd-masthead #center')) {
-        closeMobileSearch();
-      }
+    const trigger = target.closest(`#${SEARCH_TRIGGER_ID}`);
+    if (trigger) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (isSearchOverlayOpen()) closeMobileSearch();
+      else openMobileSearch();
       return;
     }
 
-    const alreadyOpen =
-      masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
-    if (alreadyOpen && trigger.closest('#center')) {
+    const actionNode = target.closest('[data-fyp-search-action]');
+    if (actionNode instanceof HTMLElement) {
+      const action = actionNode.dataset.fypSearchAction;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (action === 'close') closeMobileSearch();
+      else if (action === 'submit') submitMobileSearch();
       return;
     }
 
-    const input = masthead.querySelector(
-      'input#search, input[name="search_query"], .yt-searchbox-input'
-    );
-    if (!(input instanceof HTMLInputElement)) return;
+    // Block native search chrome so it cannot fight the overlay.
+    if (target.closest(NATIVE_SEARCH_HIDE_SELECTOR)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openMobileSearch();
+    }
+  }
 
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
-    trigger.setAttribute('aria-expanded', 'true');
-    requestAnimationFrame(() => {
-      input.removeAttribute('hidden');
-      input.setAttribute('aria-hidden', 'false');
-      try {
-        input.focus({ preventScroll: true });
-      } catch {
-        input.focus();
-      }
-      const end = input.value.length;
-      input.setSelectionRange?.(end, end);
-    });
+  function handleMobileSearchKeydown(event) {
+    if (event.key === 'Escape' && isSearchOverlayOpen()) {
+      event.preventDefault();
+      closeMobileSearch();
+      return;
+    }
+    if (event.key !== 'Enter') return;
+    const target = event.target;
+    if (
+      target instanceof HTMLInputElement &&
+      target.classList.contains('fyp-search-input')
+    ) {
+      event.preventDefault();
+      submitMobileSearch();
+    }
   }
 
   function dismissMiniplayer() {
@@ -4188,6 +4410,35 @@
     });
   }
 
+  function ensurePlayerChromeExtras() {
+    if (location.pathname !== '/watch') {
+      document.getElementById(PLAYER_CHROME_EXTRAS_ID)?.remove();
+      return;
+    }
+    const player = document.querySelector('#movie_player, .html5-video-player');
+    if (!(player instanceof HTMLElement)) return;
+
+    let host = document.getElementById(PLAYER_CHROME_EXTRAS_ID);
+    if (
+      !(host instanceof HTMLElement) ||
+      host.dataset.fypChromeLayout !== PLAYER_CHROME_LAYOUT_VERSION
+    ) {
+      host?.remove();
+      host = document.createElement('div');
+      host.id = PLAYER_CHROME_EXTRAS_ID;
+      host.dataset.fypChromeLayout = PLAYER_CHROME_LAYOUT_VERSION;
+      host.setAttribute('role', 'toolbar');
+      host.setAttribute('aria-label', 'Playback speed and quality');
+      host.innerHTML = playerChromeExtrasMarkup();
+    }
+
+    // Mount on the player root as an overlay. Injecting into .ytp-right-controls
+    // is fragile on Orion because YouTube rebuilds native chrome frequently.
+    if (host.parentElement !== player) {
+      player.appendChild(host);
+    }
+  }
+
   function ensurePlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
@@ -4240,6 +4491,7 @@
     ) {
       playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
+    ensurePlayerChromeExtras();
     syncCustomPlayerControls();
   }
 
@@ -4257,6 +4509,8 @@
     showWelcomeOnce();
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
+    ensurePlayerChromeExtras();
+    ensureSearchTrigger();
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
@@ -4286,6 +4540,8 @@
     hideUploadControls();
     dismissMiniplayer();
     ensurePlayerControlsToolbar();
+    ensurePlayerChromeExtras();
+    ensureSearchTrigger();
     arrangeWatchComments();
     enhanceComments();
   }, true);
@@ -4333,24 +4589,18 @@
   });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
   nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
-  nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
   nativeDocumentAddEventListener(
-    'submit',
-    (event) => {
-      if (event.target?.closest?.('ytd-masthead')) {
-        setTimeout(closeMobileSearch, 0);
-      }
-    },
-    true
+    'PointerEvent' in window ? 'pointerdown' : 'click',
+    handleMobileSearchClick,
+    { capture: true, passive: false }
   );
-  nativeDocumentAddEventListener(
-    'keydown',
-    (event) => {
-      if (event.key !== 'Escape') return;
-      closeMobileSearch();
-    },
-    true
-  );
+  if (!('PointerEvent' in window)) {
+    nativeDocumentAddEventListener('touchstart', handleMobileSearchClick, {
+      capture: true,
+      passive: false,
+    });
+  }
+  nativeDocumentAddEventListener('keydown', handleMobileSearchKeydown, true);
   nativeWindowAddEventListener('blur', () => {
     if (state.video && !state.video.paused) prepareForBackground();
   }, true);
@@ -4393,6 +4643,8 @@
   setInterval(() => {
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
+    ensurePlayerChromeExtras();
+    ensureSearchTrigger();
     syncCustomPlayerControls();
     installMediaSessionHandlers();
     updateMediaSessionMetadata();
