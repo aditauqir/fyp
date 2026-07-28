@@ -1,5 +1,19 @@
 # Patch Notes
 
+## v2.2.6
+
+- Added: Return YouTube Dislike support on watch pages using the RYD API endpoint and selector strategy adapted from [Anarios/return-youtube-dislike](https://github.com/Anarios/return-youtube-dislike).
+- Added: Cached dislike-count fetch (5-minute TTL per video) and resilient fallback behavior so UI stays stable if the API is unavailable.
+- Preserved: Existing playback, caption dedupe, and CPU-tamer behavior.
+- Packaging: Numeric version `2.2.6`; recommended Orion installer `2.2.6_release.zip` (Chrome MV3).
+
+## v2.2.5
+
+- Fixed: Reloading a `/watch` page no longer drops playback back to `0:00` after stopping near the middle. FYP now keeps a local per-video resume checkpoint and restores it on metadata load when YouTube fails to restore progress.
+- Fixed: Caption dedupe now collapses duplicate selected tracks earlier. If captions are on and multiple subtitle TextTracks are active, FYP immediately keeps one active track and disables the rest so Orion does not show conflicting double-selected language rows.
+- Preserved: 2.2.4 CPU/energy tamer and 2.2.3 caption activation behavior remain intact.
+- Packaging: Numeric version `2.2.5`; recommended Orion installer `2.2.5_release.zip` (Chrome MV3).
+
 ## v2.2.4
 
 - Added: YouTube CPU Tamer by AnimationFrame (CY Fung, MIT) adapted into the page-world runtime — throttles YouTube’s `setTimeout`/`setInterval` chatter via `requestAnimationFrame` to cut CPU and energy use on Orion iPhone.

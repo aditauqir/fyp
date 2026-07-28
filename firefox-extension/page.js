@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.4');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.6');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -27,8 +27,12 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v224-cpu-tamer';
+  const NAV_LAYOUT_VERSION = 'ext-v226-return-dislikes';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
+  const RYD_API_URL = 'https://returnyoutubedislikeapi.com';
+  const RYD_CACHE_TTL_MS = 5 * 60 * 1000;
+  const rydCache = new Map();
+  const rydPending = new Set();
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
@@ -744,6 +748,8 @@
     userPauseUntil: 0,
     fullscreenIntentUntil: 0,
   };
+  const RESUME_STORAGE_KEY = 'fyp:resume:v1';
+  const resumeRestoreByVideoId = new Map();
 
   const nativeMediaPause = HTMLMediaElement.prototype.pause;
   HTMLMediaElement.prototype.pause = function guardedMediaPause() {
@@ -764,6 +770,179 @@
     const result = video.play();
     if (result && typeof result.catch === 'function') {
       result.catch(() => {});
+    }
+  }
+
+  function currentWatchVideoId() {
+    if (location.pathname !== '/watch') return '';
+    try {
+      return new URL(location.href).searchParams.get('v') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  // Return YouTube Dislike integration (adapted from Anarios/return-youtube-dislike)
+  function findWatchButtonsRoot() {
+    const menuContainer = document.getElementById('menu-container');
+    if (menuContainer?.offsetParent === null) {
+      return (
+        document.querySelector('ytd-menu-renderer.ytd-watch-metadata > div') ||
+        document.querySelector('ytd-menu-renderer.ytd-video-primary-info-renderer > div')
+      );
+    }
+    return (
+      menuContainer?.querySelector('#top-level-buttons-computed') ||
+      document.querySelector('#top-level-buttons-computed')
+    );
+  }
+
+  function findWatchDislikeHost() {
+    const root = findWatchButtonsRoot();
+    if (!(root instanceof Element)) return null;
+    return (
+      root.querySelector('#segmented-dislike-button') ||
+      root.querySelector('dislike-button-view-model') ||
+      root.querySelector('#dislike-button') ||
+      root.children?.[1] ||
+      null
+    );
+  }
+
+  function getWatchDislikeTextContainer() {
+    const dislikeHost = findWatchDislikeHost();
+    if (!(dislikeHost instanceof Element)) return null;
+    let textNode =
+      dislikeHost.querySelector(
+        '.yt-spec-button-shape-next__button-text-content, .ytSpecButtonShapeNextButtonTextContent, #text, yt-formatted-string, span[role="text"]'
+      ) || null;
+    if (textNode instanceof Element) return textNode;
+    const nativeButton = dislikeHost.querySelector('button');
+    if (!(nativeButton instanceof HTMLButtonElement)) return null;
+    textNode = document.createElement('span');
+    textNode.id = 'text';
+    textNode.setAttribute('role', 'text');
+    textNode.style.marginLeft = '6px';
+    nativeButton.appendChild(textNode);
+    nativeButton.style.width = 'auto';
+    return textNode;
+  }
+
+  function formatDislikeCount(count) {
+    if (!Number.isFinite(count) || count < 0) return '';
+    try {
+      return new Intl.NumberFormat(undefined, {
+        notation: 'compact',
+        compactDisplay: 'short',
+        maximumFractionDigits: 1,
+      }).format(count);
+    } catch {
+      return String(Math.round(count));
+    }
+  }
+
+  function applyWatchDislikeCount(count) {
+    const textContainer = getWatchDislikeTextContainer();
+    if (!(textContainer instanceof HTMLElement)) return false;
+    const text = formatDislikeCount(count);
+    if (!text) return false;
+    textContainer.textContent = text;
+    return true;
+  }
+
+  async function refreshWatchDislikeCount({ force = false } = {}) {
+    if (location.pathname !== '/watch') return;
+    const videoId = currentWatchVideoId();
+    if (!videoId) return;
+    const cache = rydCache.get(videoId);
+    if (
+      !force &&
+      cache &&
+      Date.now() - cache.at < RYD_CACHE_TTL_MS &&
+      Number.isFinite(cache.dislikes)
+    ) {
+      applyWatchDislikeCount(cache.dislikes);
+      return;
+    }
+    if (rydPending.has(videoId)) return;
+    rydPending.add(videoId);
+    try {
+      const response = await fetch(
+        `${RYD_API_URL}/votes?videoId=${encodeURIComponent(videoId)}`,
+        {
+          method: 'GET',
+          cache: 'no-cache',
+        }
+      );
+      if (!response.ok) return;
+      const payload = await response.json();
+      const dislikes = Number(payload?.dislikes);
+      if (!Number.isFinite(dislikes)) return;
+      rydCache.set(videoId, { dislikes, at: Date.now() });
+      applyWatchDislikeCount(dislikes);
+    } catch {
+      // Keep native UI if API/network fails.
+    } finally {
+      rydPending.delete(videoId);
+    }
+  }
+
+  function readResumeStore() {
+    try {
+      const raw = localStorage.getItem(RESUME_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeResumeStore(store) {
+    try {
+      localStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(store));
+    } catch {
+      // Storage can fail in private mode or quota pressure.
+    }
+  }
+
+  function persistWatchResume(video = state.video) {
+    if (!(video instanceof HTMLVideoElement)) return;
+    const videoId = currentWatchVideoId();
+    if (!videoId || !Number.isFinite(video.currentTime)) return;
+    const current = Math.max(0, video.currentTime);
+    if (current < 2 || video.ended) return;
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    if (duration > 0 && current >= duration - 1) return;
+    const store = readResumeStore();
+    store[videoId] = {
+      t: Math.round(current),
+      at: Date.now(),
+    };
+    writeResumeStore(store);
+  }
+
+  function restoreWatchResume(video = state.video) {
+    if (!(video instanceof HTMLVideoElement)) return;
+    const videoId = currentWatchVideoId();
+    if (!videoId || resumeRestoreByVideoId.get(videoId)) return;
+    const store = readResumeStore();
+    const entry = store[videoId];
+    if (!entry || !Number.isFinite(entry.t)) return;
+    const target = Math.max(0, Number(entry.t) || 0);
+    if (target < 3) return;
+    const duration = Number.isFinite(video.duration)
+      ? video.duration
+      : Number.POSITIVE_INFINITY;
+    if (target >= duration - 2) return;
+    if (Number.isFinite(video.currentTime) && video.currentTime > 2) {
+      resumeRestoreByVideoId.set(videoId, true);
+      return;
+    }
+    try {
+      video.currentTime = target;
+      resumeRestoreByVideoId.set(videoId, true);
+    } catch {
+      // Seek can fail before metadata is available; loadedmetadata will retry.
     }
   }
 
@@ -800,11 +979,13 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
+    persistWatchResume(state.video);
     updateMediaSessionMetadata();
     syncCustomPlayerControls();
   }
 
   function onVideoPause() {
+    persistWatchResume(state.video);
     if (Date.now() <= state.userPauseUntil || !state.wantsPlayback) {
       state.wantsPlayback = false;
       clearRecoveryTimers();
@@ -1664,6 +1845,8 @@
 
   function onVideoLoaded() {
     enforceInlinePlayback(state.video);
+    restoreWatchResume(state.video);
+    void refreshWatchDislikeCount({ force: true });
     updateMediaSessionMetadata();
   }
 
@@ -1879,6 +2062,7 @@
       state.video.removeEventListener('pause', onVideoPause);
       state.video.removeEventListener('ended', onVideoPause);
       state.video.removeEventListener('loadedmetadata', onVideoLoaded);
+      state.video.removeEventListener('timeupdate', onVideoTimeUpdate);
     }
 
     state.video = video;
@@ -1890,7 +2074,13 @@
     video.addEventListener('pause', onVideoPause, true);
     video.addEventListener('ended', onVideoPause, true);
     video.addEventListener('loadedmetadata', onVideoLoaded, true);
+    video.addEventListener('timeupdate', onVideoTimeUpdate, true);
     installMediaSessionHandlers();
+  }
+
+  function onVideoTimeUpdate() {
+    if (!state.video || state.video.paused || state.video.ended) return;
+    persistWatchResume(state.video);
   }
 
   function findVideo() {
@@ -2021,7 +2211,7 @@
      * segments before we collapse duplicate TextTracks. Premature hidden/disabled
      * enforcement (2.2.2) prevented captions from turning on at all.
      */
-    if (!customCaptionsVisible) {
+    if (!customCaptionsVisible && activeTracks.length <= 1) {
       delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
@@ -4701,6 +4891,7 @@
     removeAdCards();
     const video = findVideo();
     if (video) attachVideo(video);
+    if (location.pathname === '/watch') void refreshWatchDislikeCount();
   }
 
   nativeDocumentAddEventListener('visibilitychange', () => {
@@ -4726,6 +4917,9 @@
     closeMobileSearch();
     arrangeWatchComments();
     enhanceComments();
+    if (location.pathname === '/watch') {
+      void refreshWatchDislikeCount({ force: true });
+    }
   }, true);
   nativeDocumentAddEventListener(
     'PointerEvent' in window ? 'pointerdown' : 'touchstart',
