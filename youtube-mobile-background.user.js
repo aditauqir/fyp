@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.2.9
-// @release-label 2.2.9
+// @version      2.2.10
+// @release-label 2.2.10
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.9');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.10');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -46,8 +46,12 @@
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   const RYD_API_URL = 'https://returnyoutubedislikeapi.com';
   const RYD_CACHE_TTL_MS = 5 * 60 * 1000;
+  const RYD_TEXT_ATTR = 'data-fyp-dislike-count';
   const rydCache = new Map();
   const rydPending = new Set();
+  let rydDislikeObserver = null;
+  let rydObservedHost = null;
+  let rydReapplyQueued = false;
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const SIMPLE_SEARCH_ATTR = 'data-fyp-simple-search';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
@@ -813,6 +817,18 @@
     );
   }
 
+  function findWatchLikeHost() {
+    const root = findWatchButtonsRoot();
+    if (!(root instanceof Element)) return null;
+    return (
+      root.querySelector('#segmented-like-button') ||
+      root.querySelector('like-button-view-model') ||
+      root.querySelector('#like-button') ||
+      root.children?.[0] ||
+      null
+    );
+  }
+
   function findWatchDislikeHost() {
     const root = findWatchButtonsRoot();
     if (!(root instanceof Element)) return null;
@@ -825,22 +841,71 @@
     );
   }
 
-  function getWatchDislikeTextContainer() {
-    const dislikeHost = findWatchDislikeHost();
-    if (!(dislikeHost instanceof Element)) return null;
-    let textNode =
-      dislikeHost.querySelector(
-        '.yt-spec-button-shape-next__button-text-content, .ytSpecButtonShapeNextButtonTextContent, #text, yt-formatted-string, span[role="text"]'
-      ) || null;
-    if (textNode instanceof Element) return textNode;
-    const nativeButton = dislikeHost.querySelector('button');
-    if (!(nativeButton instanceof HTMLButtonElement)) return null;
-    textNode = document.createElement('span');
-    textNode.id = 'text';
-    textNode.setAttribute('role', 'text');
-    textNode.style.marginLeft = '6px';
-    nativeButton.appendChild(textNode);
+  function updateWatchDislikeButtonShape(nativeButton) {
+    if (!(nativeButton instanceof HTMLElement)) return;
+    for (const className of [
+      'yt-spec-button-shape-next--icon-button',
+      'ytSpecButtonShapeNextIconButton',
+    ]) {
+      nativeButton.classList.remove(className);
+    }
+    for (const className of [
+      'yt-spec-button-shape-next--icon-leading',
+      'ytSpecButtonShapeNextIconLeading',
+    ]) {
+      nativeButton.classList.add(className);
+    }
     nativeButton.style.width = 'auto';
+  }
+
+  function getWatchDislikeTextContainer(dislikeHost = findWatchDislikeHost()) {
+    if (!(dislikeHost instanceof Element)) return null;
+    const nativeButton = dislikeHost.querySelector('button');
+    let textNode = dislikeHost.querySelector(`[${RYD_TEXT_ATTR}]`);
+    if (!(textNode instanceof HTMLElement)) {
+      const selectors = [
+        '.yt-spec-button-shape-next__button-text-content',
+        '.ytSpecButtonShapeNextButtonTextContent',
+        '#text',
+        'yt-formatted-string',
+        'span[role="text"]',
+      ];
+      for (const selector of selectors) {
+        const candidate = dislikeHost.querySelector(selector);
+        if (
+          candidate instanceof HTMLElement &&
+          candidate !== nativeButton &&
+          !candidate.closest('yt-icon, svg')
+        ) {
+          textNode = candidate;
+          break;
+        }
+      }
+    }
+    if (!(textNode instanceof HTMLElement)) {
+      if (!(nativeButton instanceof HTMLButtonElement)) return null;
+      const likeHost = findWatchLikeHost();
+      const template =
+        likeHost?.querySelector(
+          '.yt-spec-button-shape-next__button-text-content, .ytSpecButtonShapeNextButtonTextContent'
+        ) || null;
+      if (template instanceof HTMLElement) {
+        textNode = template.cloneNode(true);
+        const inner =
+          textNode.querySelector('span[role="text"]') || textNode;
+        if (inner instanceof HTMLElement) inner.textContent = '';
+        nativeButton.appendChild(textNode);
+      } else {
+        textNode = document.createElement('span');
+        textNode.id = 'text';
+        textNode.setAttribute('role', 'text');
+        textNode.style.marginLeft = '6px';
+        nativeButton.appendChild(textNode);
+      }
+    }
+    if (!(textNode instanceof HTMLElement)) return null;
+    textNode.setAttribute(RYD_TEXT_ATTR, '1');
+    updateWatchDislikeButtonShape(nativeButton);
     return textNode;
   }
 
@@ -857,17 +922,71 @@
     }
   }
 
+  function disconnectWatchDislikeObserver() {
+    rydDislikeObserver?.disconnect();
+    rydDislikeObserver = null;
+    rydObservedHost = null;
+  }
+
+  function queueStickyWatchDislikeReapply() {
+    if (rydReapplyQueued) return;
+    rydReapplyQueued = true;
+    setTimeout(() => {
+      rydReapplyQueued = false;
+      stickyReapplyWatchDislikeCount();
+    }, 40);
+  }
+
+  function ensureWatchDislikeObserver(dislikeHost) {
+    if (!(dislikeHost instanceof Element)) return;
+    if (rydObservedHost === dislikeHost && rydDislikeObserver) return;
+    disconnectWatchDislikeObserver();
+    rydObservedHost = dislikeHost;
+    rydDislikeObserver = new MutationObserver(() => {
+      queueStickyWatchDislikeReapply();
+    });
+    rydDislikeObserver.observe(dislikeHost, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+    });
+  }
+
+  function stickyReapplyWatchDislikeCount() {
+    if (location.pathname !== '/watch') {
+      disconnectWatchDislikeObserver();
+      return;
+    }
+    const videoId = currentWatchVideoId();
+    if (!videoId) return;
+    const cache = rydCache.get(videoId);
+    if (!cache || !Number.isFinite(cache.dislikes)) return;
+    applyWatchDislikeCount(cache.dislikes);
+  }
+
   function applyWatchDislikeCount(count) {
-    const textContainer = getWatchDislikeTextContainer();
-    if (!(textContainer instanceof HTMLElement)) return false;
     const text = formatDislikeCount(count);
     if (!text) return false;
-    textContainer.textContent = text;
+    const dislikeHost = findWatchDislikeHost();
+    if (!(dislikeHost instanceof Element)) return false;
+    ensureWatchDislikeObserver(dislikeHost);
+    const textContainer = getWatchDislikeTextContainer(dislikeHost);
+    if (!(textContainer instanceof HTMLElement)) return false;
+    if (textContainer.textContent !== text) {
+      textContainer.textContent = text;
+    }
+    textContainer.setAttribute(RYD_TEXT_ATTR, '1');
+    updateWatchDislikeButtonShape(dislikeHost.querySelector('button'));
     return true;
   }
 
   async function refreshWatchDislikeCount({ force = false } = {}) {
-    if (location.pathname !== '/watch') return;
+    if (location.pathname !== '/watch') {
+      disconnectWatchDislikeObserver();
+      return;
+    }
     const videoId = currentWatchVideoId();
     if (!videoId) return;
     const cache = rydCache.get(videoId);
@@ -887,7 +1006,6 @@
         `${RYD_API_URL}/votes?videoId=${encodeURIComponent(videoId)}`,
         {
           method: 'GET',
-          cache: 'no-cache',
         }
       );
       if (!response.ok) return;
@@ -2230,9 +2348,12 @@
     /*
      * Let YouTube's caption module finish enabling tracks and painting custom
      * segments before we collapse duplicate TextTracks. Premature hidden/disabled
-     * enforcement (2.2.2) prevented captions from turning on at all.
+     * enforcement (2.2.2) and the 2.2.5 early multi-active collapse both fought
+     * the caption module — captions failed to turn on, flickered, or doubled.
+     * Wait for .ytp-caption-segment before forcing modes; ::cue stays visible
+     * until then. Duplicate English rows collapse once custom segments exist.
      */
-    if (!customCaptionsVisible && activeTracks.length <= 1) {
+    if (!customCaptionsVisible) {
       delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
@@ -2264,20 +2385,18 @@
 
     // Exactly one track stays "hidden" for YouTube; every other row (including
     // duplicate English entries Orion marks selected) becomes disabled.
+    // Only write mode when it differs — the 300ms poll must not thrash WebKit.
     for (const track of tracks) {
+      const desired = track === selectedTrack ? 'hidden' : 'disabled';
+      if (track.mode === desired) continue;
       try {
-        track.mode = track === selectedTrack ? 'hidden' : 'disabled';
+        track.mode = desired;
       } catch {
         // CSS ::cue hiding still covers locked WebKit tracks.
       }
     }
     selectedCaptionTrackByVideo.set(video, selectedTrack);
-
-    if (customCaptionsVisible) {
-      video.dataset.fypNativeCaptionsHidden = 'true';
-    } else {
-      delete video.dataset.fypNativeCaptionsHidden;
-    }
+    video.dataset.fypNativeCaptionsHidden = 'true';
   }
 
   function metadataContent(selector) {

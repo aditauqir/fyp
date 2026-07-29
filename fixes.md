@@ -1,5 +1,29 @@
 # Bug fix log
 
+## 2026-07-29 — Sticky RYD dislike counts (fyp 2.2.10)
+
+### In plain English
+- **What was broken:** Dislike numbers from Return YouTube Dislike flashed on briefly, then vanished.
+- **Why it happened:** YouTube remounts or rewrites the dislike button and clears our label. Icon-only button classes also clip/hide any text we inject.
+- **What we changed:** Shape the dislike control like upstream RYD (`icon-leading`), mark our text node, watch that host with a MutationObserver, and re-apply the cached count when YouTube wipes it.
+- **How to verify:** Open a video that previously showed a count, wait a few seconds / scroll the actions row — the dislike number should stay visible.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+textContainer.textContent = text; // once; YouTube clears it later
+```
+
+**After (fixed idea):**
+```js
+ensureWatchDislikeObserver(dislikeHost); // re-apply from cache on wipe
+updateWatchDislikeButtonShape(button); // icon-leading so the label fits
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — sticky RYD apply + observer + button shape.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — 2.2.10 notes.
+
 ## 2026-07-29 — Horizontal overflow / sideways swipe (fyp 2.2.9)
 
 ### In plain English

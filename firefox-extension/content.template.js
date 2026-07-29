@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.2.9';
+  const EXPECTED_PAGE_VERSION = '2.2.10';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =

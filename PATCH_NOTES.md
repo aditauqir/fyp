@@ -1,5 +1,11 @@
 # Patch Notes
 
+## v2.2.10
+
+- Fixed: Return YouTube Dislike counts stay visible on watch pages. YouTube was remounting the dislike button and wiping the label; FYP now reshapes the icon-only button for a text label and re-applies the cached count when the DOM is cleared.
+- Preserved: Player, search, captions, and overflow behavior from 2.2.7–2.2.9 are unchanged.
+- Packaging: Numeric version `2.2.10`; recommended Orion installer `2.2.10_release.zip` (Chrome MV3).
+
 ## v2.2.9
 
 - Fixed: Phone layouts no longer swipe sideways into blank space. Overflow is clipped on `html`/`body`/`ytd-app`/`page-manager`, and wide desktop shells are capped to `100%` (not `100vw`) so the page cannot paint past the viewport.

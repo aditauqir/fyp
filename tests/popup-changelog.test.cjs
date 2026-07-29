@@ -25,9 +25,9 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Fixed subtitles not turning on \(2\.2\.3\)\./);
-assert.match(popup, /Kept single-track caption dedupe once segments paint\./);
-assert.match(popup, /Native masthead search from 2\.2\.1 recovery\./);
+assert.match(popup, /Sticky RYD dislike counts on watch \(2\.2\.10\)\./);
+assert.match(popup, /No sideways swipe into blank space \(2\.2\.9\)\./);
+assert.match(popup, /Tight watch stack: no gap\/jitter under video \(2\.2\.8\)\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
