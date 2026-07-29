@@ -1,5 +1,41 @@
 # Bug fix log
 
+## 2026-07-29 — Captions gone + double-start (fyp 2.2.11)
+
+### In plain English
+- **What was broken:** After 2.2.10, captions often never showed (including when YouTube has them on by default). Turning them on could also flash two caption layers.
+- **Why it happened:** 2.2.10 refused to touch TextTracks until `.ytp-caption-segment` existed, then forced the preferred track to `hidden` and siblings to `disabled`. One brief segment paint + mode thrash left tracks disabled with no segments left — a chicken-egg where captions stayed gone. Native `::cue` also stayed visible until segments painted, so a double flash was still possible on start.
+- **What we changed:** Hide native `::cue` / WebKit text-track display as soon as captions are intended on (CC pressed, active track, or dataset flag). After a short delay (or once custom segments exist), disable only *sibling* tracks — never the preferred one, and never force all tracks off.
+- **How to verify:** 1) Open a video with captions on by default → text appears once. 2) Toggle CC off/on → one layer only. 3) Confirm dislike count still sticks on the watch actions row.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+if (!customCaptionsVisible) {
+  delete video.dataset.fypNativeCaptionsHidden;
+  return;
+}
+const desired = track === selectedTrack ? 'hidden' : 'disabled';
+track.mode = desired; // preferred forced to hidden too
+```
+
+**After (fixed idea):**
+```js
+if (captionsIntendedOn) {
+  video.dataset.fypNativeCaptionsHidden = 'true'; // CSS kills ::cue early
+}
+if (!dedupeReady) return;
+for (const track of tracks) {
+  if (track === selectedTrack) continue; // leave preferred alone
+  track.mode = 'disabled'; // siblings only
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — early CSS cue hide + delayed sibling-only dedupe.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — 2.2.11 notes.
+- `tests/captions-deduplication.test.cjs` — contract for the new approach.
+
 ## 2026-07-29 — Caption activation / dedupe race (fyp 2.2.10)
 
 ### In plain English

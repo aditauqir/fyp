@@ -14,6 +14,10 @@ assert.match(
 );
 assert.match(
   source,
+  /\.html5-video-player:has\(\s*\.ytp-subtitles-button\[aria-pressed='true'\]\s*\) video::cue/
+);
+assert.match(
+  source,
   /video\[data-fyp-native-captions-hidden='true'\]::cue \{\s*visibility: hidden !important;/
 );
 assert.match(
@@ -24,13 +28,31 @@ assert.match(source, /function suppressDuplicateNativeCaptions\(video/);
 assert.match(source, /function chooseBestCaptionTrack\(tracks\)/);
 assert.match(source, /if \(english && !automatic\) score \+= 400/);
 assert.match(source, /else if \(english && automatic\) score \+= 300/);
+assert.match(source, /const CAPTION_DEDUPE_DELAY_MS = 450/);
+assert.match(source, /captionDedupeReadyAtByVideo/);
+assert.match(source, /const captionsIntendedOn =/);
 assert.match(
+  source,
+  /\/\/ Kill native cue flash immediately — before custom segments paint\./
+);
+assert.match(source, /video\.dataset\.fypNativeCaptionsHidden = 'true'/);
+assert.match(source, /if \(!dedupeReady\) return;/);
+assert.match(
+  source,
+  /if \(!activeTracks\.length && !customCaptionsVisible\) return;/
+);
+assert.match(source, /if \(track === selectedTrack\) continue;/);
+assert.match(source, /if \(track\.mode === 'disabled'\) continue;/);
+assert.match(source, /track\.mode = 'disabled'/);
+assert.match(
+  source,
+  /if \(selectedTrack\.mode === 'disabled'\) \{[\s\S]*?selectedTrack\.mode = 'hidden'/
+);
+assert.doesNotMatch(
   source,
   /const desired = track === selectedTrack \? 'hidden' : 'disabled'/
 );
-assert.match(source, /if \(track\.mode === desired\) continue/);
-assert.match(source, /track\.mode = desired/);
-assert.match(
+assert.doesNotMatch(
   source,
   /if \(!customCaptionsVisible\) \{[\s\S]*?delete video\.dataset\.fypNativeCaptionsHidden;[\s\S]*?return;/
 );
@@ -40,15 +62,11 @@ assert.doesNotMatch(
 );
 assert.match(
   source,
-  /video\.dataset\.fypNativeCaptionsHidden = 'true'/
+  /Hide native WebKit ::cue as soon as captions are intended on/
 );
 assert.match(
   source,
-  /Caption contract: YouTube's custom caption DOM is the sole visible owner/
-);
-assert.match(
-  source,
-  /Keep exactly one TextTrack active \(mode "hidden"\)/
+  /Collapse[\s\S]*only duplicate sibling TextTracks/
 );
 assert.doesNotMatch(source, /nativeCaptions\.click\(\)/);
 assert.match(

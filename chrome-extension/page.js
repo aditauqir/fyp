@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.10');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.11');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -446,6 +446,8 @@
 
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
+  const captionDedupeReadyAtByVideo = new WeakMap();
+  const CAPTION_DEDUPE_DELAY_MS = 450;
   const selectedQualityByVideo = new WeakMap();
   let ignorePlayerControlActionsUntil = 0;
   let pendingMenuOptionGesture = null;
@@ -1655,6 +1657,7 @@
           player?.setOption?.('captions', 'track', {});
         } catch {}
         selectedCaptionTrackByVideo.delete(video);
+        captionDedupeReadyAtByVideo.delete(video);
         delete video.dataset.fypNativeCaptionsHidden;
       };
       applyCaptionsOff();
@@ -2303,45 +2306,49 @@
     const captionsButtonPressed = captionsButtonState === 'true';
     const activeTracks = tracks.filter((track) => track.mode !== 'disabled');
     const previousTrack = selectedCaptionTrackByVideo.get(video);
+    const captionsIntendedOn =
+      customCaptionsVisible ||
+      captionsButtonPressed ||
+      activeTracks.length > 0;
 
     /*
      * Caption contract: YouTube's custom caption DOM is the sole visible owner.
-     * Keep exactly one TextTrack active (mode "hidden") so Orion's Languages
-     * menu cannot leave English+English selected, and hide WebKit ::cue only
-     * when custom segments exist. Do not click .ytp-subtitles-button or turn
-     * captions off globally.
+     * Hide native WebKit ::cue as soon as captions are intended on (CC button,
+     * any active TextTrack, or custom segments) so default-on and toggle-on
+     * never flash doubles while waiting for .ytp-caption-segment. Collapse
+     * only duplicate sibling TextTracks after a short delay — never disable the
+     * preferred track, and never force all tracks disabled. Do not click
+     * .ytp-subtitles-button.
      */
-    if (
-      previousTrack &&
-      !activeTracks.length &&
-      captionsButtonState !== 'true'
-    ) {
+    if (!captionsIntendedOn) {
       selectedCaptionTrackByVideo.delete(video);
-      delete video.dataset.fypNativeCaptionsHidden;
-      return;
-    }
-    if (
-      !customCaptionsVisible &&
-      !captionsButtonPressed &&
-      !activeTracks.length
-    ) {
-      selectedCaptionTrackByVideo.delete(video);
+      captionDedupeReadyAtByVideo.delete(video);
       delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
 
-    /*
-     * Let YouTube's caption module finish enabling tracks and painting custom
-     * segments before we collapse duplicate TextTracks. Premature hidden/disabled
-     * enforcement (2.2.2) and the 2.2.5 early multi-active collapse both fought
-     * the caption module — captions failed to turn on, flickered, or doubled.
-     * Wait for .ytp-caption-segment before forcing modes; ::cue stays visible
-     * until then. Duplicate English rows collapse once custom segments exist.
-     */
-    if (!customCaptionsVisible) {
-      delete video.dataset.fypNativeCaptionsHidden;
-      return;
+    // Kill native cue flash immediately — before custom segments paint.
+    video.dataset.fypNativeCaptionsHidden = 'true';
+
+    if (!captionDedupeReadyAtByVideo.has(video)) {
+      captionDedupeReadyAtByVideo.set(
+        video,
+        Date.now() + CAPTION_DEDUPE_DELAY_MS
+      );
     }
+    const dedupeReady =
+      customCaptionsVisible ||
+      Date.now() >= captionDedupeReadyAtByVideo.get(video);
+
+    /*
+     * 2.2.10 waited for custom segments before any mode work, then forced the
+     * preferred track to "hidden" and siblings to "disabled". One brief segment
+     * paint + mode thrash left tracks disabled with no segments — chicken-egg
+     * captions gone. Stay hands-off until activation is stable, and only then
+     * disable siblings.
+     */
+    if (!dedupeReady) return;
+    if (!activeTracks.length && !customCaptionsVisible) return;
 
     const newlyActiveTracks = activeTracks.filter(
       (track) => track !== previousTrack
@@ -2368,20 +2375,27 @@
     }
     if (!selectedTrack) return;
 
-    // Exactly one track stays "hidden" for YouTube; every other row (including
-    // duplicate English entries Orion marks selected) becomes disabled.
-    // Only write mode when it differs — the 300ms poll must not thrash WebKit.
-    for (const track of tracks) {
-      const desired = track === selectedTrack ? 'hidden' : 'disabled';
-      if (track.mode === desired) continue;
+    // Recover a preferred track that earlier builds left disabled.
+    if (selectedTrack.mode === 'disabled') {
       try {
-        track.mode = desired;
+        selectedTrack.mode = 'hidden';
+      } catch {
+        // CSS ::cue hiding still covers locked WebKit tracks.
+      }
+    }
+
+    // Disable only siblings. Leave preferred showing/hidden alone so YouTube's
+    // caption module keeps painting. Skip writes when already correct.
+    for (const track of tracks) {
+      if (track === selectedTrack) continue;
+      if (track.mode === 'disabled') continue;
+      try {
+        track.mode = 'disabled';
       } catch {
         // CSS ::cue hiding still covers locked WebKit tracks.
       }
     }
     selectedCaptionTrackByVideo.set(video, selectedTrack);
-    video.dataset.fypNativeCaptionsHidden = 'true';
   }
 
   function metadataContent(selector) {
@@ -4123,11 +4137,15 @@
 
       /*
        * Orion/WebKit may render the native WebVTT cue at the same time as
-       * YouTube's custom caption DOM. Hide only the native cue while a custom
-       * YouTube caption segment exists, leaving YouTube's caption layer intact.
+       * YouTube's custom caption DOM. Hide the native cue as soon as captions
+       * are intended on (CC pressed, dataset flag, or custom segments) so the
+       * double-caption flash dies before .ytp-caption-segment paints.
        */
       .html5-video-player:has(
         .ytp-caption-window-container .ytp-caption-segment
+      ) video::cue,
+      .html5-video-player:has(
+        .ytp-subtitles-button[aria-pressed='true']
       ) video::cue,
       video[data-fyp-native-captions-hidden='true']::cue {
         visibility: hidden !important;
@@ -4142,6 +4160,12 @@
       ) video::-webkit-media-text-track-container,
       .html5-video-player:has(
         .ytp-caption-window-container .ytp-caption-segment
+      ) video::-webkit-media-text-track-display,
+      .html5-video-player:has(
+        .ytp-subtitles-button[aria-pressed='true']
+      ) video::-webkit-media-text-track-container,
+      .html5-video-player:has(
+        .ytp-subtitles-button[aria-pressed='true']
       ) video::-webkit-media-text-track-display,
       video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-container,
       video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-display {

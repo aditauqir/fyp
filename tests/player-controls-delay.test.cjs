@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
@@ -97,7 +97,10 @@ assert.match(
 assert.match(source, /function currentYouTubeCaptionTrack\(/);
 assert.doesNotMatch(source, /nativeCaptions\.click\(\)/);
 assert.match(source, /for \(const speed of \[0\.5, 0\.75, 1, 1\.25, 1\.5, 2\]\)/);
-assert.match(source, /margin: clamp\(\.5rem, 2\.4vw, \.8rem\) auto/);
+assert.match(
+  source,
+  /margin: clamp\(\.25rem, 1\.2vw, \.45rem\) 0 clamp\(\.5rem, 2\.4vw, \.8rem\)/
+);
 assert.match(source, /display: flex !important;/);
 assert.match(source, /justify-content: center/);
 assert.doesNotMatch(source, /grid-template-columns: repeat\(7,/);

@@ -1,5 +1,13 @@
 # Patch Notes
 
+## v2.2.11
+
+- Fixed: Captions appear again (including when they are on by default). 2.2.10 waited for custom caption segments before any work, then forced the preferred TextTrack to `hidden` — a brief segment paint could leave tracks disabled with no captions left (chicken-egg “gone”).
+- Fixed: Double captions on start are blocked with CSS — native `video::cue` / WebKit text-track display hide as soon as captions are intended on (CC pressed, active track, or dataset flag), even before `.ytp-caption-segment` paints.
+- Changed: Single-language dedupe only disables *sibling* TextTracks after a short delay (or once custom segments exist). The preferred track is never disabled; its showing/hidden mode is left alone so YouTube’s caption module can keep painting.
+- Preserved: Sticky RYD dislike counts, player/search/overflow behavior from 2.2.7–2.2.10. Still never clicks `.ytp-subtitles-button`.
+- Packaging: Numeric version `2.2.11`; recommended Orion installer `2.2.11_release.zip` (Chrome MV3).
+
 ## v2.2.10
 
 - Fixed: Captions/subtitles no longer fight YouTube’s caption module. Single-track TextTrack dedupe waits again until custom caption segments paint (restores the 2.2.3 activation contract; undoes the 2.2.5 early multi-active collapse that blocked turn-on, caused flicker, or painted doubles). Mode writes skip when already correct so the 300ms poll does not thrash WebKit.
