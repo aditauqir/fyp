@@ -12,8 +12,8 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+2\.2\.11/);
-assert.match(source, /data-fyp-page-ready', '2\.2\.11'/);
+assert.match(source, /\/\/ @version\s+2\.2\.12/);
+assert.match(source, /data-fyp-page-ready', '2\.2\.12'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);

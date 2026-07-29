@@ -1,5 +1,32 @@
 # Bug fix log
 
+## 2026-07-29 — Captions blank + slow load (fyp 2.2.12)
+
+### In plain English
+- **What was broken:** After 2.2.11, caption OPTIONS still appeared but no on-screen text, and videos took a long time to start.
+- **Why it happened:** Two systems fighting: (1) the CPU tamer wrapped YouTube’s `setTimeout`/`setInterval` during `timeupdate`, starving caption painting and player init on Orion; (2) CSS hid native `::cue` as soon as captions were “intended on,” so when custom segments never painted there was nothing left to see.
+- **What we changed:** CPU tamer is off by default (code kept; opt-in via `localStorage.fypEnableCpuTamer='1'` or `window.__fypEnableCpuTamer=true`). Native `::cue` hides only while `.ytp-caption-segment` exists. Sticky RYD and sibling-only track dedupe stay.
+- **How to verify:** 1) Install `~/Downloads/2.2.12_release.zip`. 2) Open a captioned video → text appears. 3) Confirm video starts promptly. 4) Confirm dislike count still sticks.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+installYoutubeCpuTamer(window); // always on
+video.dataset.fypNativeCaptionsHidden = 'true'; // hide native before custom paints
+```
+
+**After (fixed idea):**
+```js
+if (shouldInstallYoutubeCpuTamer(window)) installYoutubeCpuTamer(window); // default false
+if (customCaptionsVisible) video.dataset.fypNativeCaptionsHidden = 'true';
+else delete video.dataset.fypNativeCaptionsHidden;
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — gate CPU tamer; soften native cue hide.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — 2.2.12 notes.
+- `tests/cpu-tamer-gate.test.cjs` / `tests/captions-deduplication.test.cjs` — contracts.
+
 ## 2026-07-29 — Captions gone + double-start (fyp 2.2.11)
 
 ### In plain English

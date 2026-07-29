@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const version = '2.2.11';
+const version = '2.2.12';
 const releasePath = path.join(root, `${version}_release.zip`);
 const orionZipPath = path.join(
   root,

@@ -77,7 +77,7 @@ Upstream notes that matter for us:
 | ID | Work | Status | Notes |
 |----|------|--------|-------|
 | P0 | Branch + this handoff file | **Done** | `fix/performance-fixes` from `origin/main` |
-| P1 | Vendor-adapted CPU Tamer in page runtime | **Done** | `installYoutubeCpuTamer` in userscript; MIT attribution; soft-skip if no WebGL |
+| P1 | Vendor-adapted CPU Tamer in page runtime | **Done (gated)** | `installYoutubeCpuTamer` kept; **off by default since 2.2.12** (opt-in: `localStorage.fypEnableCpuTamer=1` / `__fypEnableCpuTamer`); was starving captions + load on Orion |
 | P2 | Keep FYP critical timers on pristine APIs | **Done** | IIFE-local `setTimeout`/`setInterval`/`clear*`/`rAF` bound before window patch |
 | P3 | Version bump + `./rebuild-extension.sh` | **Done** | `2.2.4` / `2.2.4_release.zip` |
 | P4 | Orion iPhone verification | Pending | User installs zip; check Play, background audio, battery/CPU feel |

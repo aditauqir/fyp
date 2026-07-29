@@ -25,7 +25,7 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Captions work again without doubles \(2\.2\.11\)\./);
+assert.match(popup, /Captions \+ faster load; CPU tamer off \(2\.2\.12\)\./);
 assert.match(popup, /Sticky RYD dislike counts on watch \(2\.2\.10\)\./);
 assert.match(popup, /No sideways swipe into blank space \(2\.2\.9\)\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);

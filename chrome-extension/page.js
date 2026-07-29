@@ -3,13 +3,15 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.11');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.12');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
    * YouTube CPU Tamer patches window.* for YouTube only — see installYoutubeCpuTamer.
    * On Orion iPhone, rAF does not run while the document is hidden; FYP must not
    * route recoverPlayback through rAF-gated timers.
+   * 2.2.12: tamer is OFF by default — wrapping setTimeout/setInterval during
+   * timeupdate starved caption painting and slowed player init on Orion.
    */
   const setTimeout = window.setTimeout.bind(window);
   const setInterval = window.setInterval.bind(window);
@@ -29,6 +31,8 @@
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
   const NAV_LAYOUT_VERSION = 'ext-v227-simple-search-theme';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
+  /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
+  const CPU_TAMER_ENABLED_BY_DEFAULT = false;
   const RYD_API_URL = 'https://returnyoutubedislikeapi.com';
   const RYD_CACHE_TTL_MS = 5 * 60 * 1000;
   const RYD_TEXT_ATTR = 'data-fyp-dislike-count';
@@ -107,6 +111,19 @@
    * Requires GPU acceleration. Fail soft (skip) if WebGL or clean timers unavailable.
    * Patches window timers only; FYP locals above stay pristine for background audio.
    */
+  function shouldInstallYoutubeCpuTamer(win = window) {
+    try {
+      if (win.__fypEnableCpuTamer === true) return true;
+      if (win.__fypEnableCpuTamer === false) return false;
+      const stored = win.localStorage?.getItem('fypEnableCpuTamer');
+      if (stored === '1' || stored === 'true') return true;
+      if (stored === '0' || stored === 'false') return false;
+    } catch {
+      // localStorage may be blocked in some embeds.
+    }
+    return CPU_TAMER_ENABLED_BY_DEFAULT;
+  }
+
   function installYoutubeCpuTamer(win = window) {
     try {
       if (win[CPU_TAMER_FLAG]) return;
@@ -442,7 +459,15 @@
     });
   }
 
-  installYoutubeCpuTamer(window);
+  if (shouldInstallYoutubeCpuTamer(window)) {
+    installYoutubeCpuTamer(window);
+  } else {
+    try {
+      document.documentElement?.setAttribute('data-fyp-cpu-tamer', '0');
+    } catch {
+      // Attribute is diagnostics-only.
+    }
+  }
 
   let playerControlsHideTimer = null;
   const selectedCaptionTrackByVideo = new WeakMap();
@@ -2312,23 +2337,25 @@
       activeTracks.length > 0;
 
     /*
-     * Caption contract: YouTube's custom caption DOM is the sole visible owner.
-     * Hide native WebKit ::cue as soon as captions are intended on (CC button,
-     * any active TextTrack, or custom segments) so default-on and toggle-on
-     * never flash doubles while waiting for .ytp-caption-segment. Collapse
-     * only duplicate sibling TextTracks after a short delay — never disable the
-     * preferred track, and never force all tracks disabled. Do not click
+     * Caption contract: YouTube's custom caption DOM is the sole visible owner
+     * once it paints. Hide native WebKit ::cue only while .ytp-caption-segment
+     * exists — never on button/active-track alone. 2.2.11 early-hide left Orion
+     * with blank captions when the custom module was starved (CPU tamer) or
+     * never painted. Collapse only duplicate sibling TextTracks after a short
+     * delay — never disable the preferred track. Do not click
      * .ytp-subtitles-button.
      */
+    if (customCaptionsVisible) {
+      video.dataset.fypNativeCaptionsHidden = 'true';
+    } else {
+      delete video.dataset.fypNativeCaptionsHidden;
+    }
+
     if (!captionsIntendedOn) {
       selectedCaptionTrackByVideo.delete(video);
       captionDedupeReadyAtByVideo.delete(video);
-      delete video.dataset.fypNativeCaptionsHidden;
       return;
     }
-
-    // Kill native cue flash immediately — before custom segments paint.
-    video.dataset.fypNativeCaptionsHidden = 'true';
 
     if (!captionDedupeReadyAtByVideo.has(video)) {
       captionDedupeReadyAtByVideo.set(
@@ -2341,11 +2368,8 @@
       Date.now() >= captionDedupeReadyAtByVideo.get(video);
 
     /*
-     * 2.2.10 waited for custom segments before any mode work, then forced the
-     * preferred track to "hidden" and siblings to "disabled". One brief segment
-     * paint + mode thrash left tracks disabled with no segments — chicken-egg
-     * captions gone. Stay hands-off until activation is stable, and only then
-     * disable siblings.
+     * Stay hands-off until activation is stable, then disable siblings only.
+     * Never force the preferred track to hidden/disabled.
      */
     if (!dedupeReady) return;
     if (!activeTracks.length && !customCaptionsVisible) return;
@@ -4137,15 +4161,12 @@
 
       /*
        * Orion/WebKit may render the native WebVTT cue at the same time as
-       * YouTube's custom caption DOM. Hide the native cue as soon as captions
-       * are intended on (CC pressed, dataset flag, or custom segments) so the
-       * double-caption flash dies before .ytp-caption-segment paints.
+       * YouTube's custom caption DOM. Hide the native cue only while custom
+       * segments exist — never on CC-button alone — so a starved custom module
+       * cannot leave the screen with zero caption text.
        */
       .html5-video-player:has(
         .ytp-caption-window-container .ytp-caption-segment
-      ) video::cue,
-      .html5-video-player:has(
-        .ytp-subtitles-button[aria-pressed='true']
       ) video::cue,
       video[data-fyp-native-captions-hidden='true']::cue {
         visibility: hidden !important;
@@ -4160,12 +4181,6 @@
       ) video::-webkit-media-text-track-container,
       .html5-video-player:has(
         .ytp-caption-window-container .ytp-caption-segment
-      ) video::-webkit-media-text-track-display,
-      .html5-video-player:has(
-        .ytp-subtitles-button[aria-pressed='true']
-      ) video::-webkit-media-text-track-container,
-      .html5-video-player:has(
-        .ytp-subtitles-button[aria-pressed='true']
       ) video::-webkit-media-text-track-display,
       video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-container,
       video[data-fyp-native-captions-hidden='true']::-webkit-media-text-track-display {

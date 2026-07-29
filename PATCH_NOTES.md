@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v2.2.12
+
+- Fixed: Captions show on-screen text again. 2.2.11 hid native `::cue` as soon as captions were “intended on,” so when YouTube’s custom caption module was starved there was no fallback text at all. Native cues now hide only while `.ytp-caption-segment` is painting.
+- Fixed: Videos load faster on Orion. The YouTube CPU Tamer (timer wrapping during `timeupdate`) was delaying player init / buffering / caption timers; it is now **off by default** (code kept; opt in with `localStorage.fypEnableCpuTamer = '1'` or `window.__fypEnableCpuTamer = true`).
+- Preserved: Sticky RYD dislike observer, sibling-only TextTrack dedupe, player/search/overflow/light-dark behavior from 2.2.7–2.2.11.
+- Packaging: Numeric version `2.2.12`; recommended Orion installer `2.2.12_release.zip` (Chrome MV3).
+
 ## v2.2.11
 
 - Fixed: Captions appear again (including when they are on by default). 2.2.10 waited for custom caption segments before any work, then forced the preferred TextTrack to `hidden` — a brief segment paint could leave tracks disabled with no captions left (chicken-egg “gone”).

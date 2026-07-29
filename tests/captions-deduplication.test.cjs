@@ -12,7 +12,7 @@ assert.match(
   source,
   /\.html5-video-player:has\(\s*\.ytp-caption-window-container \.ytp-caption-segment\s*\) video::cue/
 );
-assert.match(
+assert.doesNotMatch(
   source,
   /\.html5-video-player:has\(\s*\.ytp-subtitles-button\[aria-pressed='true'\]\s*\) video::cue/
 );
@@ -33,9 +33,12 @@ assert.match(source, /captionDedupeReadyAtByVideo/);
 assert.match(source, /const captionsIntendedOn =/);
 assert.match(
   source,
-  /\/\/ Kill native cue flash immediately — before custom segments paint\./
+  /if \(customCaptionsVisible\) \{[\s\S]*?fypNativeCaptionsHidden = 'true'/
 );
-assert.match(source, /video\.dataset\.fypNativeCaptionsHidden = 'true'/);
+assert.match(
+  source,
+  /else \{[\s\S]*?delete video\.dataset\.fypNativeCaptionsHidden/
+);
 assert.match(source, /if \(!dedupeReady\) return;/);
 assert.match(
   source,
@@ -54,7 +57,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   source,
-  /if \(!customCaptionsVisible\) \{[\s\S]*?delete video\.dataset\.fypNativeCaptionsHidden;[\s\S]*?return;/
+  /Kill native cue flash immediately — before custom segments paint/
 );
 assert.doesNotMatch(
   source,
@@ -62,7 +65,7 @@ assert.doesNotMatch(
 );
 assert.match(
   source,
-  /Hide native WebKit ::cue as soon as captions are intended on/
+  /Hide native WebKit ::cue only while \.ytp-caption-segment/
 );
 assert.match(
   source,
