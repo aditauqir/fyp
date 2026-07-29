@@ -26,15 +26,21 @@ assert.match(source, /if \(english && !automatic\) score \+= 400/);
 assert.match(source, /else if \(english && automatic\) score \+= 300/);
 assert.match(
   source,
-  /track\.mode = track === selectedTrack \? 'hidden' : 'disabled'/
+  /const desired = track === selectedTrack \? 'hidden' : 'disabled'/
 );
+assert.match(source, /if \(track\.mode === desired\) continue/);
+assert.match(source, /track\.mode = desired/);
 assert.match(
   source,
   /if \(!customCaptionsVisible\) \{[\s\S]*?delete video\.dataset\.fypNativeCaptionsHidden;[\s\S]*?return;/
 );
+assert.doesNotMatch(
+  source,
+  /!customCaptionsVisible && activeTracks\.length <= 1/
+);
 assert.match(
   source,
-  /customCaptionsVisible[\s\S]*?fypNativeCaptionsHidden = 'true'/
+  /video\.dataset\.fypNativeCaptionsHidden = 'true'/
 );
 assert.match(
   source,

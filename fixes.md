@@ -1,6 +1,40 @@
 # Bug fix log
 
+## 2026-07-29 — Caption activation / dedupe race (fyp 2.2.10)
+
+### In plain English
+- **What was broken:** Captions acted weird again — sometimes would not turn on, sometimes doubled, Languages could show two English rows selected, or modes flickered.
+- **Why it happened:** 2.2.5 let TextTrack `hidden`/`disabled` enforcement run whenever more than one subtitle track was active, even before YouTube painted custom caption segments. That reintroduced the 2.2.2 fight with YouTube’s caption module. The 300ms poll also rewrote track modes every tick.
+- **What we changed:** Restore the 2.2.3 deferral (`if (!customCaptionsVisible) return`) before single-track collapse, and only write `track.mode` when it differs from the desired value. `::cue` still hides only while custom segments exist.
+- **How to verify:** Turn captions on → text appears once. Open Languages → one English selected. Toggle off/on and change language without flicker or a stuck-off state.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+if (!customCaptionsVisible && activeTracks.length <= 1) {
+  delete video.dataset.fypNativeCaptionsHidden;
+  return;
+}
+// collapses multi-active tracks before segments paint
+```
+
+**After (fixed idea):**
+```js
+if (!customCaptionsVisible) {
+  delete video.dataset.fypNativeCaptionsHidden;
+  return;
+}
+const desired = track === selectedTrack ? 'hidden' : 'disabled';
+if (track.mode === desired) continue;
+track.mode = desired;
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — caption dedupe deferral + mode thrash guard.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — 2.2.10 caption notes.
+
 ## 2026-07-29 — Sticky RYD dislike counts (fyp 2.2.10)
+
 
 ### In plain English
 - **What was broken:** Dislike numbers from Return YouTube Dislike flashed on briefly, then vanished.

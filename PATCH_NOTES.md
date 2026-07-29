@@ -2,8 +2,9 @@
 
 ## v2.2.10
 
+- Fixed: Captions/subtitles no longer fight YouTube’s caption module. Single-track TextTrack dedupe waits again until custom caption segments paint (restores the 2.2.3 activation contract; undoes the 2.2.5 early multi-active collapse that blocked turn-on, caused flicker, or painted doubles). Mode writes skip when already correct so the 300ms poll does not thrash WebKit.
 - Fixed: Return YouTube Dislike counts stay visible on watch pages. YouTube was remounting the dislike button and wiping the label; FYP now reshapes the icon-only button for a text label and re-applies the cached count when the DOM is cleared.
-- Preserved: Player, search, captions, and overflow behavior from 2.2.7–2.2.9 are unchanged.
+- Preserved: Player, search, and overflow behavior from 2.2.7–2.2.9 are unchanged. WebKit `::cue` still hides only while custom caption segments exist.
 - Packaging: Numeric version `2.2.10`; recommended Orion installer `2.2.10_release.zip` (Chrome MV3).
 
 ## v2.2.9
