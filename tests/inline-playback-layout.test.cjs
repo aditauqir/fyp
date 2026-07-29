@@ -7,8 +7,8 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /@version\s+2.2.3/);
-assert.match(source, /@release-label\s+2.2.3/);
+assert.match(source, /@version\s+2.2.9/);
+assert.match(source, /@release-label\s+2.2.9/);
 assert.match(source, /function installInlinePlaybackGuard\(\)/);
 assert.match(source, /video\.disablePictureInPicture = false/);
 assert.match(source, /video\.requestPictureInPicture\(\)/);
@@ -16,7 +16,7 @@ assert.match(source, /ytd-watch-flexy #primary[\s\S]*?min-width: 0 !important/);
 assert.match(source, /--ytd-rich-grid-items-per-row: 1 !important/);
 assert.match(source, /ytd-browse\[page-subtype='channels'\]/);
 assert.match(source, /ytd-channel-video-player-renderer/);
-assert.match(source, /max-width: 100vw !important/);
+assert.match(source, /max-width: 100% !important/);
 assert.match(source, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(source, /function markHistoryFeedBrowse\(\)/);
 assert.match(source, /ytd-browse\[page-subtype='history'\]/);
@@ -57,12 +57,14 @@ assert.match(
   /ytd-browse\[page-subtype='history'\][\s\S]*yt-img-shadow#avatar[\s\S]*visibility: visible !important/
 );
 const channelLayoutStart = source.indexOf(
-  "ytd-browse[page-subtype='channels']"
+  "ytd-browse[page-subtype='channels'],\n        ytd-browse[page-subtype='channels'] #primary"
 );
+assert.notEqual(channelLayoutStart, -1, 'channels layout block missing');
 const historyLayoutStart = source.indexOf(
-  "ytd-browse[page-subtype='history']",
+  "ytd-browse[page-subtype='history'],\n        ytd-browse[${HISTORY_FEED_ATTR}='history']",
   channelLayoutStart
 );
+assert.notEqual(historyLayoutStart, -1, 'history layout block missing');
 const channelLayout = source.slice(channelLayoutStart, historyLayoutStart);
 assert.doesNotMatch(channelLayout, /flex-direction:\s*column/);
 assert.doesNotMatch(channelLayout, /display:\s*block/);
@@ -86,8 +88,13 @@ assert.match(source, /overscroll-behavior-x: none !important/);
 assert.match(source, /overflow-x: clip !important/);
 assert.match(source, /function enforceHorizontalViewportLock\(\)/);
 assert.match(source, /scrollingElement\.scrollLeft = 0/);
+assert.match(source, /ytd-app,\s*ytm-app/);
 assert.match(source, /'scroll',\s*enforceHorizontalViewportLock/);
 assert.doesNotMatch(source, /resetHorizontalViewport/);
 assert.match(source, /overflow-x: hidden !important/);
+assert.match(
+  source,
+  /ytd-page-manager,\s*[\s\S]*?#content\.ytd-app[\s\S]*?overflow-x: hidden !important/
+);
 
 console.log('inline playback and mobile layout guards: ok');

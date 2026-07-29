@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.2.6';
+  const EXPECTED_PAGE_VERSION = '2.2.9';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1140,19 +1140,72 @@
     }
   }
 
-  function visiblePlacementTarget(selectors) {
-    return [...document.querySelectorAll(selectors)].find((element) => {
-      if (!(element instanceof HTMLElement)) return false;
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
+  function findFallbackWatchTitleAnchor() {
+    const selectors = [
+      'ytd-watch-metadata #title',
+      'ytd-video-primary-info-renderer #title',
+      'ytd-watch-flexy ytd-watch-metadata h1',
+      'ytd-watch-flexy #below h1',
+    ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element)) continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      return candidate.closest('#title') || candidate;
+    }
+    return null;
+  }
+
+  function findFallbackWatchMetadataHost() {
+    return (
+      document.querySelector('ytd-watch-flexy ytd-watch-metadata') ||
+      document.querySelector(
+        'ytd-watch-flexy ytd-video-primary-info-renderer'
+      ) ||
+      null
+    );
+  }
+
+  function findFallbackWatchPlayerAnchor() {
+    const selectors = [
+      'ytd-watch-flexy #player-full-bleed-container',
+      'ytd-watch-flexy #player-container-outer',
+      'ytd-watch-flexy #player',
+      '#player-container-outer',
+      '#player',
+    ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element)) continue;
+      if (getComputedStyle(candidate).display === 'none') continue;
+      return candidate;
+    }
+    return null;
+  }
+
+  function fallbackToolbarIsCorrectlyPlaced(
+    toolbar,
+    title,
+    metadata,
+    playerAnchor
+  ) {
+    if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
+      return false;
+    }
+    if (title instanceof Element) {
+      return title.nextElementSibling === toolbar;
+    }
+    if (metadata instanceof Element) {
       return (
-        style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
-        element.getClientRects().length > 0 &&
-        rect.width > 0 &&
-        rect.height > 0
+        toolbar.parentElement === metadata &&
+        metadata.firstElementChild === toolbar
       );
-    });
+    }
+    if (playerAnchor instanceof Element) {
+      return playerAnchor.nextElementSibling === toolbar;
+    }
+    return false;
   }
 
   function ensureFallbackPlayerControlsToolbar() {
@@ -1160,25 +1213,14 @@
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
       return;
     }
-    const titleCandidate = visiblePlacementTarget(
-      [
-        'ytd-watch-metadata #title',
-        'ytd-video-primary-info-renderer #title',
-        'ytd-watch-flexy #below h1',
-        'ytd-watch-flexy #primary h1',
-      ].join(',')
-    );
-    const title = titleCandidate?.closest('#title, h1') || titleCandidate;
-    const playerAnchor = visiblePlacementTarget(
-      [
-        'ytd-watch-flexy #player-full-bleed-container',
-        'ytd-watch-flexy #player-container-outer',
-        'ytd-watch-flexy #player',
-        '#player-container-outer',
-        '#player',
-      ].join(',')
-    );
-    if (!(title instanceof Element) && !(playerAnchor instanceof Element)) {
+    const title = findFallbackWatchTitleAnchor();
+    const metadata = findFallbackWatchMetadataHost();
+    const playerAnchor = findFallbackWatchPlayerAnchor();
+    if (
+      !(title instanceof Element) &&
+      !(metadata instanceof Element) &&
+      !(playerAnchor instanceof Element)
+    ) {
       return;
     }
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
@@ -1194,15 +1236,21 @@
       toolbar.setAttribute('aria-label', 'Video player controls');
       toolbar.innerHTML = playerControlsMarkup();
     }
-    if (title instanceof Element) {
-      if (title.nextElementSibling !== toolbar) {
-        title.insertAdjacentElement('afterend', toolbar);
-      }
-    } else if (
-      playerAnchor instanceof Element &&
-      playerAnchor.nextElementSibling !== toolbar
+    if (
+      !fallbackToolbarIsCorrectlyPlaced(
+        toolbar,
+        title,
+        metadata,
+        playerAnchor
+      )
     ) {
-      playerAnchor.insertAdjacentElement('afterend', toolbar);
+      if (title instanceof Element) {
+        title.insertAdjacentElement('afterend', toolbar);
+      } else if (metadata instanceof Element) {
+        metadata.insertAdjacentElement('afterbegin', toolbar);
+      } else if (playerAnchor instanceof Element) {
+        playerAnchor.insertAdjacentElement('afterend', toolbar);
+      }
     }
     syncFallbackPlayerControls();
   }
@@ -1445,32 +1493,61 @@
         }
 
         ytd-app,
+        ytm-app,
         ytd-page-manager,
+        #content.ytd-app,
+        #page-manager,
         ytd-watch-flexy,
         ytd-watch-flexy #columns,
         ytd-watch-flexy #primary,
         ytd-watch-flexy #secondary {
           box-sizing: border-box !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
           min-width: 0 !important;
         }
 
         html,
-        body {
+        body,
+        ytd-app,
+        ytm-app,
+        ytd-page-manager,
+        #content.ytd-app,
+        #page-manager {
           width: 100% !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
           overflow-x: hidden !important;
           overscroll-behavior-x: none !important;
         }
 
         @supports (overflow: clip) {
           html,
-          body {
+          body,
+          ytd-app,
+          ytm-app,
+          ytd-page-manager,
+          #content.ytd-app,
+          #page-manager {
             overflow-x: clip !important;
           }
         }
 
         @media (max-width: 700px) {
+          ytd-browse,
+          ytd-search,
+          ytd-two-column-browse-results-renderer,
+          ytd-two-column-search-results-renderer,
+          #masthead-container,
+          ytd-masthead,
+          #columns,
+          #primary,
+          #secondary,
+          #primary-inner,
+          #secondary-inner {
+            box-sizing: border-box !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+          }
+
           ytd-browse[page-subtype='channels'],
           ytd-browse[page-subtype='channels'] #primary,
           ytd-browse[page-subtype='channels']
@@ -1480,7 +1557,7 @@
             box-sizing: border-box !important;
             width: 100% !important;
             min-width: 0 !important;
-            max-width: 100vw !important;
+            max-width: 100% !important;
             margin-right: 0 !important;
             margin-left: 0 !important;
             overflow-x: hidden !important;
@@ -1516,7 +1593,7 @@
             flex-direction: column !important;
             align-items: center !important;
             width: 100% !important;
-            max-width: 100vw !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
             padding: 0 12px !important;
             overflow-x: hidden !important;

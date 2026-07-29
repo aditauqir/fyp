@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.6');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.9');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -22,18 +22,19 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v226-return-dislikes';
+  const NAV_LAYOUT_VERSION = 'ext-v227-simple-search-theme';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   const RYD_API_URL = 'https://returnyoutubedislikeapi.com';
   const RYD_CACHE_TTL_MS = 5 * 60 * 1000;
   const rydCache = new Map();
   const rydPending = new Set();
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
+  const SIMPLE_SEARCH_ATTR = 'data-fyp-simple-search';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
@@ -1823,6 +1824,11 @@
       document.documentElement.scrollLeft = 0;
     }
     if (document.body?.scrollLeft) document.body.scrollLeft = 0;
+    const app = document.querySelector('ytd-app, ytm-app');
+    if (app?.scrollLeft) app.scrollLeft = 0;
+    const pageManager = document.querySelector('ytd-page-manager, #page-manager');
+    if (pageManager?.scrollLeft) pageManager.scrollLeft = 0;
+    if (window.scrollX) window.scrollTo(0, window.scrollY);
   }
 
   function enforceInlinePlayback(video) {
@@ -2714,30 +2720,91 @@
        * centers that wider column and cuts roughly 18px from the left edge.
        * Collapse only the content column at phone widths; the desktop player
        * and data model stay untouched.
+       *
+       * 2.2.9: also clip overflow on ytd-app / page-manager (html/body alone
+       * does not stop WebKit horizontal swipe when a child paints past 100vw).
+       * Prefer max-width: 100% over 100vw to avoid the classic vw+padding bleed.
        */
       @media (max-width: 700px) {
         html,
         body,
         ytd-app,
+        ytm-app,
         ytd-page-manager,
+        #content.ytd-app,
+        #page-manager,
         ytd-watch-flexy,
         ytd-watch-flexy #columns {
+          box-sizing: border-box !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
         }
 
         html,
-        body {
+        body,
+        ytd-app,
+        ytm-app,
+        ytd-page-manager,
+        #content.ytd-app,
+        #page-manager {
           overflow-x: hidden !important;
           overscroll-behavior-x: none !important;
         }
 
         @supports (overflow: clip) {
           html,
-          body {
+          body,
+          ytd-app,
+          ytm-app,
+          ytd-page-manager,
+          #content.ytd-app,
+          #page-manager {
             overflow-x: clip !important;
           }
+        }
+
+        /* Cap desktop shells that still paint wider than the phone viewport. */
+        ytd-browse,
+        ytd-search,
+        ytd-two-column-browse-results-renderer,
+        ytd-two-column-search-results-renderer,
+        #masthead-container,
+        ytd-masthead,
+        #columns,
+        #primary,
+        #secondary,
+        #primary-inner,
+        #secondary-inner {
+          box-sizing: border-box !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        /* Watch must stack: player → title → FYP buttons (never side-by-side). */
+        ytd-watch-flexy {
+          --ytd-watch-flexy-height-for-player: auto !important;
+          --ytd-watch-flexy-max-player-height: none !important;
+        }
+
+        ytd-watch-flexy #columns {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 0 !important;
+          row-gap: 0 !important;
+        }
+
+        ytd-watch-flexy #secondary,
+        ytd-watch-flexy #secondary-inner {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          min-height: 0 !important;
+          height: auto !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         ytd-watch-flexy[is-single-column] #primary,
@@ -2746,8 +2813,58 @@
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
+          min-height: 0 !important;
           margin: 0 !important;
           padding: 0 12px !important;
+        }
+
+        /*
+         * Keep the player footprint tight to the video. Desktop theater /
+         * full-bleed CSS vars otherwise reserve a tall empty region under the
+         * video before title + transport controls. Only the active shell gets
+         * a 16:9 box — the unused sibling collapses to zero.
+         */
+        ytd-watch-flexy[full-bleed-player] #player-full-bleed-container,
+        ytd-watch-flexy:not([full-bleed-player]) #player,
+        ytd-watch-flexy:not([full-bleed-player]) #player-container-outer {
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          margin: 0 !important;
+          aspect-ratio: 16 / 9 !important;
+          float: none !important;
+          clear: both !important;
+        }
+
+        ytd-watch-flexy #player-container-inner,
+        ytd-watch-flexy ytd-player {
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: 100% !important;
+          min-height: 0 !important;
+          margin: 0 !important;
+          float: none !important;
+          clear: both !important;
+        }
+
+        /* Collapse whichever shell is not hosting the video. */
+        ytd-watch-flexy:not([full-bleed-player]) #player-full-bleed-container,
+        ytd-watch-flexy[full-bleed-player] #columns #player,
+        ytd-watch-flexy[theater] #columns #player {
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          border: 0 !important;
+          aspect-ratio: auto !important;
         }
 
         ytd-watch-flexy #primary-inner,
@@ -2755,9 +2872,23 @@
         ytd-watch-flexy ytd-watch-metadata,
         ytd-watch-flexy #panels {
           box-sizing: border-box !important;
+          display: block !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
+          min-height: 0 !important;
+          margin-top: 0 !important;
+          float: none !important;
+          clear: both !important;
+        }
+
+        ytd-watch-flexy ytd-watch-metadata #title,
+        ytd-watch-flexy ytd-watch-metadata h1 {
+          display: block !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin-top: clamp(.35rem, 1.5vw, .55rem) !important;
+          margin-bottom: 0 !important;
         }
 
         ytd-watch-flexy ytd-menu-renderer,
@@ -2765,6 +2896,227 @@
         ytd-watch-flexy #actions-inner,
         ytd-watch-flexy #menu {
           max-width: 100% !important;
+        }
+
+        /*
+         * Force classic compact search rows: small thumb left, readable title
+         * + channel + stats on the right. Re-applied via data-fyp-simple-search.
+         */
+        ytd-search,
+        ytd-search ytd-two-column-search-results-renderer,
+        ytd-search #primary,
+        ytd-search #contents,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-search,
+        html[${SIMPLE_SEARCH_ATTR}='true']
+          ytd-two-column-search-results-renderer {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        ytd-search ytd-video-renderer,
+        ytd-search ytd-rich-item-renderer,
+        ytd-search yt-lockup-view-model,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-rich-item-renderer,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model {
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin: 0 0 10px !important;
+          padding: 0 4px !important;
+        }
+
+        ytd-search ytd-video-renderer #dismissible,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer #dismissible,
+        ytd-search yt-lockup-view-model,
+        ytd-search yt-lockup-view-model > div,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model > div,
+        ytd-search
+          :is(
+            .yt-lockup-view-model,
+            .ytLockupViewModelHost,
+            .ytLockupViewModelHorizontal,
+            .ytLockupViewModelVertical
+          ),
+        html[${SIMPLE_SEARCH_ATTR}='true']
+          :is(
+            .yt-lockup-view-model,
+            .ytLockupViewModelHost,
+            .ytLockupViewModelHorizontal,
+            .ytLockupViewModelVertical
+          ) {
+          box-sizing: border-box !important;
+          display: grid !important;
+          grid-template-columns: 132px minmax(0, 1fr) !important;
+          grid-template-rows: auto !important;
+          grid-auto-flow: row !important;
+          align-items: start !important;
+          column-gap: 10px !important;
+          row-gap: 0 !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        ytd-search ytd-thumbnail,
+        ytd-search a#thumbnail,
+        ytd-search yt-thumbnail-view-model,
+        ytd-search
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          ),
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-thumbnail,
+        html[${SIMPLE_SEARCH_ATTR}='true'] a#thumbnail,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-thumbnail-view-model,
+        html[${SIMPLE_SEARCH_ATTR}='true']
+          :is(
+            .yt-lockup-view-model__content-image,
+            .ytLockupViewModelContentImage
+          ) {
+          box-sizing: border-box !important;
+          width: 132px !important;
+          min-width: 132px !important;
+          max-width: 132px !important;
+          height: auto !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+          border-radius: 10px !important;
+          aspect-ratio: 16 / 9 !important;
+        }
+
+        ytd-search ytd-thumbnail img,
+        ytd-search yt-thumbnail-view-model img,
+        ytd-search a#thumbnail img,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-thumbnail img,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-thumbnail-view-model img,
+        html[${SIMPLE_SEARCH_ATTR}='true'] a#thumbnail img {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+        }
+
+        ytd-search #details,
+        ytd-search #meta,
+        ytd-search #text-wrapper,
+        ytd-search
+          :is(
+            .yt-lockup-view-model__metadata,
+            .ytLockupViewModelMetadata,
+            .yt-lockup-metadata-view-model,
+            .ytLockupMetadataViewModelHost
+          ),
+        html[${SIMPLE_SEARCH_ATTR}='true'] #details,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #meta,
+        html[${SIMPLE_SEARCH_ATTR}='true']
+          :is(
+            .yt-lockup-view-model__metadata,
+            .ytLockupViewModelMetadata,
+            .yt-lockup-metadata-view-model,
+            .ytLockupMetadataViewModelHost
+          ) {
+          box-sizing: border-box !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          overflow: hidden !important;
+        }
+
+        ytd-search #video-title,
+        ytd-search h3,
+        ytd-search h3 a,
+        ytd-search
+          :is(
+            .yt-lockup-metadata-view-model__title,
+            .ytLockupMetadataViewModelTitle
+          ),
+        html[${SIMPLE_SEARCH_ATTR}='true'] #video-title,
+        html[${SIMPLE_SEARCH_ATTR}='true'] h3,
+        html[${SIMPLE_SEARCH_ATTR}='true'] h3 a,
+        html[${SIMPLE_SEARCH_ATTR}='true']
+          :is(
+            .yt-lockup-metadata-view-model__title,
+            .ytLockupMetadataViewModelTitle
+          ) {
+          display: -webkit-box !important;
+          -webkit-line-clamp: 3 !important;
+          -webkit-box-orient: vertical !important;
+          max-height: none !important;
+          overflow: hidden !important;
+          white-space: normal !important;
+          text-overflow: ellipsis !important;
+          font-size: 14px !important;
+          font-weight: 600 !important;
+          line-height: 1.3 !important;
+        }
+
+        ytd-search #channel-info,
+        ytd-search ytd-channel-name,
+        ytd-search #channel-name,
+        ytd-search
+          :is(
+            .yt-lockup-metadata-view-model__metadata,
+            .ytLockupMetadataViewModelMetadata
+          ),
+        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-info,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-channel-name,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-name {
+          display: flex !important;
+          visibility: visible !important;
+          align-items: center !important;
+          gap: 6px !important;
+          max-width: 100% !important;
+          margin-top: 4px !important;
+          overflow: hidden !important;
+        }
+
+        ytd-search #channel-info yt-img-shadow,
+        ytd-search #avatar-link,
+        ytd-search yt-decorated-avatar-view-model,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-info yt-img-shadow,
+        html[${SIMPLE_SEARCH_ATTR}='true'] yt-decorated-avatar-view-model {
+          display: inline-flex !important;
+          visibility: visible !important;
+          width: 22px !important;
+          height: 22px !important;
+          min-width: 22px !important;
+          overflow: hidden !important;
+          border-radius: 50% !important;
+        }
+
+        ytd-search #metadata-line,
+        ytd-search #metadata,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #metadata-line,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #metadata {
+          display: block !important;
+          visibility: visible !important;
+          max-width: 100% !important;
+          margin-top: 2px !important;
+          overflow: hidden !important;
+          font-size: 12px !important;
+          line-height: 1.35 !important;
+          opacity: 0.85 !important;
+        }
+
+        /* Kill AI Summary / Sur chips and extra clutter in search rows. */
+        ytd-search button[aria-label*='Summary' i],
+        ytd-search button[aria-label*='Ask' i],
+        ytd-search [aria-label*='AI summary' i],
+        ytd-search ytd-button-renderer:has([aria-label*='Summary' i]),
+        html[${SIMPLE_SEARCH_ATTR}='true'] button[aria-label*='Summary' i],
+        html[${SIMPLE_SEARCH_ATTR}='true'] button[aria-label*='Ask' i],
+        html[${SIMPLE_SEARCH_ATTR}='true'] [aria-label*='AI summary' i],
+        ytd-search ytd-video-renderer #description-text,
+        ytd-search ytd-video-renderer .metadata-snippet-container,
+        html[${SIMPLE_SEARCH_ATTR}='true'] #description-text,
+        html[${SIMPLE_SEARCH_ATTR}='true'] .metadata-snippet-container {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
         }
 
         ytd-rich-grid-renderer {
@@ -2790,7 +3142,7 @@
           box-sizing: border-box !important;
           width: 100% !important;
           min-width: 0 !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
           margin-right: 0 !important;
           margin-left: 0 !important;
           overflow-x: hidden !important;
@@ -2825,7 +3177,7 @@
         ytd-browse[${HISTORY_FEED_ATTR}='history'] {
           box-sizing: border-box !important;
           width: 100% !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
           overflow-x: hidden !important;
         }
 
@@ -2839,7 +3191,7 @@
           align-items: center !important;
           width: 100% !important;
           min-width: 0 !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
           margin: 0 auto !important;
           padding: 0 12px !important;
           overflow-x: hidden !important;
@@ -3210,7 +3562,7 @@
         ytd-masthead #end {
           box-sizing: border-box !important;
           min-width: 0 !important;
-          max-width: 100vw !important;
+          max-width: 100% !important;
         }
 
         ytd-masthead #voice-search-button,
@@ -3243,9 +3595,19 @@
           margin: 0 !important;
           padding: 4px !important;
           align-items: center !important;
+          color: var(--yt-spec-text-primary, #0f0f0f) !important;
+          background: var(--yt-spec-base-background, #fff) !important;
+          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12)) !important;
+          border-radius: 24px !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, .18) !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
+          color: #f1f1f1 !important;
           background: rgb(15, 15, 15) !important;
           border: 1px solid rgba(255, 255, 255, .22) !important;
-          border-radius: 24px !important;
           box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
         }
 
@@ -3274,12 +3636,22 @@
           min-width: 0 !important;
           height: 40px !important;
           padding: 0 12px !important;
-          color: #fff !important;
+          color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: transparent !important;
           font-size: 16px !important;
           line-height: 40px !important;
           opacity: 1 !important;
           visibility: visible !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input,
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
+          color: #fff !important;
         }
 
       }
@@ -3379,20 +3751,31 @@
         visibility: visible !important;
         opacity: 1 !important;
         flex-wrap: wrap;
-        width: fit-content;
-        max-width: 100%;
+        float: none !important;
+        clear: both !important;
+        width: 100% !important;
+        max-width: 100% !important;
         min-width: 0;
-        margin: clamp(.5rem, 2.4vw, .8rem) auto;
+        margin: clamp(.25rem, 1.2vw, .45rem) 0 clamp(.5rem, 2.4vw, .8rem) !important;
         padding: clamp(.45rem, 2vw, .7rem);
         gap: clamp(.35rem, 1.8vw, .65rem);
         justify-content: center;
         align-items: center;
-        border: 1px solid rgba(255, 255, 255, .14);
+        color: var(--yt-spec-text-primary, #0f0f0f);
+        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
         border-radius: clamp(.85rem, 4vw, 1.2rem);
-        background: rgba(255, 255, 255, .08);
+        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .06));
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         overflow: visible;
+      }
+
+      html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID},
+      html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID},
+      ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} {
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, .14);
+        background: rgba(255, 255, 255, .08);
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
@@ -3409,15 +3792,34 @@
         padding: clamp(.62rem, 2.6vw, .85rem);
         align-items: center;
         justify-content: center;
-        color: #fff;
-        background: rgba(255, 255, 255, .12);
-        border: 1px solid rgba(255, 255, 255, .12);
+        color: var(--yt-spec-text-primary, #0f0f0f);
+        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .08));
+        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
         border-radius: 999px;
         cursor: pointer;
         touch-action: manipulation;
       }
 
+      html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
+      html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
+      ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
+        color: #fff;
+        background: rgba(255, 255, 255, .12);
+        border: 1px solid rgba(255, 255, 255, .12);
+      }
+
       #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[data-fyp-player-action='play-pause'] {
+        color: #fff;
+        background: #0f0f0f;
+        border-color: #0f0f0f;
+      }
+
+      html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[data-fyp-player-action='play-pause'],
+      html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID}
+        .fyp-player-control[data-fyp-player-action='play-pause'],
+      ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
         color: #0f0f0f;
         background: #fff;
@@ -3438,8 +3840,14 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:focus-visible {
-        outline: 2px solid #fff;
+        outline: 2px solid var(--yt-spec-text-primary, #0f0f0f);
         outline-offset: 2px;
+      }
+
+      html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:focus-visible,
+      html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:focus-visible,
+      ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:focus-visible {
+        outline-color: #fff;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
@@ -3488,16 +3896,25 @@
         margin-top: clamp(.15rem, .8vw, .3rem);
         padding: clamp(.4rem, 2vw, .65rem);
         gap: clamp(.25rem, 1vw, .4rem);
-        color: #fff;
-        background: rgba(15, 15, 15, .97);
-        border: 1px solid rgba(255, 255, 255, .16);
+        color: var(--yt-spec-text-primary, #0f0f0f);
+        background: var(--yt-spec-menu-background, rgba(255, 255, 255, .98));
+        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
         border-radius: clamp(.75rem, 3vw, 1rem);
-        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
+        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .18);
         overflow-x: hidden;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
         touch-action: pan-y;
+      }
+
+      html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu,
+      html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu,
+      ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu {
+        color: #fff;
+        background: rgba(15, 15, 15, .97);
+        border: 1px solid rgba(255, 255, 255, .16);
+        box-shadow: 0 .75rem 2rem rgba(0, 0, 0, .45);
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-menu-collapse {
@@ -4357,11 +4774,29 @@
       insertionAnchor.insertAdjacentElement('afterend', comments);
     }
 
+    /*
+     * Keep the transport strip out of the late "order: 4" bucket. If it ever
+     * lands as a #below sibling (title mount race), pin it with the metadata
+     * block instead of after recommendations/comments.
+     */
+    const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+    if (toolbar instanceof HTMLElement && toolbar.parentElement === below) {
+      const titleInMeta = descriptionBlock.querySelector('#title, h1');
+      if (titleInMeta instanceof Element) {
+        if (titleInMeta.nextElementSibling !== toolbar) {
+          titleInMeta.insertAdjacentElement('afterend', toolbar);
+        }
+      } else if (descriptionBlock.firstElementChild !== toolbar) {
+        descriptionBlock.insertAdjacentElement('afterbegin', toolbar);
+      }
+    }
+
     for (const sibling of below.children) {
       if (
         sibling === descriptionBlock ||
         sibling === comments ||
-        sibling === recommendations
+        sibling === recommendations ||
+        sibling.id === PLAYER_CONTROLS_TOOLBAR_ID
       ) {
         continue;
       }
@@ -4800,19 +5235,84 @@
     viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
   }
 
-  function visiblePlacementTarget(selectors) {
-    return [...document.querySelectorAll(selectors)].find((element) => {
-      if (!(element instanceof HTMLElement)) return false;
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
+  /*
+   * Prefer a mounted watch title/metadata node even when its layout height is
+   * briefly 0 during YouTube remounts. Requiring height > 0 caused the strip to
+   * bounce between #below (order 4 / huge gap) and after-title on every scan.
+   */
+  function findWatchTitleAnchor() {
+    const selectors = [
+      'ytd-watch-metadata #title',
+      'ytd-video-primary-info-renderer #title',
+      'ytd-watch-flexy ytd-watch-metadata h1',
+      'ytd-watch-flexy #below h1',
+    ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element)) continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      return candidate.closest('#title') || candidate;
+    }
+    return null;
+  }
+
+  function findWatchMetadataHost() {
+    return (
+      document.querySelector('ytd-watch-flexy ytd-watch-metadata') ||
+      document.querySelector(
+        'ytd-watch-flexy ytd-video-primary-info-renderer'
+      ) ||
+      null
+    );
+  }
+
+  function findWatchPlayerAnchor() {
+    const watch = document.querySelector('ytd-watch-flexy');
+    const fullBleed =
+      watch?.hasAttribute('full-bleed-player') ||
+      watch?.hasAttribute('theater');
+    const selectors = fullBleed
+      ? [
+          'ytd-watch-flexy #player-full-bleed-container',
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+        ]
+      : [
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+          'ytd-watch-flexy #player-full-bleed-container',
+        ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element)) continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none') continue;
+      return candidate;
+    }
+    return (
+      document.querySelector('#player-container-outer') ||
+      document.querySelector('#player')
+    );
+  }
+
+  function toolbarIsCorrectlyPlaced(toolbar, title, metadata, playerAnchor) {
+    if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
+      return false;
+    }
+    if (title instanceof Element) {
+      return title.nextElementSibling === toolbar;
+    }
+    if (metadata instanceof Element) {
       return (
-        style.display !== 'none' &&
-        style.visibility !== 'hidden' &&
-        element.getClientRects().length > 0 &&
-        rect.width > 0 &&
-        rect.height > 0
+        toolbar.parentElement === metadata &&
+        metadata.firstElementChild === toolbar
       );
-    });
+    }
+    if (playerAnchor instanceof Element) {
+      return playerAnchor.nextElementSibling === toolbar;
+    }
+    return false;
   }
 
   function ensurePlayerControlsToolbar() {
@@ -4821,25 +5321,10 @@
       return;
     }
 
-    const titleCandidate = visiblePlacementTarget(
-      [
-        'ytd-watch-metadata #title',
-        'ytd-video-primary-info-renderer #title',
-        'ytd-watch-flexy #below h1',
-        'ytd-watch-flexy #primary h1',
-      ].join(',')
-    );
-    const title = titleCandidate?.closest('#title, h1') || titleCandidate;
-    const playerAnchor = visiblePlacementTarget(
-      [
-        'ytd-watch-flexy #player-full-bleed-container',
-        'ytd-watch-flexy #player-container-outer',
-        'ytd-watch-flexy #player',
-        '#player-container-outer',
-        '#player',
-      ].join(',')
-    );
-    if (!(title instanceof Element) && !(playerAnchor instanceof Element)) {
+    const title = findWatchTitleAnchor();
+    const metadata = findWatchMetadataHost();
+    const playerAnchor = findWatchPlayerAnchor();
+    if (!(title instanceof Element) && !(metadata instanceof Element) && !(playerAnchor instanceof Element)) {
       return;
     }
 
@@ -4857,17 +5342,47 @@
       toolbar.innerHTML = playerControlsMarkup();
     }
 
-    if (title instanceof Element) {
-      if (title.nextElementSibling !== toolbar) {
+    /*
+     * Stable stack: title → strip (preferred), else metadata host, else under
+     * the player. Skip reparenting when already correct to stop layout jitter.
+     */
+    if (!toolbarIsCorrectlyPlaced(toolbar, title, metadata, playerAnchor)) {
+      if (title instanceof Element) {
         title.insertAdjacentElement('afterend', toolbar);
+      } else if (metadata instanceof Element) {
+        metadata.insertAdjacentElement('afterbegin', toolbar);
+      } else if (playerAnchor instanceof Element) {
+        playerAnchor.insertAdjacentElement('afterend', toolbar);
       }
-    } else if (
-      playerAnchor instanceof Element &&
-      playerAnchor.nextElementSibling !== toolbar
-    ) {
-      playerAnchor.insertAdjacentElement('afterend', toolbar);
     }
     syncCustomPlayerControls();
+  }
+
+  function enforceSimpleSearchLayout() {
+    const onResults =
+      location.pathname.startsWith('/results') ||
+      Boolean(document.querySelector('ytd-search'));
+    if (!onResults) {
+      document.documentElement.removeAttribute(SIMPLE_SEARCH_ATTR);
+      return;
+    }
+    document.documentElement.setAttribute(SIMPLE_SEARCH_ATTR, 'true');
+
+    const clutter = document.querySelectorAll(
+      [
+        'ytd-search button[aria-label*="Summary" i]',
+        'ytd-search button[aria-label*="Ask" i]',
+        'ytd-search [aria-label*="AI summary" i]',
+        'ytd-search ytd-button-renderer:has([aria-label*="Summary" i])',
+      ].join(',')
+    );
+    for (const node of clutter) {
+      if (node instanceof HTMLElement) {
+        node.style.setProperty('display', 'none', 'important');
+        node.style.setProperty('visibility', 'hidden', 'important');
+        node.style.setProperty('pointer-events', 'none', 'important');
+      }
+    }
   }
 
   function scanPage() {
@@ -4877,6 +5392,7 @@
       return;
     }
     applyMobileShell();
+    enforceSimpleSearchLayout();
     ensureGuideButtonVisible();
     hideUploadControls();
     dismissMiniplayer();
@@ -4910,6 +5426,7 @@
     removeFloatingPillNav();
     updateMobileNavigation();
     hideNativeNavigationAndShorts();
+    enforceSimpleSearchLayout();
     ensureGuideButtonVisible();
     hideUploadControls();
     dismissMiniplayer();

@@ -81,6 +81,9 @@ Upstream notes that matter for us:
 | P2 | Keep FYP critical timers on pristine APIs | **Done** | IIFE-local `setTimeout`/`setInterval`/`clear*`/`rAF` bound before window patch |
 | P3 | Version bump + `./rebuild-extension.sh` | **Done** | `2.2.4` / `2.2.4_release.zip` |
 | P4 | Orion iPhone verification | Pending | User installs zip; check Play, background audio, battery/CPU feel |
+| P5 | Compact search + watch stack + theme (2.2.7) | **Done** | Forced simple search rows; video→title→buttons; light/dark strip |
+| P6 | Watch gap + toolbar jitter (2.2.8) | **Done** | 16:9 player shells; stable strip placement; no order-4 gap |
+| P7 | Horizontal overflow lock (2.2.9) | **Done** | Clip overflow on app shells; cap wide containers to 100% |
 
 ---
 

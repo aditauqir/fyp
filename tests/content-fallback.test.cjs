@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.2\.3'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.2\.9'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.2\.3'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.2\.9'\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -44,11 +44,11 @@ assert.match(content, /video\.setAttribute\('webkit-playsinline', ''\)/);
 assert.match(content, /new MutationObserver/);
 assert.match(content, /document\.addEventListener\('touchstart'/);
 assert.match(content, /a\[href\^="\/shorts"\]/);
-assert.match(content, /max-width: 100vw !important/);
+assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v221-transport-larger'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack'/
 );
 for (const action of [
   'rewind',

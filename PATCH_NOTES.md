@@ -1,5 +1,25 @@
 # Patch Notes
 
+## v2.2.9
+
+- Fixed: Phone layouts no longer swipe sideways into blank space. Overflow is clipped on `html`/`body`/`ytd-app`/`page-manager`, and wide desktop shells are capped to `100%` (not `100vw`) so the page cannot paint past the viewport.
+- Preserved: 2.2.7–2.2.8 player stack, compact search list, transport theming, and toolbar placement logic are unchanged.
+- Packaging: Numeric version `2.2.9`; recommended Orion installer `2.2.9_release.zip` (Chrome MV3).
+
+## v2.2.8
+
+- Fixed: Watch page no longer leaves a huge empty gap between the video and the transport buttons. Player shells are constrained to a tight 16:9 footprint, and full-bleed mode collapses the unused in-column player spacer.
+- Fixed: Transport strip placement is stable — it no longer reparents on every DOM scan when the title briefly has zero height, which was causing layout jitter and pushing the buttons below recommendations/comments.
+- Preserved: 2.2.7 compact search list layout and light/dark transport theming.
+- Packaging: Numeric version `2.2.8`; recommended Orion installer `2.2.8_release.zip` (Chrome MV3).
+
+## v2.2.7
+
+- Fixed: Search results force a compact list layout — small thumbnail on the left with readable multi-line title, channel avatar/name, and view/date stats on the right. AI Summary / Sur chips and description snippets are stripped so the page cannot fall back to the cluttered crushed-title layout.
+- Fixed: Watch page always stacks as player → title → transport buttons. The strip no longer loads beside the player during metadata races.
+- Fixed: Transport buttons and the mobile search overlay now follow YouTube light/dark theme via CSS variables and dark-mode overrides.
+- Packaging: Numeric version `2.2.7`; recommended Orion installer `2.2.7_release.zip` (Chrome MV3).
+
 ## v2.2.6
 
 - Added: Return YouTube Dislike support on watch pages using the RYD API endpoint and selector strategy adapted from [Anarios/return-youtube-dislike](https://github.com/Anarios/return-youtube-dislike).
