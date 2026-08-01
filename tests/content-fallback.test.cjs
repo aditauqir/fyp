@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '2\.2\.11'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '2\.2\.13'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.2\.12'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '2\.2\.13'\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -32,7 +32,9 @@ assert.match(page, /function handleMediaSessionPlay\(\)/);
 assert.match(page, /function handleMediaSessionPause\(\)/);
 assert.match(page, /nativeMediaPause\.call\(video\)/);
 assert.match(page, /Date\.now\(\) > state\.userPauseUntil/);
-assert.match(page, /installMediaSessionHandlers\(\);\s*updateMediaSessionMetadata\(\);/);
+assert.match(page, /claimMediaSessionOwnership\(state\.video\)/);
+assert.match(page, /installMediaSessionHandlers\(\{ force: true \}\)/);
+assert.match(page, /if \(!ownsMediaSession\(\)\) return;/);
 assert.match(
   content,
   /PLAYER_CONTROLS_TOOLBAR_ID =\s*'yt-mobile-orion-ext-controls-toolbar'/
@@ -48,14 +50,16 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality'/
 );
 for (const action of [
   'rewind',
   'play-pause',
   'forward',
   'pip',
+  'airplay',
   'fullscreen',
+  'quality',
 ]) {
   assert.match(
     content,
@@ -63,7 +67,6 @@ for (const action of [
   );
 }
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'speed'/);
-assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'quality'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'captions'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'more'/);
 assert.match(content, /video\.currentTime \+ offset/);
@@ -83,6 +86,11 @@ assert.match(content, /dataset\.fypPlayerOption = action/);
 assert.match(content, /action: 'playback-speed'/);
 assert.match(content, /action: 'playback-quality'/);
 assert.match(content, /function applyFallbackYouTubeQuality\(/);
+assert.match(content, /function fallbackYouTubeQualityOptions\(/);
+assert.match(content, /lucide lucide-settings/);
+assert.match(content, /lucide lucide-airplay/);
+assert.match(content, /webkitShowPlaybackTargetPicker/);
+assert.match(content, /x-webkit-airplay', 'allow'/);
 assert.match(content, /ignoreFallbackPlayerControlActionsUntil = Date\.now\(\) \+ 500/);
 assert.match(content, /appendFallbackPlayerMenuTitle\(menu, 'Video quality'\)/);
 assert.match(content, /appendFallbackPlayerMenuTitle\(menu, 'Playback speed'\)/);

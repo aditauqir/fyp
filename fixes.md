@@ -1,5 +1,67 @@
 # Bug fix log
 
+## 2026-07-31 — Now Playing ownership + faster startup (fyp 2.2.13)
+
+### In plain English
+- **What was broken:** Now Playing could fight the inline play/pause button. With multiple tabs open, an old paused tab could replace the current video. Page startup was also slow.
+- **Why it happened:** Two runtimes were fighting in each tab because the fallback expected page version `2.2.11`, but the page reported `2.2.12`. Across tabs, every tab also rewrote Media Session handlers and metadata on a timer. The duplicate fallback observers and full-page scans added work while YouTube loaded.
+- **What we changed:** The page and fallback now use the same release version. The fallback stops after the page runtime starts. A shared lease gives Now Playing to the newest visible playing tab, and hidden old tabs cannot reclaim it. Full-page mutation scans now run at most once every 1.2 seconds.
+- **How to verify:** 1) Open two YouTube tabs. 2) Play a video in the first tab, then pause it. 3) Play a different video in the second tab. 4) Confirm Now Playing shows and controls the second video. 5) Reload and confirm the page becomes usable without the previous delay.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+const EXPECTED_PAGE_VERSION = '2.2.11';
+setInterval(() => {
+  installMediaSessionHandlers();
+  updateMediaSessionMetadata();
+}, 1200);
+```
+
+**After (fixed idea):**
+```js
+const EXPECTED_PAGE_VERSION = '2.2.13';
+if (!ownsMediaSession()) return;
+if (pageRuntimeReady()) return; // stop isolated fallback work
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — add single-tab Media Session ownership and throttle full-page scans.
+- `firefox-extension/content.template.js` — match the page version and stop fallback work after readiness.
+- `ARCHITECTURE.md` / `PERFORMANCE-FIXES.md` — document ownership and startup behavior.
+- `tests/media-session-ownership.test.cjs` — prevent handshake and ownership regressions.
+
+## 2026-07-31 — Persistent inline quality menu (fyp 2.2.13)
+
+### In plain English
+- **What was broken:** The inline quality control was missing from the current strip. When the quality menu was available, selecting a quality immediately closed the menu.
+- **Why it happened:** The latest toolbar markup omitted the quality button. The shared option cleanup also closed every menu after every selection.
+- **What we changed:** Restored the Lucide Settings button, read labels from YouTube’s desktop player data, and kept the menu open after a quality selection. The menu still closes from its collapse button, the gear button, or an outside tap. Added a Lucide AirPlay button that opens WebKit’s native route picker when available.
+- **How to verify:** 1) Open a watch page. 2) Tap the inline gear. 3) Select two available qualities and confirm the menu stays open. 4) Tap outside and confirm it closes. 5) Tap AirPlay and confirm the native route picker opens on a supported device.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+applyYouTubeQuality(quality);
+closePlayerControlMenu();
+```
+
+**After (fixed idea):**
+```js
+applyYouTubeQuality(quality);
+if (action === 'playback-quality') {
+  option.setAttribute('aria-checked', 'true');
+} else {
+  closePlayerControlMenu();
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — add inline Settings and AirPlay controls and keep quality choices visible.
+- `firefox-extension/content.template.js` — mirror the controls in the injection fallback.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — add consumer-facing 2.2.13 notes.
+- `tests/player-controls-delay.test.cjs` / `tests/content-fallback.test.cjs` — verify the new controls and menu behavior.
+
 ## 2026-07-29 — Captions blank + slow load (fyp 2.2.12)
 
 ### In plain English

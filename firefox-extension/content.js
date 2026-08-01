@@ -27,18 +27,21 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '2.2.11';
+  const EXPECTED_PAGE_VERSION = '2.2.13';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
     '[data-fyp-player-option]',
   ].join(',');
   const MENU_OPTION_TAP_SLOP_PX = 12;
+  const MEDIA_SESSION_OWNER_KEY = 'fyp:media-session-owner:v1';
+  const MEDIA_SESSION_TAB_ATTR = 'data-fyp-media-session-tab';
+  const MEDIA_SESSION_LEASE_MS = 15000;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
     'hd1080',
@@ -50,6 +53,9 @@
   ]);
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
+  let fallbackMediaSessionHandlersInstalled = false;
+  let fallbackMediaSessionStorageFailed = false;
+  let fallbackMediaSessionLocalOwner = false;
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
   const fallbackAttachedVideos = new WeakSet();
@@ -64,6 +70,96 @@
     recoveryTimers: new Set(),
   };
 
+  function getOrCreateFallbackMediaSessionTabId() {
+    const root = document.documentElement;
+    const existing = root?.getAttribute(MEDIA_SESSION_TAB_ATTR)?.trim();
+    if (existing) return existing;
+    const randomId =
+      typeof crypto?.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    root?.setAttribute(MEDIA_SESSION_TAB_ATTR, randomId);
+    return randomId;
+  }
+
+  const fallbackMediaSessionTabId = getOrCreateFallbackMediaSessionTabId();
+
+  function fallbackMediaSessionOwner() {
+    if (fallbackMediaSessionStorageFailed) return null;
+    try {
+      const raw = localStorage.getItem(MEDIA_SESSION_OWNER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      fallbackMediaSessionStorageFailed = true;
+      return null;
+    }
+  }
+
+  function fallbackOwnsMediaSession() {
+    if (fallbackMediaSessionStorageFailed) {
+      return fallbackMediaSessionLocalOwner;
+    }
+    const owner = fallbackMediaSessionOwner();
+    return Boolean(
+      owner &&
+        owner.tabId === fallbackMediaSessionTabId &&
+        Number(owner.expiresAt) > Date.now()
+    );
+  }
+
+  function claimFallbackMediaSessionOwnership(video) {
+    if (
+      location.pathname !== '/watch' ||
+      !(video instanceof HTMLVideoElement) ||
+      video.ended
+    ) {
+      return false;
+    }
+    const currentOwner = fallbackMediaSessionOwner();
+    if (
+      currentOwner &&
+      currentOwner.tabId !== fallbackMediaSessionTabId &&
+      Number(currentOwner.expiresAt) > Date.now() &&
+      fallbackIsHidden()
+    ) {
+      return false;
+    }
+    const now = Date.now();
+    try {
+      localStorage.setItem(
+        MEDIA_SESSION_OWNER_KEY,
+        JSON.stringify({
+          tabId: fallbackMediaSessionTabId,
+          videoId: new URL(location.href).searchParams.get('v') || '',
+          claimedAt: now,
+          expiresAt: now + MEDIA_SESSION_LEASE_MS,
+        })
+      );
+      fallbackMediaSessionLocalOwner = true;
+      return true;
+    } catch {
+      // If storage is unavailable, keep the single-tab fallback operational.
+      fallbackMediaSessionStorageFailed = true;
+      fallbackMediaSessionLocalOwner = true;
+      return true;
+    }
+  }
+
+  function deactivateFallbackMediaSession() {
+    if (!fallbackMediaSessionHandlersInstalled) return;
+    for (const action of ['play', 'pause']) {
+      try {
+        navigator.mediaSession?.setActionHandler(action, null);
+      } catch {}
+    }
+    try {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+    } catch {}
+    fallbackMediaSessionHandlersInstalled = false;
+    lastFallbackMediaSessionMetadataKey = '';
+  }
+
   const PLAYER_CONTROL_ICONS = Object.freeze({
     rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
@@ -74,7 +170,9 @@
     speed:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
     quality:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-settings" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+    airplay:
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
     search:
@@ -121,9 +219,19 @@
         PLAYER_CONTROL_ICONS.pip
       ),
       playerControlButtonMarkup(
+        'airplay',
+        'AirPlay',
+        PLAYER_CONTROL_ICONS.airplay
+      ),
+      playerControlButtonMarkup(
         'fullscreen',
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
+      ),
+      playerControlButtonMarkup(
+        'quality',
+        'Video quality',
+        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -177,6 +285,7 @@
     ) {
       return;
     }
+    if (!fallbackOwnsMediaSession()) return;
     const videoId = new URL(location.href).searchParams.get('v') || '';
     const title =
       fallbackVisibleVideoTitle() ||
@@ -308,6 +417,7 @@
         fallbackPlaybackState.video = video;
         fallbackPlaybackState.wantsPlayback = true;
         fallbackPlaybackState.userPauseUntil = 0;
+        claimFallbackMediaSessionOwnership(video);
         configureFallbackAudioSession();
         markVideoInline(video);
         updateFallbackMediaSessionMetadata();
@@ -353,6 +463,11 @@
       Date.now() > fallbackPlaybackState.userPauseUntil
     ) {
       fallbackPlaybackState.wantsPlayback = true;
+      claimFallbackMediaSessionOwnership(video);
+    }
+    if (!fallbackOwnsMediaSession()) {
+      deactivateFallbackMediaSession();
+      return;
     }
     configureFallbackAudioSession();
     updateFallbackMediaSessionMetadata();
@@ -375,6 +490,7 @@
         setTimeout(syncFallbackPlayerControls, 0);
         setTimeout(syncFallbackPlayerControls, 250);
       });
+      fallbackMediaSessionHandlersInstalled = true;
     } catch {
       // Media Session handlers are optional in Orion.
     }
@@ -384,7 +500,7 @@
     if (!video || String(video.tagName).toLowerCase() !== 'video') return;
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('x-webkit-airplay', 'deny');
+    video.setAttribute('x-webkit-airplay', 'allow');
     try {
       video.playsInline = true;
       video.webkitPlaysInline = true;
@@ -678,9 +794,31 @@
     return labels[quality] || String(quality || '').toUpperCase() || 'Auto';
   }
 
-  function fallbackYouTubeQualityLevels() {
+  function fallbackYouTubeQualityOptions() {
     const player = document.querySelector('#movie_player');
-    if (!player) return [...FALLBACK_QUALITY_LEVELS];
+    if (!player) {
+      return FALLBACK_QUALITY_LEVELS.map((quality) => ({
+        quality,
+        label: fallbackQualityOptionLabel(quality),
+      }));
+    }
+    const options = [];
+    const seen = new Set();
+    try {
+      const qualityData = player.getAvailableQualityData?.() || [];
+      for (const entry of qualityData) {
+        const quality = String(entry?.quality || entry?.id || '').trim();
+        if (!quality || seen.has(quality)) continue;
+        seen.add(quality);
+        options.push({
+          quality,
+          label:
+            fallbackCaptionOptionText(
+              entry?.qualityLabel || entry?.displayName || entry?.label
+            ) || fallbackQualityOptionLabel(quality),
+        });
+      }
+    } catch {}
     let levels = [];
     try {
       if (typeof player.getAvailableQualityLevels === 'function') {
@@ -695,24 +833,26 @@
         levels = [];
       }
     }
-    if (!levels.length) {
-      try {
-        const qualityData = player.getAvailableQualityData?.() || [];
-        levels = qualityData
-          .map((entry) => entry?.quality || entry?.id || entry)
-          .filter(Boolean);
-      } catch {
-        levels = [];
-      }
+    for (const level of levels) {
+      const quality = String(level || '').trim();
+      if (!quality || seen.has(quality)) continue;
+      seen.add(quality);
+      options.push({ quality, label: fallbackQualityOptionLabel(quality) });
     }
-    const normalized = [
-      ...new Set(
-        levels.map((level) => String(level || '').trim()).filter(Boolean)
-      ),
-    ];
-    if (!normalized.includes('auto')) normalized.unshift('auto');
-    if (normalized.length <= 1) return [...FALLBACK_QUALITY_LEVELS];
-    return normalized;
+    if (!seen.has('auto')) {
+      options.unshift({ quality: 'auto', label: 'Auto' });
+    }
+    if (options.length <= 1) {
+      return FALLBACK_QUALITY_LEVELS.map((quality) => ({
+        quality,
+        label: fallbackQualityOptionLabel(quality),
+      }));
+    }
+    return options;
+  }
+
+  function fallbackYouTubeQualityLevels() {
+    return fallbackYouTubeQualityOptions().map((option) => option.quality);
   }
 
   function currentFallbackYouTubeQuality(video) {
@@ -783,12 +923,12 @@
     if (!menu) return;
     appendFallbackPlayerMenuCollapse(menu);
     appendFallbackPlayerMenuTitle(menu, 'Video quality');
-    const qualities = fallbackYouTubeQualityLevels();
+    const qualities = fallbackYouTubeQualityOptions();
     const currentQuality = String(currentFallbackYouTubeQuality(video) || 'auto');
-    for (const quality of qualities) {
+    for (const { quality, label } of qualities) {
       appendFallbackPlayerMenuOption(menu, {
         action: 'playback-quality',
-        label: fallbackQualityOptionLabel(quality),
+        label,
         checked: currentQuality === quality,
         quality,
       });
@@ -884,7 +1024,20 @@
         }, delay);
       }
     }
-    closeFallbackPlayerControlMenu();
+    if (action === 'playback-quality') {
+      const selectedQuality = String(option.dataset.fypQuality || '').trim();
+      option
+        .closest('.fyp-player-menu')
+        ?.querySelectorAll('[data-fyp-player-option="playback-quality"]')
+        .forEach((qualityOption) => {
+          qualityOption.setAttribute(
+            'aria-checked',
+            String(qualityOption.dataset.fypQuality === selectedQuality)
+          );
+        });
+    } else {
+      closeFallbackPlayerControlMenu();
+    }
     setTimeout(syncFallbackPlayerControls, 0);
     setTimeout(syncFallbackPlayerControls, 250);
   }
@@ -927,6 +1080,11 @@
       sourceButton instanceof HTMLButtonElement
     ) {
       toggleFallbackQualityMenu(video, sourceButton);
+    } else if (action === 'airplay') {
+      video.setAttribute('x-webkit-airplay', 'allow');
+      if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
+        video.webkitShowPlaybackTargetPicker();
+      }
     } else if (action === 'pip') {
       video.removeAttribute('disablepictureinpicture');
       try {
@@ -1338,6 +1496,10 @@
     ensureFallbackPlayerControlsToolbar();
 
     const videoObserver = new MutationObserver((mutations) => {
+      if (pageRuntimeReady()) {
+        videoObserver.disconnect();
+        return;
+      }
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) markVideoTree(node);
       }
@@ -1346,6 +1508,7 @@
     videoObserver.observe(document, { childList: true, subtree: true });
 
     const prepareInlinePlayback = (event) => {
+      if (pageRuntimeReady()) return;
       const target = event.target;
       if (
         String(target?.tagName).toLowerCase() === 'video' ||
@@ -1440,13 +1603,23 @@
       prepareFallbackBackgroundPlayback,
       true
     );
+    window.addEventListener(
+      'storage',
+      (event) => {
+        if (pageRuntimeReady() || event.key !== MEDIA_SESSION_OWNER_KEY) return;
+        if (!fallbackOwnsMediaSession()) deactivateFallbackMediaSession();
+      },
+      true
+    );
     setInterval(() => {
+      if (pageRuntimeReady()) return;
       markFallbackHistoryFeedBrowse();
       ensureFallbackPlayerControlsToolbar();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
     }, 1200);
     setInterval(() => {
+      if (pageRuntimeReady()) return;
       skipFallbackPlayerAd();
       dismissFallbackAdBlockEnforcement();
     }, 300);

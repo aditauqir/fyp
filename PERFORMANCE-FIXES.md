@@ -84,6 +84,7 @@ Upstream notes that matter for us:
 | P5 | Compact search + watch stack + theme (2.2.7) | **Done** | Forced simple search rows; video→title→buttons; light/dark strip |
 | P6 | Watch gap + toolbar jitter (2.2.8) | **Done** | 16:9 player shells; stable strip placement; no order-4 gap |
 | P7 | Horizontal overflow lock (2.2.9) | **Done** | Clip overflow on app shells; cap wide containers to 100% |
+| P8 | Stop duplicate fallback work (2.2.13) | **Done** | Match the page/fallback handshake version, stop fallback observers and polling after page readiness, and throttle full-page mutation scans to 1.2 seconds |
 
 ---
 

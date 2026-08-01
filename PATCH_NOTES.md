@@ -1,5 +1,15 @@
 # Patch Notes
 
+## v2.2.13
+
+- Fixed: Now Playing and the inline play/pause button no longer fight. The isolated fallback now recognizes the exact page-runtime version and stops when the main runtime is ready.
+- Fixed: With multiple YouTube tabs open, the most recently played visible tab owns Now Playing. A paused or hidden old tab can no longer replace its metadata or handlers.
+- Improved: Page startup does less duplicate work. The fallback observers and polling stop after the page runtime is ready, and full-page mutation scans run at most once every 1.2 seconds.
+- Added: The inline player strip has Lucide Settings and AirPlay buttons. The quality menu uses the desktop player’s reported quality labels, stays open after a selection, and closes only when the user collapses it, taps the gear again, or taps outside.
+- Added: The AirPlay button opens WebKit’s native playback-target picker when Orion exposes it.
+- Preserved: Existing video rendering, inline/fullscreen/PiP behavior, captions, comments, search, and the 10-second native control hold are unchanged.
+- Packaging: Numeric version `2.2.13`; recommended Orion installer `2.2.13_release.zip` (Chrome MV3).
+
 ## v2.2.12
 
 - Fixed: Captions show on-screen text again. 2.2.11 hid native `::cue` as soon as captions were “intended on,” so when YouTube’s custom caption module was starved there was no fallback text at all. Native cues now hide only while `.ytp-caption-segment` is painting.

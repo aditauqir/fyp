@@ -95,6 +95,14 @@ After the install procedure, both extensions must be enabled in Orion:
 | --- | --- |
 | <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
 
+### AirPlay and Return YouTube Dislike
+
+The inline player includes an AirPlay button. Return YouTube Dislike also restores the public dislike count beside YouTube's like button.
+
+<p align="center">
+  <img src="docs/images/airplay-return-youtube-dislike.png" alt="Fuck YouTube Premium inline player with AirPlay and a restored Return YouTube Dislike count" width="390">
+</p>
+
 ### Background Player options on iPhone
 
 The video keeps playing from the iPhone Lock Screen, including when the display is off:

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      2.2.12
-// @release-label 2.2.12
+// @version      2.2.13
+// @release-label 2.2.13
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.12');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.13');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -39,7 +39,7 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -69,6 +69,11 @@
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
   const MENU_OPTION_TAP_SLOP_PX = 12;
+  const MEDIA_SESSION_OWNER_KEY = 'fyp:media-session-owner:v1';
+  const MEDIA_SESSION_TAB_ATTR = 'data-fyp-media-session-tab';
+  const MEDIA_SESSION_LEASE_MS = 15000;
+  const MEDIA_SESSION_REFRESH_MS = 5000;
+  const PAGE_SCAN_MIN_INTERVAL_MS = 1200;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
     'hd1080',
@@ -492,6 +497,10 @@
   let ignorePlayerControlActionsUntil = 0;
   let pendingMenuOptionGesture = null;
   let lastMediaSessionMetadataKey = '';
+  let mediaSessionHandlersInstalled = false;
+  let lastMediaSessionHandlerInstallAt = 0;
+  let mediaSessionStorageFailed = false;
+  let mediaSessionLocalOwner = false;
   function channelVideosUrl(input) {
     let target;
     try {
@@ -829,6 +838,90 @@
     }
   }
 
+  function getOrCreateMediaSessionTabId() {
+    const root = document.documentElement;
+    const existing = root?.getAttribute(MEDIA_SESSION_TAB_ATTR)?.trim();
+    if (existing) return existing;
+    const randomId =
+      typeof crypto?.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    root?.setAttribute(MEDIA_SESSION_TAB_ATTR, randomId);
+    return randomId;
+  }
+
+  const mediaSessionTabId = getOrCreateMediaSessionTabId();
+
+  function readMediaSessionOwner() {
+    if (mediaSessionStorageFailed) return null;
+    try {
+      const raw = localStorage.getItem(MEDIA_SESSION_OWNER_KEY);
+      if (!raw) return null;
+      const owner = JSON.parse(raw);
+      if (
+        !owner ||
+        typeof owner.tabId !== 'string' ||
+        !Number.isFinite(owner.expiresAt)
+      ) {
+        return null;
+      }
+      return owner;
+    } catch {
+      mediaSessionStorageFailed = true;
+      return null;
+    }
+  }
+
+  function ownsMediaSession() {
+    if (mediaSessionStorageFailed) return mediaSessionLocalOwner;
+    const owner = readMediaSessionOwner();
+    return Boolean(
+      owner &&
+        owner.tabId === mediaSessionTabId &&
+        owner.expiresAt > Date.now()
+    );
+  }
+
+  function claimMediaSessionOwnership(video = state.video) {
+    if (
+      location.pathname !== '/watch' ||
+      !(video instanceof HTMLVideoElement) ||
+      video.ended
+    ) {
+      return false;
+    }
+    const currentOwner = readMediaSessionOwner();
+    if (
+      currentOwner &&
+      currentOwner.tabId !== mediaSessionTabId &&
+      currentOwner.expiresAt > Date.now() &&
+      isReallyHidden()
+    ) {
+      return false;
+    }
+    const now = Date.now();
+    const claim = {
+      tabId: mediaSessionTabId,
+      videoId: currentWatchVideoId(),
+      claimedAt: now,
+      expiresAt: now + MEDIA_SESSION_LEASE_MS,
+    };
+    try {
+      localStorage.setItem(MEDIA_SESSION_OWNER_KEY, JSON.stringify(claim));
+      mediaSessionLocalOwner = true;
+      return true;
+    } catch {
+      mediaSessionStorageFailed = true;
+      mediaSessionLocalOwner = true;
+      return true;
+    }
+  }
+
+  function renewMediaSessionOwnership(video = state.video) {
+    if (!ownsMediaSession()) return false;
+    return claimMediaSessionOwnership(video);
+  }
+
   // Return YouTube Dislike integration (adapted from Anarios/return-youtube-dislike)
   function findWatchButtonsRoot() {
     const menuContainer = document.getElementById('menu-container');
@@ -1138,6 +1231,8 @@
   function onVideoPlay() {
     state.wantsPlayback = true;
     state.userPauseUntil = 0;
+    claimMediaSessionOwnership(state.video);
+    installMediaSessionHandlers({ force: true });
     configurePlaybackAudioSession();
     enforceInlinePlayback(state.video);
     persistWatchResume(state.video);
@@ -1220,7 +1315,9 @@
     speed:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
     quality:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-settings" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+    airplay:
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
     collapse:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
@@ -1263,9 +1360,19 @@
         PLAYER_CONTROL_ICONS.pip
       ),
       playerControlButtonMarkup(
+        'airplay',
+        'AirPlay',
+        PLAYER_CONTROL_ICONS.airplay
+      ),
+      playerControlButtonMarkup(
         'fullscreen',
         'Fullscreen',
         PLAYER_CONTROL_ICONS.fullscreen
+      ),
+      playerControlButtonMarkup(
+        'quality',
+        'Video quality',
+        PLAYER_CONTROL_ICONS.quality
       ),
     ].join('');
   }
@@ -1557,9 +1664,32 @@
     return labels[quality] || String(quality || '').toUpperCase() || 'Auto';
   }
 
-  function youtubeQualityLevels() {
+  function youtubeQualityOptions() {
     const player = document.querySelector('#movie_player');
-    if (!player) return [...FALLBACK_QUALITY_LEVELS];
+    if (!player) {
+      return FALLBACK_QUALITY_LEVELS.map((quality) => ({
+        quality,
+        label: qualityOptionLabel(quality),
+      }));
+    }
+    const options = [];
+    const seen = new Set();
+    try {
+      const qualityData = player.getAvailableQualityData?.() || [];
+      for (const entry of qualityData) {
+        const quality = String(entry?.quality || entry?.id || '').trim();
+        if (!quality || seen.has(quality)) continue;
+        seen.add(quality);
+        options.push({
+          quality,
+          label:
+            captionOptionText(
+              entry?.qualityLabel || entry?.displayName || entry?.label
+            ) || qualityOptionLabel(quality),
+        });
+      }
+    } catch {}
+
     let levels = [];
     try {
       if (typeof player.getAvailableQualityLevels === 'function') {
@@ -1574,25 +1704,27 @@
         levels = [];
       }
     }
-    if (!levels.length) {
-      try {
-        const qualityData = player.getAvailableQualityData?.() || [];
-        levels = qualityData
-          .map((entry) => entry?.quality || entry?.id || entry)
-          .filter(Boolean);
-      } catch {
-        levels = [];
-      }
+    for (const level of levels) {
+      const quality = String(level || '').trim();
+      if (!quality || seen.has(quality)) continue;
+      seen.add(quality);
+      options.push({ quality, label: qualityOptionLabel(quality) });
     }
-    const normalized = [
-      ...new Set(
-        levels.map((level) => String(level || '').trim()).filter(Boolean)
-      ),
-    ];
-    if (!normalized.includes('auto')) normalized.unshift('auto');
+    if (!seen.has('auto')) {
+      options.unshift({ quality: 'auto', label: 'Auto' });
+    }
     // Orion sometimes reports only "auto" before levels settle; keep a usable ladder.
-    if (normalized.length <= 1) return [...FALLBACK_QUALITY_LEVELS];
-    return normalized;
+    if (options.length <= 1) {
+      return FALLBACK_QUALITY_LEVELS.map((quality) => ({
+        quality,
+        label: qualityOptionLabel(quality),
+      }));
+    }
+    return options;
+  }
+
+  function youtubeQualityLevels() {
+    return youtubeQualityOptions().map((option) => option.quality);
   }
 
   function currentYouTubeQuality(video) {
@@ -1663,12 +1795,12 @@
 
     appendPlayerMenuCollapse(menu);
     appendPlayerMenuTitle(menu, 'Video quality');
-    const qualities = youtubeQualityLevels();
+    const qualities = youtubeQualityOptions();
     const currentQuality = String(currentYouTubeQuality(video) || 'auto');
-    for (const quality of qualities) {
+    for (const { quality, label } of qualities) {
       appendPlayerMenuOption(menu, {
         action: 'playback-quality',
-        label: qualityOptionLabel(quality),
+        label,
         checked: currentQuality === quality,
         quality,
       });
@@ -1774,7 +1906,20 @@
         }, delay);
       }
     }
-    closePlayerControlMenu();
+    if (action === 'playback-quality') {
+      const selectedQuality = String(option.dataset.fypQuality || '').trim();
+      option
+        .closest('.fyp-player-menu')
+        ?.querySelectorAll('[data-fyp-player-option="playback-quality"]')
+        .forEach((qualityOption) => {
+          qualityOption.setAttribute(
+            'aria-checked',
+            String(qualityOption.dataset.fypQuality === selectedQuality)
+          );
+        });
+    } else {
+      closePlayerControlMenu();
+    }
     setTimeout(syncCustomPlayerControls, 0);
     setTimeout(syncCustomPlayerControls, 250);
   }
@@ -1815,6 +1960,11 @@
       toggleSpeedMenu(video, sourceButton);
     } else if (action === 'quality' && sourceButton instanceof HTMLButtonElement) {
       toggleQualityMenu(video, sourceButton);
+    } else if (action === 'airplay') {
+      video.setAttribute('x-webkit-airplay', 'allow');
+      if (typeof video.webkitShowPlaybackTargetPicker === 'function') {
+        video.webkitShowPlaybackTargetPicker();
+      }
     } else if (action === 'pip') {
       video.removeAttribute('disablepictureinpicture');
       try {
@@ -2001,6 +2151,9 @@
     try {
       video.playsInline = true;
     } catch {}
+    if (video.getAttribute('x-webkit-airplay') !== 'allow') {
+      video.setAttribute('x-webkit-airplay', 'allow');
+    }
     try {
       video.webkitPlaysInline = true;
     } catch {}
@@ -2242,6 +2395,7 @@
     video.addEventListener('ended', onVideoPause, true);
     video.addEventListener('loadedmetadata', onVideoLoaded, true);
     video.addEventListener('timeupdate', onVideoTimeUpdate, true);
+    if (!video.paused && !video.ended) claimMediaSessionOwnership(video);
     installMediaSessionHandlers();
   }
 
@@ -2485,6 +2639,30 @@
     }
   }
 
+  function deactivateMediaSessionForThisTab() {
+    if (!('mediaSession' in navigator) || !mediaSessionHandlersInstalled) {
+      return;
+    }
+    for (const action of [
+      'play',
+      'pause',
+      'seekbackward',
+      'seekforward',
+      'seekto',
+    ]) {
+      try {
+        navigator.mediaSession.setActionHandler(action, null);
+      } catch {}
+    }
+    try {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+    } catch {}
+    mediaSessionHandlersInstalled = false;
+    lastMediaSessionHandlerInstallAt = 0;
+    lastMediaSessionMetadataKey = '';
+  }
+
   function updateMediaSessionMetadata() {
     if (
       !('mediaSession' in navigator) ||
@@ -2493,6 +2671,7 @@
     ) {
       return;
     }
+    if (!ownsMediaSession()) return;
     const response = window.ytInitialPlayerResponse;
     const details = response?.videoDetails || {};
     const videoId =
@@ -2556,16 +2735,19 @@
   }
 
   function mediaSessionVideo() {
+    if (!ownsMediaSession()) return null;
     const video = controllableVideo(true);
     return video instanceof HTMLVideoElement ? video : null;
   }
 
   function syncMediaSessionPlayback(video = mediaSessionVideo()) {
-    try {
-      navigator.mediaSession.playbackState =
-        video && !video.paused && !video.ended ? 'playing' : 'paused';
-    } catch {
-      // playbackState is optional in older Orion/WebKit builds.
+    if (ownsMediaSession()) {
+      try {
+        navigator.mediaSession.playbackState =
+          video && !video.paused && !video.ended ? 'playing' : 'paused';
+      } catch {
+        // playbackState is optional in older Orion/WebKit builds.
+      }
     }
     syncCustomPlayerControls();
   }
@@ -2573,6 +2755,7 @@
   function handleMediaSessionPlay() {
     const video = mediaSessionVideo();
     if (!video) return;
+    renewMediaSessionOwnership(video);
     state.wantsPlayback = true;
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
@@ -2590,6 +2773,7 @@
   function handleMediaSessionPause() {
     const video = mediaSessionVideo();
     if (!video) return;
+    renewMediaSessionOwnership(video);
     state.wantsPlayback = false;
     state.userPauseUntil = Date.now() + 5000;
     clearRecoveryTimers();
@@ -2619,8 +2803,20 @@
     syncMediaSessionPlayback(video);
   }
 
-  function installMediaSessionHandlers() {
+  function installMediaSessionHandlers({ force = false } = {}) {
     if (!('mediaSession' in navigator)) return;
+    if (!ownsMediaSession()) {
+      deactivateMediaSessionForThisTab();
+      return;
+    }
+    const now = Date.now();
+    if (
+      !force &&
+      mediaSessionHandlersInstalled &&
+      now - lastMediaSessionHandlerInstallAt < MEDIA_SESSION_REFRESH_MS
+    ) {
+      return;
+    }
     updateMediaSessionMetadata();
     try {
       navigator.mediaSession.setActionHandler('play', handleMediaSessionPlay);
@@ -2637,6 +2833,8 @@
         video.currentTime = details.seekTime;
         syncMediaSessionPlayback(video);
       });
+      mediaSessionHandlersInstalled = true;
+      lastMediaSessionHandlerInstallAt = now;
     } catch {
       // MediaSession or a particular action is optional in older iOS WebKit.
     }
@@ -2646,6 +2844,7 @@
     const video = state.video || findVideo();
     if (!video) return;
     attachVideo(video);
+    if (!video.paused && !video.ended) claimMediaSessionOwnership(video);
     installMediaSessionHandlers();
     configurePlaybackAudioSession();
     // Respect an intentional Now Playing / toolbar pause window so background
@@ -5558,7 +5757,10 @@
     }
   }
 
+  let lastPageScanAt = 0;
+
   function scanPage() {
+    lastPageScanAt = Date.now();
     ensureViewport();
     if (location.pathname.startsWith('/shorts')) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
@@ -5584,7 +5786,13 @@
   }
 
   nativeDocumentAddEventListener('visibilitychange', () => {
-    if (isReallyHidden()) prepareForBackground();
+    if (isReallyHidden()) {
+      prepareForBackground();
+    } else if (state.video && !state.video.paused && !state.video.ended) {
+      claimMediaSessionOwnership(state.video);
+      installMediaSessionHandlers({ force: true });
+      updateMediaSessionMetadata();
+    }
   }, true);
   nativeDocumentAddEventListener('webkitvisibilitychange', () => {
     if (isReallyHidden()) prepareForBackground();
@@ -5677,6 +5885,15 @@
     if (state.video && !state.video.paused) prepareForBackground();
   }, true);
   nativeWindowAddEventListener('pagehide', prepareForBackground, true);
+  nativeWindowAddEventListener('storage', (event) => {
+    if (event.key !== MEDIA_SESSION_OWNER_KEY) return;
+    if (ownsMediaSession()) {
+      installMediaSessionHandlers({ force: true });
+      updateMediaSessionMetadata();
+    } else {
+      deactivateMediaSessionForThisTab();
+    }
+  }, true);
   nativeWindowAddEventListener('popstate', () => {
     removeFloatingPillNav();
     dismissMiniplayer();
@@ -5696,10 +5913,14 @@
   const observer = new MutationObserver(() => {
     if (scanQueued) return;
     scanQueued = true;
+    const delay = Math.max(
+      0,
+      PAGE_SCAN_MIN_INTERVAL_MS - (Date.now() - lastPageScanAt)
+    );
     setTimeout(() => {
       scanQueued = false;
       scanPage();
-    }, 500);
+    }, delay);
   });
   observer.observe(document.documentElement || document, {
     childList: true,
@@ -5716,8 +5937,6 @@
     markSubscribeButtons();
     ensurePlayerControlsToolbar();
     syncCustomPlayerControls();
-    installMediaSessionHandlers();
-    updateMediaSessionMetadata();
     hideAskGeminiControls();
     ensureGuideButtonVisible();
     hideUploadControls();
@@ -5730,4 +5949,13 @@
     }
     if (location.pathname === '/watch') arrangeWatchComments();
   }, 1200);
+  setInterval(() => {
+    if (ownsMediaSession()) {
+      renewMediaSessionOwnership(state.video);
+      installMediaSessionHandlers({ force: true });
+      updateMediaSessionMetadata();
+    } else {
+      deactivateMediaSessionForThisTab();
+    }
+  }, MEDIA_SESSION_REFRESH_MS);
 })();

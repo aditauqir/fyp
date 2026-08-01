@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v228-tight-stack'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
@@ -41,7 +41,9 @@ for (const action of [
   'play-pause',
   'forward',
   'pip',
+  'airplay',
   'fullscreen',
+  'quality',
 ]) {
   assert.match(
     source,
@@ -60,10 +62,10 @@ assert.doesNotMatch(
   source,
   /playerControlButtonMarkup\(\s*'speed'/
 );
-assert.doesNotMatch(
-  source,
-  /playerControlButtonMarkup\(\s*'quality'/
-);
+assert.match(source, /lucide lucide-settings/);
+assert.match(source, /lucide lucide-airplay/);
+assert.match(source, /webkitShowPlaybackTargetPicker/);
+assert.match(source, /x-webkit-airplay', 'allow'/);
 assert.match(source, /video\.currentTime \+ offset/);
 assert.match(source, /await video\.play\(\)/);
 assert.match(source, /video\.pause\(\)/);
@@ -80,8 +82,14 @@ assert.match(source, /action: 'playback-speed'/);
 assert.match(source, /action: 'playback-quality'/);
 assert.match(source, /function applyYouTubeQuality\(/);
 assert.match(source, /function youtubeQualityLevels\(/);
+assert.match(source, /function youtubeQualityOptions\(/);
+assert.match(source, /getAvailableQualityData/);
 assert.match(source, /ignorePlayerControlActionsUntil = Date\.now\(\) \+ 500/);
 assert.match(source, /appendPlayerMenuTitle\(menu, 'Video quality'\)/);
+assert.match(
+  source,
+  /if \(action === 'playback-quality'\)[\s\S]*aria-checked[\s\S]*else \{\s*closePlayerControlMenu\(\);/
+);
 assert.match(source, /appendPlayerMenuTitle\(menu, 'Playback speed'\)/);
 assert.match(source, /FALLBACK_QUALITY_LEVELS/);
 assert.match(source, /appendPlayerMenuCollapse\(/);
@@ -151,4 +159,4 @@ assert.doesNotMatch(
   /#movie_player \.ytp-settings-button,\s*\.html5-video-player \.ytp-settings-button,\s*#movie_player \.ytp-overflow-button/
 );
 
-console.log('10-second native hold and transport-only strip: ok');
+console.log('10-second hold plus quality and AirPlay strip: ok');
