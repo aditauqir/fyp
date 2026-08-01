@@ -5,8 +5,9 @@
 - Fixed: Now Playing and the inline play/pause button no longer fight. The isolated fallback now recognizes the exact page-runtime version and stops when the main runtime is ready.
 - Fixed: With multiple YouTube tabs open, the most recently played visible tab owns Now Playing. A paused or hidden old tab can no longer replace its metadata or handlers.
 - Improved: Page startup does less duplicate work. The fallback observers and polling stop after the page runtime is ready, and full-page mutation scans run at most once every 1.2 seconds.
-- Added: The inline player strip has Lucide Settings and AirPlay buttons. The quality menu uses the desktop player’s reported quality labels, stays open after a selection, and closes only when the user collapses it, taps the gear again, or taps outside.
-- Added: The AirPlay button opens WebKit’s native playback-target picker when Orion exposes it.
+- Added: The inline player strip has a Lucide AirPlay button. It opens WebKit’s native playback-target picker when Orion exposes it.
+- Removed: The inline quality gear is not included because its menu did not render or apply selections reliably.
+- Notes: Inline quality selection is a known issue. Contributions are welcome from anyone who can help solve the quality gear behavior on Orion and YouTube.
 - Preserved: Existing video rendering, inline/fullscreen/PiP behavior, captions, comments, search, and the 10-second native control hold are unchanged.
 - Packaging: Numeric version `2.2.13`; recommended Orion installer `2.2.13_release.zip` (Chrome MV3).
 

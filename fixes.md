@@ -1,5 +1,35 @@
 # Bug fix log
 
+## 2026-08-01 — Unreliable inline quality gear removed (fyp 2.2.13)
+
+### In plain English
+- **What was broken:** The inline quality gear could open a blank menu, and quality selections did not apply reliably.
+- **Why it happened:** Orion and YouTube did not expose a stable quality-menu path for the custom inline control. The control could display without a dependable set of choices or a confirmed selection.
+- **What we changed:** Removed the inline quality gear from the released toolbar. The AirPlay button and all existing transport controls remain available. The new layout key also removes an old gear left in the page after an extension update.
+- **How to verify:** 1) Install `2.2.13_release.zip`. 2) Open a YouTube watch page. 3) Confirm the inline toolbar has rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. 4) Confirm no quality gear or blank quality menu appears.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+playerControlButtonMarkup(
+  'quality',
+  'Video quality',
+  PLAYER_CONTROL_ICONS.quality
+);
+```
+
+**After (fixed idea):**
+```js
+// Quality is omitted until the inline control works reliably.
+playerControlButtonMarkup('airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay);
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — remove the inline Settings button and update the toolbar layout key.
+- `firefox-extension/content.template.js` — mirror the quality-gear removal in the isolated fallback.
+- `tests/player-controls-delay.test.cjs` / `tests/content-fallback.test.cjs` — prevent the quality gear from returning accidentally.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — document the removal and keep AirPlay visible in release notes.
+
 ## 2026-07-31 — Now Playing ownership + faster startup (fyp 2.2.13)
 
 ### In plain English
@@ -30,37 +60,6 @@ if (pageRuntimeReady()) return; // stop isolated fallback work
 - `firefox-extension/content.template.js` — match the page version and stop fallback work after readiness.
 - `ARCHITECTURE.md` / `PERFORMANCE-FIXES.md` — document ownership and startup behavior.
 - `tests/media-session-ownership.test.cjs` — prevent handshake and ownership regressions.
-
-## 2026-07-31 — Persistent inline quality menu (fyp 2.2.13)
-
-### In plain English
-- **What was broken:** The inline quality control was missing from the current strip. When the quality menu was available, selecting a quality immediately closed the menu.
-- **Why it happened:** The latest toolbar markup omitted the quality button. The shared option cleanup also closed every menu after every selection.
-- **What we changed:** Restored the Lucide Settings button, read labels from YouTube’s desktop player data, and kept the menu open after a quality selection. The menu still closes from its collapse button, the gear button, or an outside tap. Added a Lucide AirPlay button that opens WebKit’s native route picker when available.
-- **How to verify:** 1) Open a watch page. 2) Tap the inline gear. 3) Select two available qualities and confirm the menu stays open. 4) Tap outside and confirm it closes. 5) Tap AirPlay and confirm the native route picker opens on a supported device.
-
-### Code that mattered
-**Before (broken idea):**
-```js
-applyYouTubeQuality(quality);
-closePlayerControlMenu();
-```
-
-**After (fixed idea):**
-```js
-applyYouTubeQuality(quality);
-if (action === 'playback-quality') {
-  option.setAttribute('aria-checked', 'true');
-} else {
-  closePlayerControlMenu();
-}
-```
-
-### Files touched
-- `youtube-mobile-background.user.js` — add inline Settings and AirPlay controls and keep quality choices visible.
-- `firefox-extension/content.template.js` — mirror the controls in the injection fallback.
-- `PATCH_NOTES.md` / `firefox-extension/popup.html` — add consumer-facing 2.2.13 notes.
-- `tests/player-controls-delay.test.cjs` / `tests/content-fallback.test.cjs` — verify the new controls and menu behavior.
 
 ## 2026-07-29 — Captions blank + slow load (fyp 2.2.12)
 

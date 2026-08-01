@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
@@ -43,7 +43,6 @@ for (const action of [
   'pip',
   'airplay',
   'fullscreen',
-  'quality',
 ]) {
   assert.match(
     source,
@@ -62,7 +61,8 @@ assert.doesNotMatch(
   source,
   /playerControlButtonMarkup\(\s*'speed'/
 );
-assert.match(source, /lucide lucide-settings/);
+assert.doesNotMatch(source, /lucide lucide-settings/);
+assert.doesNotMatch(source, /playerControlButtonMarkup\(\s*'quality'/);
 assert.match(source, /lucide lucide-airplay/);
 assert.match(source, /webkitShowPlaybackTargetPicker/);
 assert.match(source, /x-webkit-airplay', 'allow'/);
@@ -159,4 +159,4 @@ assert.doesNotMatch(
   /#movie_player \.ytp-settings-button,\s*\.html5-video-player \.ytp-settings-button,\s*#movie_player \.ytp-overflow-button/
 );
 
-console.log('10-second hold plus quality and AirPlay strip: ok');
+console.log('10-second hold plus AirPlay strip without quality gear: ok');

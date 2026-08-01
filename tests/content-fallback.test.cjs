@@ -50,7 +50,7 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-inline-quality'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay'/
 );
 for (const action of [
   'rewind',
@@ -59,7 +59,6 @@ for (const action of [
   'pip',
   'airplay',
   'fullscreen',
-  'quality',
 ]) {
   assert.match(
     content,
@@ -67,6 +66,7 @@ for (const action of [
   );
 }
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'speed'/);
+assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'quality'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'captions'/);
 assert.doesNotMatch(content, /playerControlButtonMarkup\(\s*'more'/);
 assert.match(content, /video\.currentTime \+ offset/);
@@ -87,7 +87,7 @@ assert.match(content, /action: 'playback-speed'/);
 assert.match(content, /action: 'playback-quality'/);
 assert.match(content, /function applyFallbackYouTubeQuality\(/);
 assert.match(content, /function fallbackYouTubeQualityOptions\(/);
-assert.match(content, /lucide lucide-settings/);
+assert.doesNotMatch(content, /lucide lucide-settings/);
 assert.match(content, /lucide lucide-airplay/);
 assert.match(content, /webkitShowPlaybackTargetPicker/);
 assert.match(content, /x-webkit-airplay', 'allow'/);

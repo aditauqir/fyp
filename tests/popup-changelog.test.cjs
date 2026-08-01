@@ -26,7 +26,7 @@ const patchNotes = fs.readFileSync(
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
 assert.match(popup, /Now Playing follows the newest active tab \(2\.2\.13\)\./);
-assert.match(popup, /Inline quality gear \+ native AirPlay picker \(2\.2\.13\)\./);
+assert.match(popup, /Native AirPlay picker in inline controls \(2\.2\.13\)\./);
 assert.match(popup, /Faster startup with one active runtime \(2\.2\.13\)\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
