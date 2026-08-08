@@ -25,6 +25,11 @@ for (const removedPaginationFeature of [
 assert.doesNotMatch(source, /dataset\.vmCommentHidden =/);
 assert.doesNotMatch(source, /dataset\.vmContinuationHidden =/);
 assert.match(source, /function positionCommentsAfterRecommendations\(\)/);
+assert.match(
+  source,
+  /if \(!descriptionBlock \|\| \(!recommendations && !comments\)\) return;/
+);
+assert.doesNotMatch(source, /if \(!descriptionBlock \|\| !comments\) return;/);
 assert.doesNotMatch(source, /function expandCommentsSection\(/);
 assert.doesNotMatch(
   source,
@@ -34,7 +39,7 @@ assert.match(
   source,
   /setImportantStyles\(recommendations, \{\s*order: '2'/
 );
-assert.match(source, /setImportantStyles\(comments, \{\s*order: '3'/);
+assert.match(source, /if \(comments\) \{\s*setImportantStyles\(comments, \{\s*order: '3'/);
 assert.match(
   source,
   /insertionAnchor\.insertAdjacentElement\('afterend', comments\)/

@@ -21,6 +21,18 @@ assert.match(source, /function handleMobileSearchClick\(event\)/);
 assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v227-simple-search-theme'/);
 assert.match(source, /injectCriticalAskHideStyle/);
 
+// Keep YouTube's current lockup internals native. Styling every nested div as
+// a grid breaks result cards whenever YouTube changes their view-model shape.
+assert.doesNotMatch(source, /ytd-search yt-lockup-view-model > div/);
+assert.doesNotMatch(
+  source,
+  /\.ytLockupViewModelHorizontal[\s\S]{0,400}display: grid !important/
+);
+assert.match(
+  source,
+  /ytd-search ytd-video-renderer #dismissible,[\s\S]*display: grid !important/
+);
+
 // Restored 2.1.2-style native masthead search overlay after icon tap.
 assert.match(
   source,

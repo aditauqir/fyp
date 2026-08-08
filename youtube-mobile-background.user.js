@@ -3103,25 +3103,7 @@
         }
 
         ytd-search ytd-video-renderer #dismissible,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer #dismissible,
-        ytd-search yt-lockup-view-model,
-        ytd-search yt-lockup-view-model > div,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model > div,
-        ytd-search
-          :is(
-            .yt-lockup-view-model,
-            .ytLockupViewModelHost,
-            .ytLockupViewModelHorizontal,
-            .ytLockupViewModelVertical
-          ),
-        html[${SIMPLE_SEARCH_ATTR}='true']
-          :is(
-            .yt-lockup-view-model,
-            .ytLockupViewModelHost,
-            .ytLockupViewModelHorizontal,
-            .ytLockupViewModelVertical
-          ) {
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer #dismissible {
           box-sizing: border-box !important;
           display: grid !important;
           grid-template-columns: 132px minmax(0, 1fr) !important;
@@ -3135,22 +3117,10 @@
           max-width: 100% !important;
         }
 
-        ytd-search ytd-thumbnail,
-        ytd-search a#thumbnail,
-        ytd-search yt-thumbnail-view-model,
-        ytd-search
-          :is(
-            .yt-lockup-view-model__content-image,
-            .ytLockupViewModelContentImage
-          ),
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-thumbnail,
-        html[${SIMPLE_SEARCH_ATTR}='true'] a#thumbnail,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-thumbnail-view-model,
-        html[${SIMPLE_SEARCH_ATTR}='true']
-          :is(
-            .yt-lockup-view-model__content-image,
-            .ytLockupViewModelContentImage
-          ) {
+        ytd-search ytd-video-renderer ytd-thumbnail,
+        ytd-search ytd-video-renderer a#thumbnail,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer ytd-thumbnail,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer a#thumbnail {
           box-sizing: border-box !important;
           width: 132px !important;
           min-width: 132px !important;
@@ -3162,12 +3132,10 @@
           aspect-ratio: 16 / 9 !important;
         }
 
-        ytd-search ytd-thumbnail img,
-        ytd-search yt-thumbnail-view-model img,
-        ytd-search a#thumbnail img,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-thumbnail img,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-thumbnail-view-model img,
-        html[${SIMPLE_SEARCH_ATTR}='true'] a#thumbnail img {
+        ytd-search ytd-video-renderer ytd-thumbnail img,
+        ytd-search ytd-video-renderer a#thumbnail img,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer ytd-thumbnail img,
+        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer a#thumbnail img {
           width: 100% !important;
           height: 100% !important;
           object-fit: cover !important;
@@ -4897,7 +4865,10 @@
       );
 
     const comments = findCommentsRoot();
-    if (!descriptionBlock || !comments) return;
+    const recommendations =
+      watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+      watch.querySelector('#secondary');
+    if (!descriptionBlock || (!recommendations && !comments)) return;
 
     if (descriptionBlock.parentElement !== below) {
       below.insertAdjacentElement('afterbegin', descriptionBlock);
@@ -4913,9 +4884,6 @@
 
     // Recommendations must stay before comments so a comment loader cannot
     // block access to YouTube's related-video feed.
-    const recommendations =
-      watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
-      watch.querySelector('#secondary');
     let insertionAnchor = descriptionBlock;
     if (recommendations && !recommendations.contains(comments)) {
       setImportantStyles(recommendations, {
@@ -4933,18 +4901,20 @@
       insertionAnchor = recommendations;
     }
 
-    setImportantStyles(comments, {
-      order: '3',
-      width: '100%',
-      'min-width': '0',
-      'max-width': '100%',
-      margin: '8px 0 0',
-    });
-    if (
-      comments.parentElement !== below ||
-      insertionAnchor.nextElementSibling !== comments
-    ) {
-      insertionAnchor.insertAdjacentElement('afterend', comments);
+    if (comments) {
+      setImportantStyles(comments, {
+        order: '3',
+        width: '100%',
+        'min-width': '0',
+        'max-width': '100%',
+        margin: '8px 0 0',
+      });
+      if (
+        comments.parentElement !== below ||
+        insertionAnchor.nextElementSibling !== comments
+      ) {
+        insertionAnchor.insertAdjacentElement('afterend', comments);
+      }
     }
 
     /*
@@ -4967,7 +4937,7 @@
     for (const sibling of below.children) {
       if (
         sibling === descriptionBlock ||
-        sibling === comments ||
+        (comments && sibling === comments) ||
         sibling === recommendations ||
         sibling.id === PLAYER_CONTROLS_TOOLBAR_ID
       ) {

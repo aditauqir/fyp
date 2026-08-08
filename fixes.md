@@ -1,5 +1,63 @@
 # Bug fix log
 
+## 2026-08-08 — Search result cards break (fyp 2.2.12)
+
+### In plain English
+- **What was broken:** Search result cards could overlap, collapse, or show content in the wrong place.
+- **Why it happened:** The extension forced YouTube's current result-card container and every nested `div` into separate CSS grids. YouTube can change those internal containers without notice.
+- **What we changed:** The compact grid now applies only to the stable legacy `ytd-video-renderer #dismissible` boundary. Current `yt-lockup-view-model` cards keep YouTube's native internal layout.
+- **How to verify:** 1) Search for a video. 2) Scroll through several result types. 3) Confirm each thumbnail, title, channel, and metadata block stays inside its card.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-search yt-lockup-view-model,
+ytd-search yt-lockup-view-model > div {
+  display: grid !important;
+}
+```
+
+**After (fixed idea):**
+```css
+ytd-search ytd-video-renderer #dismissible {
+  display: grid !important;
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — stop overriding current YouTube lockup internals.
+- `tests/mobile-search.test.cjs` — prevent nested lockup grids from returning.
+- `fixes.md` — record the bug and fix.
+
+## 2026-08-08 — Recommendations wait for comments (fyp 2.2.12)
+
+### In plain English
+- **What was broken:** Recommended videos between the description and comments sometimes did not load or move into place.
+- **Why it happened:** The layout function exited until the lazy-loaded comments node existed. Comments are designed to load after recommendations, so each section could wait for the other.
+- **What we changed:** Recommendations now move below the description as soon as their native YouTube container exists. Comments still load naturally and move after recommendations when available.
+- **How to verify:** 1) Open a watch page. 2) Confirm recommendations appear below the description before comments load. 3) Scroll down. 4) Confirm native comments appear after recommendations.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+const comments = findCommentsRoot();
+if (!descriptionBlock || !comments) return;
+```
+
+**After (fixed idea):**
+```js
+const comments = findCommentsRoot();
+const recommendations =
+  watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+  watch.querySelector('#secondary');
+if (!descriptionBlock || (!recommendations && !comments)) return;
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — position recommendations without waiting for comments.
+- `tests/comments-layout.test.cjs` — cover the independent recommendation-loading path.
+- `fixes.md` — record the bug and fix.
+
 ## 2026-07-29 — Captions blank + slow load (fyp 2.2.12)
 
 ### In plain English
