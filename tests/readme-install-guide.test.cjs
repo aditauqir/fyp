@@ -21,37 +21,36 @@ assert.match(readme, /logo=discord/);
 assert.match(readme, /Join%20the%20server%20for%20support%20or%20help/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/releases\/latest/);
 assert.match(readme, /addons\.mozilla\.org\/en-US\/firefox\/addon\/ublock-origin/);
-assert.match(readme, /Mandatory for ad blocking/);
+assert.match(readme, /mandatory for ad blocking/i);
 assert.match(readme, /## Final extension result/);
 assert.match(readme, /docs\/images\/final-extension-result\.png/);
-assert.match(readme, /docs\/images\/youtube-watch-page\.png/);
 assert.match(readme, /docs\/images\/youtube-mobile-feed\.png/);
 assert.match(readme, /docs\/images\/player-inline-controls\.png/);
 assert.match(readme, /docs\/images\/background-playback-lock-screen\.png/);
 assert.match(readme, /docs\/images\/orion-install-from-file\.png/);
-assert.match(readme, /“OTA” update detection and downloads/);
-assert.match(readme, /Always uninstall the old version first/);
-assert.match(install, /always choose `\+` → `Install from File`/);
+assert.match(readme, /checks GitHub on a schedule/);
+assert.match(readme, /Uninstall the old \*\*Fuck YouTube Premium\*\* extension/);
+assert.match(install, /Tap \*\*\+\*\*\.[\s\S]*Tap \*\*Install from File\*\*\./);
 assert.match(readme, /send a pull request/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
-assert.match(readme, /Close the YouTube tab in Orion first/);
-assert.match(readme, /keep retrying the install button/);
-assert.match(readme, /2\.2\.2_release\.zip/);
+assert.match(readme, /Close the YouTube tab in Orion/);
+assert.match(readme, /repeat steps 5–7 until Orion confirms the install/);
+assert.match(readme, /2\.2\.14_release\.zip/);
 assert.match(readme, /### Do not enable Request Desktop Website/);
-assert.match(readme, /Leave Orion’s per-site \*\*Request Desktop Website\*\* setting disabled/);
-assert.doesNotMatch(install, /Request Desktop Website/);
-assert.match(readme, /no per-site desktop-mode setting is needed/);
+assert.match(readme, /Set \*\*Request Desktop Website\*\* to off/);
+assert.match(install, /Do not set Orion \*\*Request Desktop Website\*\*/);
+assert.match(readme, /The extension selects the YouTube backend/);
 assert.match(readme, /On My iPhone → Downloads/);
-assert.match(readme, /uninstalled/);
+assert.match(readme, /uninstall/);
 assert.ok(
-  fs.existsSync(path.join(root, '2.2.3_release.zip')),
+  fs.existsSync(path.join(root, '2.2.14_release.zip')),
   'preferred Orion release ZIP'
 );
 assert.match(readme, /Tapping the extension icon shows no buttons/);
-assert.match(readme, /three changelog lines plus \*\*Go to YouTube\*\*/);
+assert.match(readme, /three changelog lines, \*\*Go to YouTube\*\*/);
 assert.match(readme, /orion-multiple-subtitle-tracks\.png/);
-assert.match(readme, /authored English track first/);
+assert.match(readme, /Prefer an authored English track/);
 assert.match(readme, /docs\/images\/player-inline-controls\.png/);
 
 for (const image of [

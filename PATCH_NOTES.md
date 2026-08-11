@@ -1,5 +1,25 @@
 # Patch Notes
 
+## v2.2.14
+
+- Fixed: Search result cards keep YouTube's native current-card layout. The compact grid applies only to the stable legacy result boundary.
+- Fixed: Recommended videos can load and move below the description before YouTube lazy-loads comments. Native comments still follow recommendations.
+- Fixed: The README install-guide check includes its required purpose heading again.
+- Included: Now Playing ownership, faster startup, AirPlay, and removal of the unreliable inline quality gear from v2.2.13.
+- Preserved: Native comments, reply focus, captions, playback behavior, and the 10-second player-control hold remain unchanged.
+- Packaging: Numeric version `2.2.14`; recommended Orion installer `2.2.14_release.zip` (Chrome MV3).
+
+## v2.2.13
+
+- Fixed: Now Playing and the inline play/pause button no longer fight. The isolated fallback now recognizes the exact page-runtime version and stops when the main runtime is ready.
+- Fixed: With multiple YouTube tabs open, the most recently played visible tab owns Now Playing. A paused or hidden old tab can no longer replace its metadata or handlers.
+- Improved: Page startup does less duplicate work. The fallback observers and polling stop after the page runtime is ready, and full-page mutation scans run at most once every 1.2 seconds.
+- Added: The inline player strip has a Lucide AirPlay button. It opens WebKit’s native playback-target picker when Orion exposes it.
+- Removed: The inline quality gear is not included because its menu did not render or apply selections reliably.
+- Notes: Inline quality selection is a known issue. Contributions are welcome from anyone who can help solve the quality gear behavior on Orion and YouTube.
+- Preserved: Existing video rendering, inline/fullscreen/PiP behavior, captions, comments, search, and the 10-second native control hold are unchanged.
+- Packaging: Numeric version `2.2.13`; recommended Orion installer `2.2.13_release.zip` (Chrome MV3).
+
 ## v2.2.12
 
 - Fixed: Captions show on-screen text again. 2.2.11 hid native `::cue` as soon as captions were “intended on,” so when YouTube’s custom caption module was starved there was no fallback text at all. Native cues now hide only while `.ytp-caption-segment` is painting.

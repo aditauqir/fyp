@@ -25,9 +25,12 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Captions \+ faster load; CPU tamer off \(2\.2\.12\)\./);
-assert.match(popup, /Sticky RYD dislike counts on watch \(2\.2\.10\)\./);
-assert.match(popup, /No sideways swipe into blank space \(2\.2\.9\)\./);
+assert.match(popup, /Search result cards keep their native layout \(2\.2\.14\)\./);
+assert.match(
+  popup,
+  /Recommendations load without waiting for comments \(2\.2\.14\)\./
+);
+assert.match(popup, /Now Playing follows the newest active tab \(2\.2\.14\)\./);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(

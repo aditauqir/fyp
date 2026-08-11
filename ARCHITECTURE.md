@@ -160,32 +160,39 @@ A visible-page pause is treated as user intent and must remain paused.
 
 ### Media Session / Now Playing ownership
 
-Apple Now Playing, Lock Screen, and Dynamic Island controls use the Media Session API. Only one layer may own those handlers at a time.
+Apple Now Playing, Lock Screen, and Dynamic Island controls use the Media Session API. Only one runtime and one YouTube tab may own those handlers at a time.
 
-**Owner:** page runtime (`youtube-mobile-background.user.js` → generated `page.js`).
+**Owner:** The page runtime in the most recently played visible YouTube tab (`youtube-mobile-background.user.js` → generated `page.js`).
 
 Required behavior:
 
-1. `installMediaSessionHandlers()` registers `play`, `pause`, and seek actions on the page runtime.
-2. Media Session `play` sets `wantsPlayback = true`, clears any intentional-pause window, plays the active video, and syncs `navigator.mediaSession.playbackState` plus the in-page play/pause icon.
-3. Media Session `pause` sets `wantsPlayback = false`, opens a short `userPauseUntil` window, clears recovery timers, pauses through `nativeMediaPause` so the background pause-guard cannot block it, and syncs Now Playing state plus the in-page icon.
-4. `prepareForBackground()` must respect `userPauseUntil`. It must not force `wantsPlayback = true` or recover playback during an intentional Now Playing / toolbar pause.
-5. Handlers are reasserted periodically so YouTube cannot silently steal them.
-6. While `data-fyp-page-ready` matches the expected version, `content.template.js` must return early from `prepareFallbackBackgroundPlayback()` and `recoverFallbackPlayback()`.
+1. Each tab gets a shared page/content identifier in `data-fyp-media-session-tab`.
+2. A visible tab claims the `fyp:media-session-owner:v1` lease when its video starts.
+3. A hidden tab must not replace a valid lease from another tab.
+4. Only the lease owner can write metadata, playback state, or action handlers.
+5. The owner renews the 15-second lease and reasserts handlers every 5 seconds.
+6. A non-owner clears only the handlers and metadata that FYP installed in that tab.
+7. Media Session `play` and `pause` update the video, `playbackState`, and the inline play/pause icon together.
+8. `prepareForBackground()` must respect `userPauseUntil`. Intentional pauses must stay paused.
+9. When `data-fyp-page-ready` matches `EXPECTED_PAGE_VERSION`, the isolated fallback must stop its observers, polling work, Media Session handling, and recovery.
 
 Do not:
 
 - let the isolated content fallback install Media Session handlers when page.js is ready;
+- let a hidden old tab reclaim a valid lease from the active tab;
 - let background-audio recovery undo a Lock Screen / Dynamic Island pause;
 - update only one of {video element, Media Session `playbackState`, in-page play/pause icon}.
 
 ```mermaid
 flowchart LR
-    NP["Lock Screen / Dynamic Island / Now Playing"] --> MS["Media Session handlers in page.js"]
-    MS --> V["HTML video element"]
-    MS --> TB["In-page play/pause toolbar icon"]
-    C["content.js fallback"] -->|"only if pageRuntimeReady is false"| MS
-    C -->|"must no-op when page ready"| X["No Media Session / no recover"]
+    A["Visible tab starts video"] --> L["Shared 15-second owner lease"]
+    L --> MS["Owner page.js Media Session handlers"]
+    MS --> NP["Lock Screen / Dynamic Island / Now Playing"]
+    MS --> V["Owner HTML video element"]
+    MS --> TB["Owner inline play/pause icon"]
+    O["Paused or hidden old tab"] -->|"cannot replace valid lease"| L
+    C["content.js fallback"] -->|"only when pageRuntimeReady is false"| MS
+    C -->|"matching page version"| X["Stop fallback observers and polling"]
 ```
 
 ## Mobile shell architecture

@@ -1,5 +1,35 @@
 # Bug fix log
 
+## 2026-08-11 — README install-guide check failed (fyp 2.2.14)
+
+### In plain English
+- **What was broken:** The README test expected a missing purpose heading, old guide phrases, and an obsolete `2.2.3` package.
+- **Why it happened:** The README instructions changed, but the test continued to require text and artifacts from older releases.
+- **What we changed:** Restored the purpose heading and aligned the checks with the current install, update, troubleshooting, and `2.2.14` package instructions.
+- **How to verify:** 1) Open `README.md`. 2) Find the purpose heading under **What is this?**. 3) Run `node --test tests/readme-install-guide.test.cjs`. 4) Confirm the test passes.
+
+### Code that mattered
+**Before (broken idea):**
+```markdown
+## What is this?
+
+I built **Fuck YouTube Premium** because ...
+```
+
+**After (fixed idea):**
+```markdown
+## What is this?
+
+### Basically free YouTube Premium for iPhone
+
+I built **Fuck YouTube Premium** because ...
+```
+
+### Files touched
+- `README.md` — restore the tested purpose heading.
+- `tests/readme-install-guide.test.cjs` — replace stale wording and package assertions with current requirements.
+- `fixes.md` — record the failed assertion and correction.
+
 ## 2026-08-08 — Search result cards break (fyp 2.2.12)
 
 ### In plain English
@@ -57,6 +87,67 @@ if (!descriptionBlock || (!recommendations && !comments)) return;
 - `youtube-mobile-background.user.js` — position recommendations without waiting for comments.
 - `tests/comments-layout.test.cjs` — cover the independent recommendation-loading path.
 - `fixes.md` — record the bug and fix.
+
+## 2026-08-01 — Unreliable inline quality gear removed (fyp 2.2.13)
+
+### In plain English
+- **What was broken:** The inline quality gear could open a blank menu, and quality selections did not apply reliably.
+- **Why it happened:** Orion and YouTube did not expose a stable quality-menu path for the custom inline control. The control could display without a dependable set of choices or a confirmed selection.
+- **What we changed:** Removed the inline quality gear from the released toolbar. The AirPlay button and all existing transport controls remain available. The new layout key also removes an old gear left in the page after an extension update.
+- **How to verify:** 1) Install `2.2.13_release.zip`. 2) Open a YouTube watch page. 3) Confirm the inline toolbar has rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. 4) Confirm no quality gear or blank quality menu appears.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+playerControlButtonMarkup(
+  'quality',
+  'Video quality',
+  PLAYER_CONTROL_ICONS.quality
+);
+```
+
+**After (fixed idea):**
+```js
+// Quality is omitted until the inline control works reliably.
+playerControlButtonMarkup('airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay);
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — remove the inline Settings button and update the toolbar layout key.
+- `firefox-extension/content.template.js` — mirror the quality-gear removal in the isolated fallback.
+- `tests/player-controls-delay.test.cjs` / `tests/content-fallback.test.cjs` — prevent the quality gear from returning accidentally.
+- `PATCH_NOTES.md` / `firefox-extension/popup.html` — document the removal and keep AirPlay visible in release notes.
+
+## 2026-07-31 — Now Playing ownership + faster startup (fyp 2.2.13)
+
+### In plain English
+- **What was broken:** Now Playing could fight the inline play/pause button. With multiple tabs open, an old paused tab could replace the current video. Page startup was also slow.
+- **Why it happened:** Two runtimes were fighting in each tab because the fallback expected page version `2.2.11`, but the page reported `2.2.12`. Across tabs, every tab also rewrote Media Session handlers and metadata on a timer. The duplicate fallback observers and full-page scans added work while YouTube loaded.
+- **What we changed:** The page and fallback now use the same release version. The fallback stops after the page runtime starts. A shared lease gives Now Playing to the newest visible playing tab, and hidden old tabs cannot reclaim it. Full-page mutation scans now run at most once every 1.2 seconds.
+- **How to verify:** 1) Open two YouTube tabs. 2) Play a video in the first tab, then pause it. 3) Play a different video in the second tab. 4) Confirm Now Playing shows and controls the second video. 5) Reload and confirm the page becomes usable without the previous delay.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+const EXPECTED_PAGE_VERSION = '2.2.11';
+setInterval(() => {
+  installMediaSessionHandlers();
+  updateMediaSessionMetadata();
+}, 1200);
+```
+
+**After (fixed idea):**
+```js
+const EXPECTED_PAGE_VERSION = '2.2.13';
+if (!ownsMediaSession()) return;
+if (pageRuntimeReady()) return; // stop isolated fallback work
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — add single-tab Media Session ownership and throttle full-page scans.
+- `firefox-extension/content.template.js` — match the page version and stop fallback work after readiness.
+- `ARCHITECTURE.md` / `PERFORMANCE-FIXES.md` — document ownership and startup behavior.
+- `tests/media-session-ownership.test.cjs` — prevent handshake and ownership regressions.
 
 ## 2026-07-29 — Captions blank + slow load (fyp 2.2.12)
 

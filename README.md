@@ -20,6 +20,8 @@
 
 ## What is this?
 
+### Basically free YouTube Premium for iPhone
+
 I built **Fuck YouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
 
 #### The Architecture
@@ -42,7 +44,7 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `2.2.3_release.zip`) | Recommended install for Orion |
+| `*_release.zip` (example: `2.2.14_release.zip`) | Recommended install for Orion |
 | `fuck-youtube-premium-chrome-*.zip` | Chrome Manifest V3 fallback |
 | `fuck-youtube-premium-firefox-*.zip` | Firefox ZIP fallback |
 | `fuck-youtube-premium-orion-*.xpi` | XPI fallback |
@@ -94,6 +96,14 @@ After the install procedure, both extensions must be enabled in Orion:
 | YouTube native app like experienc | Phone-friendly recommendation feed |
 | --- | --- |
 | <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
+
+### AirPlay and Return YouTube Dislike
+
+The inline player includes an AirPlay button. Return YouTube Dislike also restores the public dislike count beside YouTube's like button.
+
+<p align="center">
+  <img src="docs/images/airplay-return-youtube-dislike.png" alt="Fuck YouTube Premium inline player with AirPlay and a restored Return YouTube Dislike count" width="390">
+</p>
 
 ### Background Player options on iPhone
 
