@@ -1,4 +1,4 @@
-# Fuck YouTube Premium- Get Free YTPremium on iPhone
+# FYouTube Premium- Get "Free" YTPremium on iPhone
 <p align="center">
   <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
     <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
@@ -22,7 +22,7 @@
 
 ### Basically free YouTube Premium for iPhone
 
-I built **Fuck YouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
+I built **FYouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, and uBlock Origin works in Orion, so I combined them into something closer to the useful parts of YouTube Premium without the subscription.
 
 #### The Architecture
 The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, and screen-off audio. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube.
