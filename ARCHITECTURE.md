@@ -2,7 +2,8 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `2.2.4` (`2.2.4_release.zip`)
+**Current shipped version:** `3.0.4` (`3.0.4_release.zip`)
+**GitHub Release:** `FYouTube Extension 3.0.4` (`v3.0.4`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -13,7 +14,7 @@ The extension is intentionally a hybrid:
 - **Backend:** the real desktop `www.youtube.com` application, data model, account session, navigation, and video player.
 - **Frontend shell:** a narrow-screen interface applied by the extension so desktop YouTube is usable like mobile YouTube on an iPhone.
 - **Playback layer:** small page-context patches that keep video inline and allow background audio.
-- **Ad blocking:** uBlock Origin runs alongside this extension. Do not try to replace uBlock Origin with a new network-blocking system.
+- **Ad blocking:** The page runtime blocks YouTube ad requests, prunes player-ad JSON, hides overlay cards, and skips in-player ads. uBlock Origin is optional.
 
 This is not a replacement YouTube client, proxy, scraper, or embedded player. No separate application backend is hosted by this project.
 
@@ -26,10 +27,10 @@ flowchart TD
     P --> B["Desktop YouTube behavior and account session"]
     P --> M["Mobile layout shell"]
     P --> V["Inline and background playback layer"]
+    P --> D["YouTube ad blocking"]
     W["background.js"] --> G["GitHub Releases update check"]
     X["Bottom-center extension popup"] --> O
     X --> W
-    A["uBlock Origin"] --> O
 ```
 
 ## Non-negotiable behavior
@@ -49,12 +50,13 @@ flowchart TD
 | Drawer state | Leave YouTube’s drawer attributes and Polymer properties alone. |
 | Shorts | Hide Shorts links, shelves, and drawer entries; redirect `/shorts` to Home. |
 | Miniplayer | Hide and dismiss YouTube’s miniplayer. |
-| Comments | Order the watch page as description, recommendations, then YouTube’s native comments. Do not force-open or custom-paginate comments. |
+| Comments | Order the watch page as description, playlist when present, recommendations, then YouTube’s native comments. Do not force-open or custom-paginate comments. Do not move all of `#secondary`. |
 | Reply editor | Use a 16px minimum editor font to avoid iOS focus zoom. |
 | Player controls | Keep controls visible for ten seconds after user interaction, then return autohide ownership to YouTube. |
 | Captions | Keep YouTube’s custom captions and hide only the duplicate native WebVTT cue when both layers exist. |
 | Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
-| Ads | Expect uBlock Origin to handle network ad blocking. |
+| Ads | Block YouTube ads in page-world fetch/XHR/beacon, prune player-ad JSON, hide overlay cards, and skip in-player ads. uBlock Origin is not required. |
+| Search cards | Restyle only `ytd-search` results. Stack the thumbnail first. Do not restyle Home, subscriptions, or channel browse with search-card rules. |
 
 ## Runtime layers
 
@@ -224,6 +226,18 @@ History-only rules (do not apply this stacking to channel pages):
 5. Classic `ytd-video-renderer` rows still use `#dismissible { flex-direction: column }` with centered text (`white-space: normal`, no line-clamp cut-off).
 6. Leave Home, subscriptions, and channel browse layouts on their existing rules.
 
+### Search results layout
+
+Search-card restyle is search-only. Home must keep its existing feed rules.
+
+1. Prefix every search-card rule with `ytd-search`.
+2. Do not write `html[data-fyp-simple-search='true'] #details`, `#video-title`, `#channel-info`, or `yt-decorated-avatar-view-model` without a `ytd-search` ancestor.
+3. Set `data-fyp-simple-search` only when `location.pathname` starts with `/results`. A leftover `ytd-search` node on Home must not enable search layout.
+4. Stack each result as channel, thumbnail, snippet, badges, views, title+menu, then chapters.
+5. Hide AI Summary / Ask chips inside `ytd-search` only. Keep chapter bars.
+6. Hide `ytd-video-meta-block #byline-container` so the channel name appears once in `#channel-info`.
+7. Use named grid areas on `#dismissible`. Flatten `#details` / `#meta` with `display: contents`. Do not put the thumbnail first with `order: -1`.
+
 ## Navigation architecture
 
 YouTube’s native guide button and drawer own all open/close behavior.
@@ -278,11 +292,11 @@ Required edit flow:
 
 Current package names:
 
-- `2.2.3_release.zip` (recommended Orion Chrome MV3 installer)
-- `fuck-youtube-premium-chrome-2.2.3.zip`
-- `fuck-youtube-premium-firefox-2.2.3.zip`
-- `fuck-youtube-premium-orion-2.2.3.zip`
-- `fuck-youtube-premium-orion-2.2.3.xpi`
+- `3.0.4_release.zip` (recommended Orion Chrome MV3 installer)
+- `fuck-youtube-premium-chrome-3.0.4.zip`
+- `fuck-youtube-premium-firefox-3.0.4.zip`
+- `fuck-youtube-premium-orion-3.0.4.zip`
+- `fuck-youtube-premium-orion-3.0.4.xpi`
 
 ## Verification contract
 
@@ -294,8 +308,11 @@ node tests/background-update.test.cjs
 node tests/content-fallback.test.cjs
 node tests/inline-playback-layout.test.cjs
 node tests/comments-layout.test.cjs
+node tests/watch-playlist-layout.test.cjs
 node tests/captions-deduplication.test.cjs
 node tests/player-controls-delay.test.cjs
+node tests/youtube-adblock.test.cjs
+node tests/mobile-search.test.cjs
 git diff --check
 ```
 
@@ -322,8 +339,9 @@ Releases are published to `aditauqir/fyp`.
 Rules:
 
 - Never delete an older release or its assets.
-- The newest release title is `Fuck YouTube Premium <version>` (append `hotfix` when the ship is a hotfix, e.g. `Fuck YouTube Premium 2.1.1 hotfix`).
-- After publishing a new version, rename each older release title to `[DEPRECATED] Fuck YouTube Premium <version>`.
+- The newest release title is `FYouTube Extension <version>` (append `hotfix` when the ship is a hotfix, e.g. `FYouTube Extension 2.1.1 hotfix`).
+- The release tag is `v<version>`.
+- After publishing a new version, prefix each older release title with `[DEPRECATED] `. Keep the older title text.
 - Upload the recommended Orion installer plus Chrome, Firefox, Orion ZIP, and XPI fallbacks.
 - Hotfix asset names append `_hotfix` before the extension, e.g. `2.1.1_release_hotfix.zip`.
 - Keep the ZIP files in the repository’s Downloads workspace as local deliverables.

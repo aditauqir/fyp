@@ -1,6 +1,6 @@
 # Install Fuck YouTube Premium on Orion iOS
 
-This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `2.2.3_release.zip`).
+This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `3.0.4_release.zip`).
 
 ## Packages
 
@@ -28,24 +28,20 @@ Do not unzip the file. Do not rename the file.
 11. Open **On My iPhone → Downloads**.
 12. Select the `*_release.zip` file.
 13. Enable **Fuck YouTube Premium**.
-14. Install [uBlock Origin from the official Firefox Add-ons listing](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/).
-15. Enable **uBlock Origin**.
-16. Allow **Fuck YouTube Premium** to access YouTube.
-17. Allow **uBlock Origin** to access YouTube.
-18. Open `https://www.youtube.com`.
+14. Allow **Fuck YouTube Premium** to access YouTube.
+15. Open `https://www.youtube.com`.
 
 If the release zip does not install, repeat the same steps with the Chrome ZIP, then the Firefox ZIP, then the XPI.
 
 ### Notes after install
 
-- Keep **uBlock Origin** enabled. uBlock Origin blocks ads. Fuck YouTube Premium controls playback and the phone layout.
+- You do not need uBlock Origin. This extension blocks YouTube ads.
 - Do not set Orion **Request Desktop Website** for YouTube. The extension selects the YouTube backend.
-- The canonical source for uBlock Origin is the [official `gorhill/uBlock` repository](https://github.com/gorhill/uBlock).
 
 ## Final extension result
 
 <p align="center">
-  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fuck YouTube Premium and uBlock Origin enabled" width="420">
+  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fuck YouTube Premium enabled" width="420">
 </p>
 
 ## Update procedure
@@ -79,12 +75,12 @@ The extension also checks GitHub every six hours. When a newer version exists, t
 - A comment reply does not zoom the page.
 - Player controls hide ten seconds after the last player interaction.
 - Closed captions appear once.
-- uBlock Origin blocks network ads.
+- YouTube ads are blocked by this extension.
 
 If these results are missing:
 
-1. Confirm that both extensions are enabled.
-2. Confirm that both extensions can access youtube.com.
+1. Confirm that **Fuck YouTube Premium** is enabled.
+2. Confirm that the extension can access youtube.com.
 3. Close the YouTube tab.
 4. Open YouTube again.
 

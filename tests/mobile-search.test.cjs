@@ -12,25 +12,89 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+2\.2\.14/);
-assert.match(source, /data-fyp-page-ready', '2\.2\.14'/);
+assert.match(source, /\/\/ @version\s+3\.0\.4/);
+assert.match(source, /data-fyp-page-ready', '3\.0\.4'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
-assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v227-simple-search-theme'/);
+assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v304-search-shot'/);
 assert.match(source, /injectCriticalAskHideStyle/);
 
-// Keep YouTube's current lockup internals native. Styling every nested div as
-// a grid breaks result cards whenever YouTube changes their view-model shape.
-assert.doesNotMatch(source, /ytd-search yt-lockup-view-model > div/);
-assert.doesNotMatch(
+// Search cards stay under ytd-search. Screenshot stack. Home is untouched.
+assert.match(
   source,
-  /\.ytLockupViewModelHorizontal[\s\S]{0,400}display: grid !important/
+  /ytd-search ytd-video-renderer #dismissible\.ytd-video-renderer,[\s\S]*display: grid !important;[\s\S]*grid-template-areas:/
 );
 assert.match(
   source,
-  /ytd-search ytd-video-renderer #dismissible,[\s\S]*display: grid !important/
+  /"channel channel"[\s\S]*"thumb thumb"[\s\S]*"snippet snippet"[\s\S]*"title menu"/
+);
+assert.match(source, /\.ytLockupViewModelHorizontal,/);
+assert.match(source, /ytd-search ytd-video-renderer ytd-thumbnail[\s\S]*grid-area: thumb !important/);
+assert.doesNotMatch(
+  source,
+  /ytd-search ytd-video-renderer ytd-thumbnail[\s\S]{0,400}order: -1 !important/
+);
+assert.match(source, /aspect-ratio: 16 \/ 9 !important/);
+assert.match(source, /\[class\*='content-image' i\]/);
+assert.match(
+  source,
+  /ytd-search ytd-video-renderer ytd-video-meta-block #byline-container \{\s*display: none !important;/
+);
+assert.match(source, /display: contents !important/);
+assert.match(
+  source,
+  /ytd-search ytd-video-renderer #channel-info[\s\S]*grid-area: channel !important/
+);
+assert.match(
+  source,
+  /yt-lockup-metadata-view-model__title[\s\S]*grid-area: title !important/
+);
+assert.match(
+  source,
+  /#description-text[\s\S]*grid-area: snippet !important/
+);
+assert.match(source, /dismissible\.insertBefore\(channel, thumb\)/);
+assert.match(source, /-webkit-line-clamp: 1 !important/);
+assert.match(source, /ytd-info-panel-container-renderer/);
+assert.match(
+  source,
+  /ytd-expandable-metadata-renderer:has\(\[aria-label\*='Summary' i\]\)/
+);
+assert.match(source, /text\.includes\('chapter'\)/);
+assert.match(
+  source,
+  /yt-decorated-avatar-view-model[\s\S]*aspect-ratio: 1 \/ 1 !important/
+);
+assert.match(source, /const onResults = location\.pathname\.startsWith\('\/results'\);/);
+assert.doesNotMatch(
+  source,
+  /Boolean\(document\.querySelector\('ytd-search'\)\)/
+);
+assert.doesNotMatch(
+  source,
+  /html\[\$\{SIMPLE_SEARCH_ATTR\}='true'\] #details/
+);
+assert.doesNotMatch(
+  source,
+  /html\[\$\{SIMPLE_SEARCH_ATTR\}='true'\] #video-title/
+);
+assert.doesNotMatch(
+  source,
+  /html\[\$\{SIMPLE_SEARCH_ATTR\}='true'\] yt-decorated-avatar-view-model/
+);
+assert.doesNotMatch(
+  source,
+  /ytd-search[\s\S]{0,400}height: 100vh/
+);
+assert.match(
+  source,
+  /#description-text,[\s\S]*display: -webkit-box !important/
+);
+assert.doesNotMatch(
+  source,
+  /grid-template-columns: 132px minmax\(0, 1fr\)/
 );
 
 // Restored 2.1.2-style native masthead search overlay after icon tap.
@@ -72,7 +136,7 @@ assert.doesNotMatch(
   /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button[\s\S]*display: none !important/
 );
 
-assert.match(template, /EXPECTED_PAGE_VERSION = '2\.2\.14'/);
+assert.match(template, /EXPECTED_PAGE_VERSION = '3\.0\.4'/);
 assert.match(template, /Ask YouTube/);
 assert.match(template, /#voice-search-button/);
 assert.doesNotMatch(

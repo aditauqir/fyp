@@ -141,7 +141,7 @@ assert.match(source, /function channelVideosUrl\(input\)/);
 assert.match(source, /function redirectChannelRootToVideos\(\)/);
 assert.match(source, /function redirectChannelLinkToVideos\(event\)/);
 assert.match(source, /page-subtype='channels'/);
-assert.match(source, /const AD_RESPONSE_KEYS = new Set/);
+assert.match(source, /const AD_RESPONSE_ARRAY_KEYS = new Set/);
 assert.match(
   source,
   /function dismissAdBlockEnforcement\(root = document\)[\s\S]*AD_BLOCK_ENFORCEMENT_PATTERN/

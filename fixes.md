@@ -1,5 +1,236 @@
 # Bug fix log
 
+## 2026-08-20 — Search cards did not match the screenshot stack (fyp 3.0.4)
+
+### In plain English
+- **What was broken:** Search results put the thumbnail first and mixed the channel name with the rest of the text. That was not the stacked preview screenshot.
+- **Why it happened:** A later Home-feed leak fix stacked the thumbnail with `order: -1`. Channel, snippet, and title live inside `#details`, so they could not move above the picture.
+- **What we changed:** Each result uses named grid areas: channel, thumbnail, snippet, badges, views, title+menu, chapters. `#channel-info` is moved in front of the thumbnail. Nested wrappers use `display: contents`.
+- **How to verify:** 1) Reinstall `3.0.4_release.zip` and hard-refresh. 2) Search for a video. 3) Confirm the channel photo and name are above the thumbnail. 4) Confirm title is at the bottom with the three-dot menu. 5) Confirm Home did not change.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-search ytd-video-renderer ytd-thumbnail {
+  order: -1;
+}
+ytd-search ytd-video-renderer #details {
+  order: 2;
+}
+```
+
+**After (fixed idea):**
+```css
+grid-template-areas:
+  "channel channel"
+  "thumb thumb"
+  "snippet snippet"
+  "badges badges"
+  "views views"
+  "title menu"
+  "chapters chapters";
+```
+
+```js
+dismissible.insertBefore(channel, thumb);
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — restore the screenshot search stack.
+- `tests/mobile-search.test.cjs` — lock grid areas and the channel hoist.
+- `HANDOFF.md`, `ARCHITECTURE.md`, `PATCH_NOTES.md` — record the screenshot contract.
+- `fixes.md` — record the layout restore.
+
+## 2026-08-20 — Search cards duplicated the channel name and clipped text (fyp 3.0.3)
+
+### In plain English
+- **What was broken:** Search results showed the channel name twice. Titles and channel rows were chopped off.
+- **Why it happened:** Two systems fought. Desktop search already prints the channel in the byline. The restyle also forced `#channel-info` visible, so the name appeared twice. YouTube still capped the old side-by-side card height, and nested `-webkit-box` on `h3` plus `#title-wrapper` plus `#video-title` clipped the stacked layout.
+- **What we changed:** Hide the byline channel copy. Keep one `#channel-info` row. Lift the height cap on the stacked card. Clamp only the title.
+- **How to verify:** 1) Reinstall `3.0.3_release.zip` and hard-refresh. 2) Search for a video. 3) Confirm the channel name appears once, with the avatar. 4) Confirm the title and channel row are fully visible, not cut off. 5) Open Home and confirm the feed did not change.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-search ytd-video-renderer #channel-info,
+ytd-search ytd-video-renderer ytd-channel-name,
+ytd-search ytd-video-renderer #byline-container {
+  display: flex;
+  visibility: visible;
+  overflow: hidden;
+}
+
+ytd-search ytd-video-renderer h3,
+ytd-search ytd-video-renderer #title-wrapper,
+ytd-search ytd-video-renderer #video-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+}
+```
+
+**After (fixed idea):**
+```css
+ytd-search ytd-video-renderer ytd-video-meta-block #byline-container {
+  display: none;
+}
+
+ytd-search ytd-video-renderer #details,
+ytd-search ytd-video-renderer #dismissible {
+  max-height: none;
+  overflow: visible;
+}
+
+ytd-search ytd-video-renderer #title-wrapper {
+  display: block;
+  overflow: visible;
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — one channel row; unclip stacked search cards.
+- `tests/mobile-search.test.cjs` — lock the byline hide and overflow rules.
+- `HANDOFF.md`, `ARCHITECTURE.md`, `PATCH_NOTES.md` — record the 3.0.3 search-card contract.
+- `fixes.md` — record the duplicate-name and clipping fix.
+
+## 2026-08-20 — Search styles leaked onto Home (fyp 3.0.2)
+
+### In plain English
+- **What was broken:** Search-card rules also changed the Home feed. Search thumbnails were still beside the text instead of stacked on top.
+- **Why it happened:** Two systems fought. Search CSS used unscoped `html[data-fyp-simple-search]` selectors, and the script turned that flag on whenever a leftover `ytd-search` node existed. YouTube keeps that node after you leave search, so Home inherited search layout.
+- **What we changed:** Search-card CSS now starts with `ytd-search` only. The search flag is set only on `/results`. The thumbnail uses column flex and `order: -1` so it stacks first.
+- **How to verify:** 1) Reinstall `3.0.2_release.zip` and hard-refresh. 2) Open Home and confirm the feed looks like it did before the search restyle. 3) Search for a video. 4) Confirm the thumbnail is full-width on top of the card.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+const onResults =
+  location.pathname.startsWith('/results') ||
+  Boolean(document.querySelector('ytd-search'));
+```
+
+```css
+html[data-fyp-simple-search='true'] #details,
+html[data-fyp-simple-search='true'] #video-title { ... }
+```
+
+**After (fixed idea):**
+```js
+const onResults = location.pathname.startsWith('/results');
+```
+
+```css
+ytd-search ytd-video-renderer #dismissible.ytd-video-renderer {
+  display: flex;
+  flex-direction: column;
+}
+ytd-search ytd-video-renderer ytd-thumbnail {
+  order: -1;
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — scope search CSS to `ytd-search`; stack the thumbnail first.
+- `tests/mobile-search.test.cjs` — lock the Home-safe selectors and `/results` gate.
+- `HANDOFF.md`, `ARCHITECTURE.md`, `PATCH_NOTES.md` — record the search-only contract.
+- `fixes.md` — record the leak and the thumbnail stack.
+
+## 2026-08-20 — Search cards did not match the stacked preview layout (fyp 3.0.1)
+
+### In plain English
+- **What was broken:** Search results still looked like a generic home card, and AI Summary chips could show up in the preview under the thumbnail.
+- **Why it happened:** The card stacked title first, and only the Summary *buttons* were hidden. YouTube also paints AI summary panels in the same expandable slot as chapters.
+- **What we changed:** Each result now follows the screenshot stack: channel, thumbnail, snippet, badges, views/date, title, then chapters. AI summary panels are hidden; chapter bars stay.
+- **How to verify:** 1) Reinstall `3.0.1_release.zip` and hard-refresh. 2) Search for a video. 3) Confirm the channel row is above the thumbnail and the title is near the bottom. 4) Confirm no AI Summary chip or panel appears, and a chapters bar still can.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-thumbnail { order: -1; }
+#video-title { order: 1; }
+#channel-info { order: 2; }
+```
+
+**After (fixed idea):**
+```css
+grid-template-areas:
+  'channel channel'
+  'thumb thumb'
+  'desc desc'
+  'badges badges'
+  'stats stats'
+  'title menu'
+  'chapters chapters';
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — restack search cards and hide AI summary previews.
+- `tests/mobile-search.test.cjs` — lock the new card order and summary hiding.
+- `fixes.md` — record the layout change.
+
+## 2026-08-20 — Search cards squashed channel photos and stacked text too loosely (fyp 3.0.0)
+
+### In plain English
+- **What was broken:** Search results showed a squeezed channel photo, extra empty space between the thumbnail, title, channel, and description, and the text order was wrong.
+- **Why it happened:** The same “fill this box” image rule that makes video thumbnails look right was also applied to tiny channel photos. Those photos were stretched to fill a wide rectangle. Extra padding and flex gaps made the card look sparse.
+- **What we changed:** Channel photos stay 24×24 and round. The card now reads title, then channel icon and name, then description, with small gaps.
+- **How to verify:** 1) Reinstall `3.0.0_release.zip` and hard-refresh YouTube. 2) Search for a video. 3) Confirm the channel photo is a circle, not a pancake. 4) Confirm the order is title, then channel, then description, with little space between those lines.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-search yt-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+```
+
+**After (fixed idea):**
+```css
+ytd-search yt-decorated-avatar-view-model {
+  width: 24px;
+  height: 24px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — keep thumbnail fill rules on thumbs only; order title/channel/description; shrink card gaps.
+- `tests/mobile-search.test.cjs` — lock the new order and round-avatar rules.
+- `fixes.md` — record the layout bug and fix.
+
+## 2026-08-20 — Queued playlist vanished on watch pages (fyp 3.0.0)
+
+### In plain English
+- **What was broken:** Opening a video from a playlist hid the queue. Related videos took over the whole side column, so the “up next” list disappeared.
+- **Why it happened:** The extension moved “recommendations” by grabbing either the related-videos block or the entire right-hand column. On playlist watches that column *is* the queue, so the queue was treated as related videos and got lost.
+- **What we changed:** Only move the real related-videos block. If a playlist is queued, keep YouTube’s native playlist panel and place it under the title, before related videos and comments.
+- **How to verify:** 1) Reinstall `3.0.0_release.zip` and hard-refresh. 2) Open a playlist and play a video. 3) Confirm the queue list is still on the page under the title. 4) Confirm related videos and comments still appear below it.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+const recommendations =
+  watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+  watch.querySelector('#secondary');
+```
+
+**After (fixed idea):**
+```js
+const playlist = findWatchPlaylistHost(watch);
+const recommendationsCandidate =
+  watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
+  watch.querySelector('#related');
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — find the playlist host, never move all of `#secondary`, order playlist before related videos.
+- `tests/comments-layout.test.cjs` — keep comments after playlist and related videos.
+- `tests/watch-playlist-layout.test.cjs` — lock the playlist placement contract.
+- `fixes.md` — record the disappearing-queue bug and fix.
+
 ## 2026-08-11 — README install-guide check failed (fyp 2.2.14)
 
 ### In plain English

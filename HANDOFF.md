@@ -1,7 +1,7 @@
 # HANDOFF — Fuck YouTube Premium for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `2.2.4`** (branch `fix/performance-fixes`; CPU/energy timer tamer on top of shipped 2.2.3)
+> **Current ship version: `3.0.4` SHIPPED** (GitHub Release `v3.0.4`, title `FYouTube Extension 3.0.4`; branches `main` and `features`)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -24,9 +24,9 @@ Orion Browser on **iOS** running **desktop** `www.youtube.com` with a mobile-fri
 | Miniplayer | Dismissed / hidden when leaving a watch page. |
 | Playback | Inline only — `playsinline` is applied before native `play()`. Background audio kept via visibility spoof + play recovery. |
 | PiP | Disabled so starting playback can never switch the page into PiP. |
-| Comments | Under description; show top **3**; **Load more** / floating **Load less**. |
+| Comments | Description, then playlist when queued, then recommendations, then native comments. |
 | Upload | Header Create/Upload hidden. |
-| Layout | Keep the desktop backend, but remove its phone-width minimums and apply a 12px gutter to watch content. |
+| Layout | Keep the desktop backend, but remove its phone-width minimums and apply a 12px gutter to watch content. Search-card CSS must stay under `ytd-search` and must not restyle Home. |
 
 Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file).
 
@@ -46,7 +46,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 2.2.4_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 3.0.4_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -92,7 +92,44 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 2.2.4)
+## Latest changes (through 3.0.4)
+
+### 3.0.4 — public ship (`FYouTube Extension 3.0.4`)
+- GitHub Release tag `v3.0.4`. Title is `FYouTube Extension 3.0.4`.
+- Recommended installer: `3.0.4_release.zip`.
+- Built-in YouTube ad blocking. uBlock Origin is not required.
+- Search cards match the screenshot stack: channel, thumbnail, snippet, badges, views, title+menu, then chapters.
+- Search-card CSS stays under `ytd-search`. Home must keep its existing feed rules.
+- Search results show one channel name. Cards do not clip the stacked layout.
+- Watch pages with a `list` queue keep YouTube's native playlist panel under the title.
+- Do not put the thumbnail first with `order: -1`.
+- Named grid areas on `#dismissible`. Hoist `#channel-info` before `ytd-thumbnail`. Flatten `#details` with `display: contents`.
+
+Direct assets:
+
+- `https://github.com/aditauqir/fyp/releases/download/v3.0.4/3.0.4_release.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.0.4/fuck-youtube-premium-chrome-3.0.4.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.0.4/fuck-youtube-premium-firefox-3.0.4.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.0.4/fuck-youtube-premium-orion-3.0.4.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.0.4/fuck-youtube-premium-orion-3.0.4.xpi`
+
+### 3.0.3 — one channel name, no search-card clipping
+- Hide `ytd-video-meta-block #byline-container` so desktop search does not paint the channel name twice.
+- Keep one channel row in `#channel-info` (avatar plus name).
+- Lift YouTube's side-by-side height cap on `#dismissible` / `#details` / `#meta` (`max-height: none`, `overflow: visible`).
+- Clamp only `#video-title`. Do not put `-webkit-box` on `h3` or `#title-wrapper`.
+
+### 3.0.2 — search cards stay off Home
+- Search result thumbnails stack full-width first (`order: -1` on a column `#dismissible`).
+- Search-card selectors start with `ytd-search`. Do not use unscoped `html[data-fyp-simple-search]` rules on `#details`, `#video-title`, or avatars.
+- Set `data-fyp-simple-search` only when the path starts with `/results`. A leftover `ytd-search` node on Home must not enable search layout.
+- Leave Home, subscriptions, and channel browse on their existing rules.
+
+### 3.0.0 — built-in ads + home-style search + watch playlist
+- Blocks YouTube ads in the page runtime. uBlock Origin is no longer required.
+- Search videos use the Home full-width thumbnail card. Order is title, channel icon/name, then description.
+- Watch pages with a `list` queue keep YouTube's native playlist panel under the title. Do not move `#secondary` as related videos.
+- Credits Universal Ad Blocker Pro by Gorstak (Goran Štambuk), MIT, for the YouTube-only ad approach.
 
 ### 2.2.4 — YouTube CPU / energy tamer (Orion iPhone)
 - Ports CY Fung’s AnimationFrame timer tamer into page-world `window` timers so YouTube’s busy `setTimeout`/`setInterval` work coalesces with rAF.
@@ -210,8 +247,10 @@ In `youtube-mobile-background.user.js`:
 | `removeFloatingPillNav` | Ensure custom pill stays gone |
 | `enforceInlinePlayback` / `installInlinePlaybackGuard` | Apply inline playback and disable PiP before native Play without changing WebKit presentation modes |
 | `prepareForBackground` | Keep audio alive; **no** PiP |
-| `arrangeWatchComments` / `limitVisibleComments` | Comments under description; top 3 + more/less |
+| `findWatchPlaylistHost` / `arrangeWatchComments` | Native playlist under title; recommendations next; comments last |
+| `enforceSimpleSearchLayout` | Search-only card stack and AI-summary hide; path must be `/results` |
 | `applySafeBottomSpacing` | Bottom clearance only; no horizontal viewport overrides |
+| `installPlayerResponseAdFilter` / `skipPlayerAd` / `removeAdCards` | Built-in YouTube ad blocking |
 | `scanPage` | Periodic DOM reconcile entrypoint |
 
 ---
@@ -236,8 +275,10 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 ## GitHub Release policy (mandatory)
 
 - Never delete an old GitHub Release or its assets.
-- Publish the newest version normally as `Fuck YouTube Premium <version>`.
-- After the new release is live, rename every older release to `[DEPRECATED] Fuck YouTube Premium <version>`.
+- Publish the newest version as `FYouTube Extension <version>`.
+- Use tag `v<version>`.
+- Append `hotfix` when the ship is a hotfix, for example `FYouTube Extension 2.1.1 hotfix`.
+- After the new release is live, prefix every older release title with `[DEPRECATED] `. Keep the older title text.
 - Do not add `[DEPRECATED]` to the current latest release.
 - Verify with `gh release list --repo aditauqir/fyp`.
 
@@ -250,7 +291,7 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 - Prefer small, targeted edits in the userscript; rebuild; ship new zip.
 - Keep PiP disabled unless the user explicitly reverses that requirement.
 - Leave drawer open/close behavior to YouTube’s native hamburger control.
-- Re-test Shorts inside the **open** guide drawer (DOM is lazy).
+- Prefix search-card CSS with `ytd-search`. Keep Home on its existing rules.
 
 **Don’t**
 
@@ -259,6 +300,7 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 - Hand-edit `page.js`.
 - Rely only on CSS `:has()` for Shorts — always also run `hideShortsGuideEntries`.
 - Close the guide from `touchmove` (breaks single-tap).
+- Apply search-card CSS to Home. Do not use unscoped `html[data-fyp-simple-search]` rules on `#details`, `#video-title`, or avatars.
 
 ---
 
@@ -297,13 +339,15 @@ After reinstall + hard refresh on Orion:
 8. [ ] Player controls hide eight seconds after the last player interaction.
 9. [ ] Captions appear once, using YouTube’s caption layer.
 10. [ ] Feed/player not clipped at left/right edges.
+11. [ ] Search videos match the screenshot stack: channel, thumbnail, snippet, badges, views, title. Home feed layout is unchanged.
+12. [ ] YouTube ads do not play; skip overlays disappear.
 
 ---
 
 ## Next agent: first actions
 
 1. Read this file + [`FIX-BRANCH.md`](./FIX-BRANCH.md) + skim `youtube-mobile-background.user.js` headers/constants.
-2. Confirm latest packaged zip version matches `@version`.
+2. Confirm the latest GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`, and that it matches `@version`.
 3. Pick the next **Not fixed** row from `FIX-BRANCH.md` (or the user’s new request).
 4. Implement in the **userscript**, mirror fallback if needed, update the FIX-BRANCH status table.
 5. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.

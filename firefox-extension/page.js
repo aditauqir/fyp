@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '2.2.14');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.0.4');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -29,7 +29,7 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v227-simple-search-theme';
+  const NAV_LAYOUT_VERSION = 'ext-v304-search-shot';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
   const CPU_TAMER_ENABLED_BY_DEFAULT = false;
@@ -575,7 +575,50 @@
     return;
   }
 
-  const AD_RESPONSE_KEYS = new Set(['adPlacements', 'adSlots', 'playerAds']);
+  /*
+   * Built-in YouTube ad blocking so uBlock Origin is not required.
+   * YouTube network/player pruning is adapted from Universal Ad Blocker Pro
+   * by Gorstak (Goran Štambuk), MIT:
+   * https://greasyfork.org/en/scripts/561518-universal-ad-blocker-pro
+   * Other-site blockers from that script are not included.
+   */
+  const AD_RESPONSE_ARRAY_KEYS = new Set(['adPlacements', 'adSlots', 'playerAds']);
+  const AD_RESPONSE_DELETE_KEYS = new Set([
+    'adBreakHeartbeatParams',
+    'ad3Module',
+    'adSafetyReason',
+  ]);
+  const AD_JSON_HINT =
+    /"ad(?:Placements|Slots|BreakHeartbeatParams|3Module|SafetyReason)"|"playerAds"/;
+  const BLOCKED_AD_HOST_SNIPPETS = [
+    'doubleclick.net',
+    'googleadservices.com',
+    'googlesyndication.com',
+    'adservice.google.com',
+    'googleads.',
+    'pagead2.',
+  ];
+  const BLOCKED_AD_PATH_SNIPPETS = [
+    '/pagead/',
+    '/api/stats/ads',
+    '/api/stats/atr',
+    '/ptracking',
+    '/get_midroll',
+    '/ad_break',
+    '/pcs/activeview',
+  ];
+  const MAX_AD_SEEK_DURATION_S = 90;
+  const AD_PLAYER_SELECTOR =
+    '.html5-video-player.ad-showing, .html5-video-player.ad-interrupting';
+  const AD_PLAYER_UI_SELECTOR = [
+    '.ytp-ad-player-overlay',
+    '.ytp-ad-text',
+    '.ytp-ad-preview-container',
+    '.ytp-ad-skip-button',
+    '.ytp-skip-ad-button',
+    '.video-ads',
+    '[class*="ytp-skip-ad"]',
+  ].join(',');
 
   function pruneAdsFromPlayerResponse(value, seen = new WeakSet()) {
     if (!value || typeof value !== 'object' || seen.has(value)) return value;
@@ -587,11 +630,11 @@
     }
 
     for (const key of Object.keys(value)) {
-      if (AD_RESPONSE_KEYS.has(key)) {
+      if (AD_RESPONSE_ARRAY_KEYS.has(key)) {
         value[key] = [];
         continue;
       }
-      if (key === 'adBreakHeartbeatParams') {
+      if (AD_RESPONSE_DELETE_KEYS.has(key)) {
         delete value[key];
         continue;
       }
@@ -610,7 +653,7 @@
   }
 
   function sanitizePlayerResponseText(text) {
-    if (typeof text !== 'string' || !text.includes('"ad')) return text;
+    if (typeof text !== 'string' || !AD_JSON_HINT.test(text)) return text;
     try {
       return JSON.stringify(pruneAdsFromPlayerResponse(JSON.parse(text)));
     } catch {
@@ -618,8 +661,15 @@
     }
   }
 
+  function requestUrl(input) {
+    if (typeof input === 'string') return input;
+    if (input instanceof URL) return String(input);
+    if (input && typeof input.url === 'string') return input.url;
+    return '';
+  }
+
   function isPlayerResponseUrl(input) {
-    const url = String(input?.url || input || '');
+    const url = requestUrl(input);
     return (
       url.includes('/youtubei/v1/player') ||
       url.includes('/youtubei/v1/get_watch') ||
@@ -627,35 +677,74 @@
     );
   }
 
+  function isBlockedAdRequest(input) {
+    const url = requestUrl(input).toLowerCase();
+    if (!url) return false;
+    if (url.includes('googlevideo.com') && !url.includes('/ptracking')) {
+      return false;
+    }
+    return (
+      BLOCKED_AD_HOST_SNIPPETS.some((host) => url.includes(host)) ||
+      BLOCKED_AD_PATH_SNIPPETS.some((path) => url.includes(path))
+    );
+  }
+
+  function blockedAdJsonResponse() {
+    return new Response('{}', {
+      status: 200,
+      statusText: 'OK',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  function installJsonAdPrune() {
+    const nativeJsonParse = JSON.parse.bind(JSON);
+    JSON.parse = function fypJsonParse(text, reviver) {
+      const parsed = nativeJsonParse(text, reviver);
+      if (typeof text === 'string' && AD_JSON_HINT.test(text)) {
+        try {
+          pruneAdsFromPlayerResponse(parsed);
+        } catch {
+          // Leave YouTube's object intact if pruning throws.
+        }
+      }
+      return parsed;
+    };
+  }
+
+  function bindPrunedWindowJson(propertyName) {
+    let current = pruneAdsFromPlayerResponse(window[propertyName]);
+    try {
+      Object.defineProperty(window, propertyName, {
+        configurable: true,
+        get: () => current,
+        set: (value) => {
+          current = pruneAdsFromPlayerResponse(value);
+        },
+      });
+    } catch {
+      if (window[propertyName]) pruneAdsFromPlayerResponse(window[propertyName]);
+    }
+  }
+
   function installPlayerResponseAdFilter() {
-    const installFlag = '__vmYtPlayerResponseFilterV2';
+    const installFlag = '__vmYtPlayerResponseFilterV3';
     if (window[installFlag]) return;
     Object.defineProperty(window, installFlag, {
       configurable: false,
       value: true,
     });
 
-    let initialPlayerResponse = pruneAdsFromPlayerResponse(
-      window.ytInitialPlayerResponse
-    );
-    try {
-      Object.defineProperty(window, 'ytInitialPlayerResponse', {
-        configurable: true,
-        get: () => initialPlayerResponse,
-        set: (value) => {
-          initialPlayerResponse = pruneAdsFromPlayerResponse(value);
-        },
-      });
-    } catch {
-      if (window.ytInitialPlayerResponse) {
-        pruneAdsFromPlayerResponse(window.ytInitialPlayerResponse);
-      }
-    }
+    bindPrunedWindowJson('ytInitialPlayerResponse');
+    bindPrunedWindowJson('ytInitialData');
+    installJsonAdPrune();
 
     const nativeFetch = window.fetch;
     if (typeof nativeFetch === 'function') {
       window.fetch = async function filteredYouTubeFetch(input, init) {
+        if (isBlockedAdRequest(input)) return blockedAdJsonResponse();
         const response = await nativeFetch.call(this, input, init);
+        if (isBlockedAdRequest(response.url || input)) return blockedAdJsonResponse();
         if (!isPlayerResponseUrl(response.url || input)) return response;
         try {
           const originalText = await response.clone().text();
@@ -684,12 +773,27 @@
       };
     }
 
+    if (typeof navigator.sendBeacon === 'function') {
+      const nativeBeacon = navigator.sendBeacon.bind(navigator);
+      navigator.sendBeacon = function fypSendBeacon(url, data) {
+        if (isBlockedAdRequest(url)) return true;
+        return nativeBeacon(url, data);
+      };
+    }
+
     const NativeXHR = window.XMLHttpRequest;
     if (typeof NativeXHR !== 'function') return;
     const xhrUrls = new WeakMap();
+    const blockedXhr = new WeakSet();
     const nativeOpen = NativeXHR.prototype.open;
     NativeXHR.prototype.open = function filteredYouTubeOpen(method, url) {
-      xhrUrls.set(this, String(url || ''));
+      const href = requestUrl(url);
+      xhrUrls.set(this, href);
+      if (isBlockedAdRequest(href)) {
+        blockedXhr.add(this);
+        return nativeOpen.call(this, method, 'data:,');
+      }
+      blockedXhr.delete(this);
       return nativeOpen.apply(this, arguments);
     };
 
@@ -706,6 +810,7 @@
       Object.defineProperty(NativeXHR.prototype, 'responseText', {
         ...responseTextDescriptor,
         get() {
+          if (blockedXhr.has(this)) return '{}';
           const text = responseTextDescriptor.get.call(this);
           return isPlayerResponseUrl(xhrUrls.get(this))
             ? sanitizePlayerResponseText(text)
@@ -718,6 +823,7 @@
       Object.defineProperty(NativeXHR.prototype, 'response', {
         ...responseDescriptor,
         get() {
+          if (blockedXhr.has(this)) return {};
           const response = responseDescriptor.get.call(this);
           if (!isPlayerResponseUrl(xhrUrls.get(this))) return response;
           if (typeof response === 'string') return sanitizePlayerResponseText(response);
@@ -2845,13 +2951,65 @@
     'button[class*="ytp-ad-skip"]',
   ].join(',');
 
+  function restoreAdSkipTweaks() {
+    document.querySelectorAll('video[data-fyp-ad-skip-rate]').forEach((video) => {
+      const restored = Number(video.dataset.fypAdSkipRate);
+      if (Number.isFinite(restored) && restored > 0 && restored <= 4) {
+        video.playbackRate = restored;
+      } else {
+        video.playbackRate = 1;
+      }
+      delete video.dataset.fypAdSkipRate;
+    });
+  }
+
+  function playerIsSkippingAd(player) {
+    if (!(player instanceof Element)) return false;
+    if (
+      !player.classList.contains('ad-showing') &&
+      !player.classList.contains('ad-interrupting')
+    ) {
+      return false;
+    }
+    const duration = player.querySelector('video')?.duration;
+    return Boolean(
+      player.querySelector(AD_PLAYER_UI_SELECTOR) ||
+        (Number.isFinite(duration) &&
+          duration > 0 &&
+          duration <= MAX_AD_SEEK_DURATION_S)
+    );
+  }
+
   function skipPlayerAd() {
     document.querySelectorAll(SKIP_BUTTON_SELECTOR).forEach((button) => {
       if (button instanceof HTMLElement) button.click();
     });
 
-    const video = findVideo();
-    if (video) attachVideo(video);
+    const player = document.querySelector(AD_PLAYER_SELECTOR);
+    if (!playerIsSkippingAd(player)) {
+      restoreAdSkipTweaks();
+      const video = findVideo();
+      if (video) attachVideo(video);
+      return;
+    }
+
+    const adVideo = player.querySelector('video');
+    if (!(adVideo instanceof HTMLMediaElement)) return;
+    attachVideo(adVideo);
+    if (adVideo.dataset.fypAdSkipRate == null) {
+      adVideo.dataset.fypAdSkipRate = String(adVideo.playbackRate || 1);
+    }
+    const duration = adVideo.duration;
+    if (
+      Number.isFinite(duration) &&
+      duration > 0 &&
+      duration <= MAX_AD_SEEK_DURATION_S &&
+      adVideo.currentTime < duration
+    ) {
+      adVideo.currentTime = duration;
+    } else if (adVideo.playbackRate < 8) {
+      adVideo.playbackRate = 16;
+    }
   }
 
   const AD_BLOCK_ENFORCEMENT_PATTERN =
@@ -2917,8 +3075,15 @@
       'ytd-display-ad-renderer',
       'ytd-promoted-video-renderer',
       'ytd-ad-slot-renderer',
+      'ytd-banner-promo-renderer',
+      'ytd-statement-banner-renderer',
       '.ytp-ad-overlay-container',
       '.ytp-ad-message-container',
+      '.ytp-ad-module',
+      '.ytp-ad-overlay-slot',
+      '.video-ads',
+      '#player-ads',
+      '#masthead-ad',
     ].join(',');
     root.querySelectorAll?.(selector).forEach((element) => element.remove());
   }
@@ -2952,9 +3117,16 @@
       ytd-display-ad-renderer,
       ytd-promoted-video-renderer,
       ytd-ad-slot-renderer,
+      ytd-banner-promo-renderer,
+      ytd-statement-banner-renderer,
       .ytp-ad-overlay-container,
       .ytp-ad-message-container,
-      .ytp-ad-player-overlay {
+      .ytp-ad-player-overlay,
+      .ytp-ad-module,
+      .ytp-ad-overlay-slot,
+      .video-ads,
+      #player-ads,
+      #masthead-ad {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -3248,16 +3420,69 @@
         }
 
         /*
-         * Force classic compact search rows: small thumb left, readable title
-         * + channel + stats on the right. Re-applied via data-fyp-simple-search.
+         * Native playlist panel lives in #secondary on desktop. After the
+         * phone stack moves it under the description, keep it full-width and
+         * cap the video list so it does not push comments off-screen.
+         */
+        ytd-watch-flexy #below ytd-playlist-panel-renderer,
+        ytd-watch-flexy #below #playlist {
+          box-sizing: border-box !important;
+          display: block !important;
+          visibility: visible !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          height: auto !important;
+          margin: 8px 0 0 !important;
+          overflow: visible !important;
+        }
+
+        ytd-watch-flexy #below ytd-playlist-panel-renderer #items {
+          box-sizing: border-box !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          max-height: min(42vh, 22rem) !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+        }
+
+        /*
+         * Playlist browse pages keep a desktop sidebar header. Stack the
+         * header/description above the video list so the playlist does not
+         * leave the phone viewport.
+         */
+        ytd-browse[page-subtype='playlist'],
+        ytd-browse[page-subtype='playlist']
+          ytd-two-column-browse-results-renderer,
+        ytd-browse[page-subtype='playlist'] #primary,
+        ytd-browse[page-subtype='playlist'] #secondary,
+        ytd-browse[page-subtype='playlist'] ytd-playlist-header-renderer,
+        ytd-browse[page-subtype='playlist'] yt-page-header-renderer {
+          box-sizing: border-box !important;
+          display: block !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+
+        ytd-browse[page-subtype='playlist'] ytd-playlist-header-renderer,
+        ytd-browse[page-subtype='playlist'] yt-page-header-renderer {
+          position: relative !important;
+          height: auto !important;
+        }
+
+        /*
+         * Search-only screenshot stack:
+         * channel → thumbnail → snippet → badges → views → title+menu → chapters.
+         * Flatten nested wrappers so those nodes can take named grid areas.
+         * Never target Home feed lockups.
          */
         ytd-search,
         ytd-search ytd-two-column-search-results-renderer,
         ytd-search #primary,
-        ytd-search #contents,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-search,
-        html[${SIMPLE_SEARCH_ATTR}='true']
-          ytd-two-column-search-results-renderer {
+        ytd-search #contents {
           box-sizing: border-box !important;
           width: 100% !important;
           min-width: 0 !important;
@@ -3265,175 +3490,358 @@
         }
 
         ytd-search ytd-video-renderer,
-        ytd-search ytd-rich-item-renderer,
-        ytd-search yt-lockup-view-model,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-rich-item-renderer,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-lockup-view-model {
+        ytd-search ytd-rich-item-renderer:has(a[href*='/watch']),
+        ytd-search yt-lockup-view-model:has(a[href*='/watch']) {
           box-sizing: border-box !important;
           display: block !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
-          margin: 0 0 10px !important;
-          padding: 0 4px !important;
+          margin: 0 0 14px !important;
+          padding: 0 !important;
+          max-height: none !important;
+          height: auto !important;
+          overflow: visible !important;
+          --ytd-thumbnail-width: 100% !important;
+          --ytd-thumbnail-max-width: 100% !important;
+          --yt-thumbnail-width: 100% !important;
+          --yt-thumbnail-max-width: 100% !important;
         }
 
+        ytd-search ytd-video-renderer #dismissible.ytd-video-renderer,
         ytd-search ytd-video-renderer #dismissible,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer #dismissible {
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          :is(
+            .yt-lockup-view-model,
+            .ytLockupViewModelHost,
+            .ytLockupViewModelHorizontal,
+            .yt-lockup-view-model-wiz
+          ) {
           box-sizing: border-box !important;
           display: grid !important;
-          grid-template-columns: 132px minmax(0, 1fr) !important;
-          grid-template-rows: auto !important;
-          grid-auto-flow: row !important;
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          grid-template-areas:
+            "channel channel"
+            "thumb thumb"
+            "snippet snippet"
+            "badges badges"
+            "views views"
+            "title menu"
+            "chapters chapters" !important;
           align-items: start !important;
-          column-gap: 10px !important;
-          row-gap: 0 !important;
+          justify-items: stretch !important;
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
+          column-gap: 0 !important;
+          row-gap: 6px !important;
+          max-height: none !important;
+          height: auto !important;
+          overflow: visible !important;
         }
 
+        ytd-search ytd-video-renderer ytd-thumbnail.ytd-video-renderer,
         ytd-search ytd-video-renderer ytd-thumbnail,
-        ytd-search ytd-video-renderer a#thumbnail,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer ytd-thumbnail,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer a#thumbnail {
+        ytd-search ytd-rich-item-renderer ytd-thumbnail,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          ytd-thumbnail,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-thumbnail-view-model,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          [class*='content-image' i],
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          [class*='ContentImage'] {
           box-sizing: border-box !important;
-          width: 132px !important;
-          min-width: 132px !important;
-          max-width: 132px !important;
+          display: block !important;
+          position: relative !important;
+          grid-area: thumb !important;
+          flex: 0 0 auto !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
           height: auto !important;
+          max-height: none !important;
+          min-height: 0 !important;
           margin: 0 !important;
           overflow: hidden !important;
-          border-radius: 10px !important;
+          border-radius: 12px !important;
           aspect-ratio: 16 / 9 !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          inset: auto !important;
+          left: auto !important;
+          top: auto !important;
+          transform: none !important;
+        }
+
+        ytd-search ytd-video-renderer ytd-thumbnail::before {
+          display: none !important;
+        }
+
+        ytd-search ytd-video-renderer a#thumbnail {
+          position: absolute !important;
+          inset: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          margin: 0 !important;
+          aspect-ratio: auto !important;
+          border-radius: inherit !important;
+        }
+
+        ytd-search ytd-video-renderer ytd-thumbnail yt-image,
+        ytd-search ytd-video-renderer a#thumbnail yt-image,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-thumbnail-view-model yt-image,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          [class*='content-image' i] yt-image {
+          position: absolute !important;
+          inset: 0 !important;
+          display: block !important;
+          width: 100% !important;
+          height: 100% !important;
         }
 
         ytd-search ytd-video-renderer ytd-thumbnail img,
         ytd-search ytd-video-renderer a#thumbnail img,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer ytd-thumbnail img,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-video-renderer a#thumbnail img {
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-thumbnail-view-model img,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          [class*='content-image' i] img,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          [class*='ContentImage'] img {
+          position: absolute !important;
+          inset: 0 !important;
+          display: block !important;
           width: 100% !important;
           height: 100% !important;
-          object-fit: cover !important;
-        }
-
-        ytd-search #details,
-        ytd-search #meta,
-        ytd-search #text-wrapper,
-        ytd-search
-          :is(
-            .yt-lockup-view-model__metadata,
-            .ytLockupViewModelMetadata,
-            .yt-lockup-metadata-view-model,
-            .ytLockupMetadataViewModelHost
-          ),
-        html[${SIMPLE_SEARCH_ATTR}='true'] #details,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #meta,
-        html[${SIMPLE_SEARCH_ATTR}='true']
-          :is(
-            .yt-lockup-view-model__metadata,
-            .ytLockupViewModelMetadata,
-            .yt-lockup-metadata-view-model,
-            .ytLockupMetadataViewModelHost
-          ) {
-          box-sizing: border-box !important;
-          min-width: 0 !important;
-          max-width: 100% !important;
-          overflow: hidden !important;
-        }
-
-        ytd-search #video-title,
-        ytd-search h3,
-        ytd-search h3 a,
-        ytd-search
-          :is(
-            .yt-lockup-metadata-view-model__title,
-            .ytLockupMetadataViewModelTitle
-          ),
-        html[${SIMPLE_SEARCH_ATTR}='true'] #video-title,
-        html[${SIMPLE_SEARCH_ATTR}='true'] h3,
-        html[${SIMPLE_SEARCH_ATTR}='true'] h3 a,
-        html[${SIMPLE_SEARCH_ATTR}='true']
-          :is(
-            .yt-lockup-metadata-view-model__title,
-            .ytLockupMetadataViewModelTitle
-          ) {
-          display: -webkit-box !important;
-          -webkit-line-clamp: 3 !important;
-          -webkit-box-orient: vertical !important;
+          max-width: none !important;
           max-height: none !important;
-          overflow: hidden !important;
-          white-space: normal !important;
-          text-overflow: ellipsis !important;
-          font-size: 14px !important;
-          font-weight: 600 !important;
-          line-height: 1.3 !important;
+          object-fit: cover !important;
+          visibility: visible !important;
+          opacity: 1 !important;
         }
 
-        ytd-search #channel-info,
-        ytd-search ytd-channel-name,
-        ytd-search #channel-name,
+        ytd-search ytd-video-renderer #details,
+        ytd-search ytd-video-renderer #meta,
+        ytd-search ytd-video-renderer ytd-video-meta-block,
+        ytd-search ytd-video-renderer #title-wrapper,
         ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-lockup-metadata-view-model,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
           :is(
-            .yt-lockup-metadata-view-model__metadata,
-            .ytLockupMetadataViewModelMetadata
-          ),
-        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-info,
-        html[${SIMPLE_SEARCH_ATTR}='true'] ytd-channel-name,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-name {
+            .yt-lockup-metadata-view-model,
+            .ytLockupMetadataViewModelHost,
+            .yt-content-metadata-view-model,
+            .ytContentMetadataViewModelHost
+          ) {
+          display: contents !important;
+        }
+
+        /*
+         * One channel row only. Desktop search keeps a byline name in
+         * addition to #channel-info; showing both duplicates the name.
+         */
+        ytd-search ytd-video-renderer ytd-video-meta-block #byline-container {
+          display: none !important;
+        }
+
+        ytd-search ytd-video-renderer #channel-info,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          :is(
+            .yt-content-metadata-view-model__metadata-row,
+            .ytContentMetadataViewModelMetadataRow
+          ):first-of-type {
+          grid-area: channel !important;
           display: flex !important;
           visibility: visible !important;
           align-items: center !important;
-          gap: 6px !important;
+          gap: 8px !important;
           max-width: 100% !important;
-          margin-top: 4px !important;
-          overflow: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
         }
 
-        ytd-search #channel-info yt-img-shadow,
-        ytd-search #avatar-link,
-        ytd-search yt-decorated-avatar-view-model,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #channel-info yt-img-shadow,
-        html[${SIMPLE_SEARCH_ATTR}='true'] yt-decorated-avatar-view-model {
+        ytd-search ytd-video-renderer #channel-info yt-img-shadow,
+        ytd-search ytd-video-renderer #avatar,
+        ytd-search ytd-video-renderer #avatar-link,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-decorated-avatar-view-model {
           display: inline-flex !important;
+          flex: 0 0 24px !important;
+          align-self: center !important;
           visibility: visible !important;
-          width: 22px !important;
-          height: 22px !important;
-          min-width: 22px !important;
+          width: 24px !important;
+          height: 24px !important;
+          min-width: 24px !important;
+          min-height: 24px !important;
+          max-width: 24px !important;
+          max-height: 24px !important;
+          aspect-ratio: 1 / 1 !important;
           overflow: hidden !important;
           border-radius: 50% !important;
         }
 
-        ytd-search #metadata-line,
-        ytd-search #metadata,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #metadata-line,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #metadata {
+        ytd-search ytd-video-renderer #channel-info img,
+        ytd-search ytd-video-renderer #avatar img,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-decorated-avatar-view-model img,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-decorated-avatar-view-model yt-image {
+          position: static !important;
+          inset: auto !important;
           display: block !important;
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 24px !important;
+          max-height: 24px !important;
+          aspect-ratio: 1 / 1 !important;
+          object-fit: cover !important;
+          border-radius: 50% !important;
+        }
+
+        ytd-search ytd-video-renderer #description-text,
+        ytd-search ytd-video-renderer .metadata-snippet-container,
+        ytd-search ytd-video-renderer #description-inner,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          :is(
+            .yt-lockup-metadata-view-model__description,
+            .ytLockupMetadataViewModelDescription
+          ) {
+          grid-area: snippet !important;
+          display: -webkit-box !important;
           visibility: visible !important;
+          -webkit-line-clamp: 1 !important;
+          -webkit-box-orient: vertical !important;
           max-width: 100% !important;
-          margin-top: 2px !important;
+          margin: 0 !important;
+          padding: 0 !important;
           overflow: hidden !important;
           font-size: 12px !important;
           line-height: 1.35 !important;
+          opacity: 0.82 !important;
+        }
+
+        ytd-search ytd-video-renderer ytd-badge-supported-renderer,
+        ytd-search ytd-video-renderer yt-badge-view-model,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          yt-badge-view-model {
+          grid-area: badges !important;
+          display: flex !important;
+          visibility: visible !important;
+          flex-wrap: wrap !important;
+          gap: 6px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        ytd-search ytd-video-renderer #metadata-line,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          :is(
+            .yt-content-metadata-view-model__metadata-row,
+            .ytContentMetadataViewModelMetadataRow
+          ):not(:first-of-type) {
+          grid-area: views !important;
+          display: block !important;
+          visibility: visible !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          font-size: 12px !important;
+          line-height: 1.3 !important;
           opacity: 0.85 !important;
         }
 
-        /* Kill AI Summary / Sur chips and extra clutter in search rows. */
+        ytd-search ytd-video-renderer h3 {
+          grid-area: title !important;
+          display: block !important;
+          max-height: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
+
+        ytd-search ytd-video-renderer #video-title,
+        ytd-search ytd-video-renderer h3 #video-title,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          :is(
+            .yt-lockup-metadata-view-model__title,
+            .ytLockupMetadataViewModelTitle
+          ) {
+          grid-area: title !important;
+          display: -webkit-box !important;
+          -webkit-line-clamp: 2 !important;
+          -webkit-box-orient: vertical !important;
+          max-height: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          white-space: normal !important;
+          text-overflow: ellipsis !important;
+          font-size: clamp(16px, 4.4vw, 18px) !important;
+          font-weight: 700 !important;
+          line-height: 1.25 !important;
+        }
+
+        ytd-search ytd-video-renderer #menu {
+          grid-area: menu !important;
+          position: static !important;
+          align-self: start !important;
+          justify-self: end !important;
+          margin: 0 !important;
+        }
+
+        ytd-search ytd-video-renderer ytd-expandable-metadata-renderer,
+        ytd-search
+          yt-lockup-view-model:has(a[href*='/watch'])
+          ytd-expandable-metadata-renderer {
+          grid-area: chapters !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 2px 0 0 !important;
+        }
+
+        /* Kill AI Summary / Ask chips and preview panels. Keep chapters. */
         ytd-search button[aria-label*='Summary' i],
         ytd-search button[aria-label*='Ask' i],
         ytd-search [aria-label*='AI summary' i],
+        ytd-search [aria-label*='AI overview' i],
         ytd-search ytd-button-renderer:has([aria-label*='Summary' i]),
-        html[${SIMPLE_SEARCH_ATTR}='true'] button[aria-label*='Summary' i],
-        html[${SIMPLE_SEARCH_ATTR}='true'] button[aria-label*='Ask' i],
-        html[${SIMPLE_SEARCH_ATTR}='true'] [aria-label*='AI summary' i],
-        ytd-search ytd-video-renderer #description-text,
-        ytd-search ytd-video-renderer .metadata-snippet-container,
-        html[${SIMPLE_SEARCH_ATTR}='true'] #description-text,
-        html[${SIMPLE_SEARCH_ATTR}='true'] .metadata-snippet-container {
+        ytd-search ytd-button-renderer:has([aria-label*='Ask' i]),
+        ytd-search ytd-info-panel-container-renderer,
+        ytd-search ytd-clarification-renderer,
+        ytd-search
+          ytd-expandable-metadata-renderer:has([aria-label*='Summary' i]),
+        ytd-search
+          ytd-expandable-metadata-renderer:has([aria-label*='AI' i]) {
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
         }
 
         ytd-rich-grid-renderer {
@@ -5013,6 +5421,43 @@
     );
   }
 
+  function findWatchPlaylistHost(watch) {
+    if (!(watch instanceof Element)) return null;
+    const hasListParam = new URLSearchParams(location.search).has('list');
+    const watchHasPlaylist =
+      watch.hasAttribute('playlist') || watch.hasAttribute('has-playlist');
+    if (!hasListParam && !watchHasPlaylist) return null;
+
+    const renderer = [...watch.querySelectorAll('ytd-playlist-panel-renderer')].find(
+      (element) =>
+        !element.closest('ytd-miniplayer') && !element.hasAttribute('hidden')
+    );
+    if (renderer instanceof HTMLElement) {
+      const wrapper = renderer.parentElement;
+      if (
+        wrapper instanceof HTMLElement &&
+        wrapper.id === 'playlist' &&
+        wrapper !== watch.querySelector('#secondary') &&
+        wrapper !== watch.querySelector('#secondary-inner') &&
+        wrapper !== watch.querySelector('#below')
+      ) {
+        return wrapper;
+      }
+      return renderer;
+    }
+
+    const playlist = watch.querySelector('#playlist');
+    if (
+      playlist instanceof HTMLElement &&
+      playlist.id === 'playlist' &&
+      !playlist.closest('ytd-miniplayer') &&
+      playlist !== watch.querySelector('#secondary')
+    ) {
+      return playlist;
+    }
+    return null;
+  }
+
   function positionCommentsAfterRecommendations() {
     if (location.pathname !== '/watch') return;
 
@@ -5042,10 +5487,18 @@
       );
 
     const comments = findCommentsRoot();
-    const recommendations =
+    const playlist = findWatchPlaylistHost(watch);
+    const recommendationsCandidate =
       watch.querySelector('ytd-watch-next-secondary-results-renderer') ||
-      watch.querySelector('#secondary');
-    if (!descriptionBlock || (!recommendations && !comments)) return;
+      watch.querySelector('#related');
+    const recommendations =
+      recommendationsCandidate instanceof HTMLElement &&
+      (!playlist || !playlist.contains(recommendationsCandidate))
+        ? recommendationsCandidate
+        : null;
+    if (!descriptionBlock || (!playlist && !recommendations && !comments)) {
+      return;
+    }
 
     if (descriptionBlock.parentElement !== below) {
       below.insertAdjacentElement('afterbegin', descriptionBlock);
@@ -5059,28 +5512,50 @@
     });
     setImportantStyles(descriptionBlock, { order: '1' });
 
-    // Recommendations must stay before comments so a comment loader cannot
-    // block access to YouTube's related-video feed.
+    /*
+     * Watch order: description (title + inline buttons) → playlist →
+     * recommendations → comments. Do not move #secondary as a whole; that
+     * either buries the playlist after comments or treats it as related.
+     */
     let insertionAnchor = descriptionBlock;
+    if (playlist) {
+      setImportantStyles(playlist, {
+        order: '2',
+        display: 'block',
+        width: '100%',
+        'min-width': '0',
+        'max-width': '100%',
+        'margin-left': '0',
+      });
+      playlist.removeAttribute('hidden');
+      if (
+        playlist.parentElement !== below ||
+        descriptionBlock.nextElementSibling !== playlist
+      ) {
+        descriptionBlock.insertAdjacentElement('afterend', playlist);
+      }
+      insertionAnchor = playlist;
+    }
+
     if (recommendations && !recommendations.contains(comments)) {
       setImportantStyles(recommendations, {
-        order: '2',
+        order: '3',
         width: '100%',
         'max-width': '100%',
         'margin-left': '0',
       });
       if (
         recommendations.parentElement !== below ||
-        descriptionBlock.nextElementSibling !== recommendations
+        insertionAnchor.nextElementSibling !== recommendations
       ) {
-        descriptionBlock.insertAdjacentElement('afterend', recommendations);
+        insertionAnchor.insertAdjacentElement('afterend', recommendations);
       }
       insertionAnchor = recommendations;
     }
 
     if (comments) {
       setImportantStyles(comments, {
-        order: '3',
+        order: '4',
         width: '100%',
         'min-width': '0',
         'max-width': '100%',
@@ -5095,9 +5570,9 @@
     }
 
     /*
-     * Keep the transport strip out of the late "order: 4" bucket. If it ever
-     * lands as a #below sibling (title mount race), pin it with the metadata
-     * block instead of after recommendations/comments.
+     * Keep the transport strip above the playlist. If it ever lands as a
+     * #below sibling (title mount race), pin it with the metadata block
+     * instead of after playlist/recommendations/comments.
      */
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (toolbar instanceof HTMLElement && toolbar.parentElement === below) {
@@ -5114,13 +5589,14 @@
     for (const sibling of below.children) {
       if (
         sibling === descriptionBlock ||
-        (comments && sibling === comments) ||
+        sibling === playlist ||
         sibling === recommendations ||
+        (comments && sibling === comments) ||
         sibling.id === PLAYER_CONTROLS_TOOLBAR_ID
       ) {
         continue;
       }
-      setImportantStyles(sibling, { order: '4' });
+      setImportantStyles(sibling, { order: '5' });
     }
   }
 
@@ -5679,21 +6155,47 @@
   }
 
   function enforceSimpleSearchLayout() {
-    const onResults =
-      location.pathname.startsWith('/results') ||
-      Boolean(document.querySelector('ytd-search'));
+    const onResults = location.pathname.startsWith('/results');
     if (!onResults) {
       document.documentElement.removeAttribute(SIMPLE_SEARCH_ATTR);
       return;
     }
     document.documentElement.setAttribute(SIMPLE_SEARCH_ATTR, 'true');
 
+    for (const card of document.querySelectorAll('ytd-search ytd-video-renderer')) {
+      if (!(card instanceof HTMLElement)) continue;
+      const dismissible = card.querySelector('#dismissible');
+      const thumb = card.querySelector('ytd-thumbnail');
+      const channel = card.querySelector('#channel-info');
+      if (
+        !(dismissible instanceof HTMLElement) ||
+        !(thumb instanceof HTMLElement) ||
+        !(channel instanceof HTMLElement) ||
+        !dismissible.contains(thumb) ||
+        !dismissible.contains(channel)
+      ) {
+        continue;
+      }
+      if (
+        channel.parentElement !== dismissible ||
+        channel.nextElementSibling !== thumb
+      ) {
+        dismissible.insertBefore(channel, thumb);
+      }
+    }
+
     const clutter = document.querySelectorAll(
       [
         'ytd-search button[aria-label*="Summary" i]',
         'ytd-search button[aria-label*="Ask" i]',
         'ytd-search [aria-label*="AI summary" i]',
+        'ytd-search [aria-label*="AI overview" i]',
         'ytd-search ytd-button-renderer:has([aria-label*="Summary" i])',
+        'ytd-search ytd-button-renderer:has([aria-label*="Ask" i])',
+        'ytd-search ytd-info-panel-container-renderer',
+        'ytd-search ytd-clarification-renderer',
+        'ytd-search ytd-expandable-metadata-renderer:has([aria-label*="Summary" i])',
+        'ytd-search ytd-expandable-metadata-renderer:has([aria-label*="AI" i])',
       ].join(',')
     );
     for (const node of clutter) {
@@ -5701,6 +6203,26 @@
         node.style.setProperty('display', 'none', 'important');
         node.style.setProperty('visibility', 'hidden', 'important');
         node.style.setProperty('pointer-events', 'none', 'important');
+      }
+    }
+
+    for (const panel of document.querySelectorAll(
+      'ytd-search ytd-expandable-metadata-renderer'
+    )) {
+      if (!(panel instanceof HTMLElement)) continue;
+      const text = `${panel.getAttribute('aria-label') || ''} ${
+        panel.textContent || ''
+      }`.toLowerCase();
+      if (text.includes('chapter')) continue;
+      if (
+        text.includes('summary') ||
+        text.includes('ai overview') ||
+        text.includes('ask youtube') ||
+        text.includes('gemini')
+      ) {
+        panel.style.setProperty('display', 'none', 'important');
+        panel.style.setProperty('visibility', 'hidden', 'important');
+        panel.style.setProperty('pointer-events', 'none', 'important');
       }
     }
   }

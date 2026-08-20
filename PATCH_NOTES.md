@@ -1,5 +1,41 @@
 # Patch Notes
 
+## v3.0.4
+
+- Added: Built-in YouTube ad blocking. uBlock Origin is no longer required.
+- Added: Search results use the stacked preview. Channel photo and name sit above the thumbnail. Title sits at the bottom with the menu.
+- Fixed: Search-card styles do not change the Home feed.
+- Fixed: Search results show the channel name once. Titles and channel rows are not clipped.
+- Fixed: A queued watch playlist stays under the title.
+- Credits: YouTube ad blocking adapts [Universal Ad Blocker Pro](https://greasyfork.org/en/scripts/561518-universal-ad-blocker-pro) by Gorstak (Goran Štambuk), MIT License. Other-site blockers from that script are not included.
+- Preserved: Native comments, reply focus, captions, playback behavior, and the 10-second player-control hold remain unchanged.
+- Packaging: Numeric version `3.0.4`; recommended Orion installer `3.0.4_release.zip` (Chrome MV3).
+- Notes: GitHub release title is `FYouTube Extension 3.0.4`. Tag is `v3.0.4`.
+
+## v3.0.3
+
+- Fixed: Search results show the channel name once. The extra byline copy is hidden.
+- Fixed: Search cards no longer clip the title, channel row, or stacked thumbnail.
+- Packaging: Numeric version `3.0.3`; recommended Orion installer `3.0.3_release.zip` (Chrome MV3).
+
+## v3.0.2
+
+- Fixed: Search result thumbnails stack full-width above the text.
+- Fixed: Search card styles do not change the Home feed.
+- Packaging: Numeric version `3.0.2`; recommended Orion installer `3.0.2_release.zip` (Chrome MV3).
+
+## v3.0.0
+
+- Added: Built-in YouTube ad blocking. uBlock Origin is no longer required.
+- Added: Search videos use the Home full-width thumbnail card. Search snippets, channel names, and view counts stay visible.
+- Fixed: Search thumbnails paint in a page-width 16:9 box above the title. They no longer collapse to zero height.
+- Fixed: Search result order is title, then channel icon and name, then description. Channel avatars stay round instead of stretched.
+- Fixed: A queued watch playlist stays under the title instead of disappearing when related videos are moved.
+- Changed: In-player ads skip when YouTube shows an ad overlay. Skip buttons still click as before.
+- Credits: YouTube ad blocking adapts [Universal Ad Blocker Pro](https://greasyfork.org/en/scripts/561518-universal-ad-blocker-pro) by Gorstak (Goran Štambuk), MIT License. Other-site blockers from that script are not included.
+- Preserved: Native comments, reply focus, captions, playback behavior, and the 10-second player-control hold remain unchanged.
+- Packaging: Numeric version `3.0.0`; recommended Orion installer `3.0.0_release.zip` (Chrome MV3).
+
 ## v2.2.14
 
 - Fixed: Search result cards keep YouTube's native current-card layout. The compact grid applies only to the stable legacy result boundary.

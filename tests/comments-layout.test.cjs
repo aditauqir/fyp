@@ -25,9 +25,10 @@ for (const removedPaginationFeature of [
 assert.doesNotMatch(source, /dataset\.vmCommentHidden =/);
 assert.doesNotMatch(source, /dataset\.vmContinuationHidden =/);
 assert.match(source, /function positionCommentsAfterRecommendations\(\)/);
+assert.match(source, /function findWatchPlaylistHost\(/);
 assert.match(
   source,
-  /if \(!descriptionBlock \|\| \(!recommendations && !comments\)\) return;/
+  /if \(!descriptionBlock \|\| \(!playlist && !recommendations && !comments\)\) \{\s*return;/
 );
 assert.doesNotMatch(source, /if \(!descriptionBlock \|\| !comments\) return;/);
 assert.doesNotMatch(source, /function expandCommentsSection\(/);
@@ -35,11 +36,19 @@ assert.doesNotMatch(
   source,
   /ytd-comments#comments,\s*ytd-comments\s*\{\s*display: block !important;/
 );
+assert.doesNotMatch(
+  source,
+  /ytd-watch-next-secondary-results-renderer'\) \|\|\s*watch\.querySelector\('#secondary'\)/
+);
 assert.match(
   source,
-  /setImportantStyles\(recommendations, \{\s*order: '2'/
+  /setImportantStyles\(playlist, \{\s*order: '2'/
 );
-assert.match(source, /if \(comments\) \{\s*setImportantStyles\(comments, \{\s*order: '3'/);
+assert.match(
+  source,
+  /setImportantStyles\(recommendations, \{\s*order: '3'/
+);
+assert.match(source, /if \(comments\) \{\s*setImportantStyles\(comments, \{\s*order: '4'/);
 assert.match(
   source,
   /insertionAnchor\.insertAdjacentElement\('afterend', comments\)/

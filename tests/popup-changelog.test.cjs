@@ -25,12 +25,15 @@ const patchNotes = fs.readFileSync(
 
 assert.equal((popup.match(/<button\b/g) || []).length, 2);
 assert.equal((popup.match(/<li>/g) || []).length, 3);
-assert.match(popup, /Search result cards keep their native layout \(2\.2\.14\)\./);
+assert.match(popup, /Built-in YouTube ad blocking\. uBlock Origin is no longer required \(3\.0\.0\)\./);
 assert.match(
   popup,
-  /Recommendations load without waiting for comments \(2\.2\.14\)\./
+  /Search cards show title, then channel, then description \(3\.0\.0\)\./
 );
-assert.match(popup, /Now Playing follows the newest active tab \(2\.2\.14\)\./);
+assert.match(
+  popup,
+  /Queued playlist videos stay on the watch page \(3\.0\.0\)\./
+);
 assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(

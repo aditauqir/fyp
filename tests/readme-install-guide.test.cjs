@@ -15,13 +15,19 @@ assert.match(readme, /apps\.apple\.com\/us\/app\/orion-browser-by-kagi\/id148449
 assert.match(readme, /skillicons\.dev\/icons\?i=apple/);
 assert.match(readme, /skillicons\.dev\/icons\?i=github/);
 assert.match(readme, /logo=safari/);
-assert.match(readme, /logo=ublockorigin/);
+assert.doesNotMatch(readme, /logo=ublockorigin/);
 assert.match(readme, /discord\.gg\/sd5Y8f7ukh/);
 assert.match(readme, /logo=discord/);
 assert.match(readme, /Join%20the%20server%20for%20support%20or%20help/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/releases\/latest/);
-assert.match(readme, /addons\.mozilla\.org\/en-US\/firefox\/addon\/ublock-origin/);
-assert.match(readme, /mandatory for ad blocking/i);
+assert.doesNotMatch(readme, /mandatory for ad blocking/i);
+assert.match(readme, /You do not need uBlock Origin/);
+assert.match(readme, /## Credits/);
+assert.match(
+  readme,
+  /greasyfork\.org\/en\/scripts\/561518-universal-ad-blocker-pro/
+);
+assert.match(readme, /Gorstak/);
 assert.match(readme, /## Final extension result/);
 assert.match(readme, /docs\/images\/final-extension-result\.png/);
 assert.match(readme, /docs\/images\/youtube-mobile-feed\.png/);
@@ -35,8 +41,8 @@ assert.match(readme, /send a pull request/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion/);
-assert.match(readme, /repeat steps 5–7 until Orion confirms the install/);
-assert.match(readme, /2\.2\.14_release\.zip/);
+assert.match(readme, /repeat steps 7–9 until Orion confirms the install/);
+assert.match(readme, /3\.0\.4_release\.zip/);
 assert.match(readme, /### Do not enable Request Desktop Website/);
 assert.match(readme, /Set \*\*Request Desktop Website\*\* to off/);
 assert.match(install, /Do not set Orion \*\*Request Desktop Website\*\*/);
@@ -44,7 +50,7 @@ assert.match(readme, /The extension selects the YouTube backend/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstall/);
 assert.ok(
-  fs.existsSync(path.join(root, '2.2.14_release.zip')),
+  fs.existsSync(path.join(root, '3.0.4_release.zip')),
   'preferred Orion release ZIP'
 );
 assert.match(readme, /Tapping the extension icon shows no buttons/);
@@ -64,4 +70,4 @@ for (const image of [
   assert.ok(fs.existsSync(path.join(root, 'docs', 'images', image)), image);
 }
 
-console.log('illustrated iOS, Orion, uBlock, and update guide: ok');
+console.log('illustrated iOS, Orion, ads, and update guide: ok');
