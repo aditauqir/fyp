@@ -1,5 +1,106 @@
 # Bug fix log
 
+## 2026-08-22 — Search overlay showed two buttons and a tiny left field (fyp 3.1.0)
+
+### In plain English
+- **What was broken:** Tapping the top search control on iPhone showed two search buttons. The text field shrank to a small block on the left.
+- **Why it happened:** The overlay used `width: auto` on a fixed `#center`. WebKit shrink-to-fit sized it to the collapsed desktop search icon. The header search icon stayed visible next to the form submit button.
+- **What we changed:** Pin the overlay to the phone width. Stretch the native searchbox internals. Hide the header search icon while the overlay is open.
+- **How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Tap search in the top bar. 3) Confirm one full-width field. 4) Confirm one search button. 5) Type and submit.
+
+### Code that mattered
+**Before (broken idea):**
+```css
+ytd-masthead[data-fyp-mobile-search-open='true'] #center {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  width: auto; /* WebKit shrink-to-fit = icon sized */
+}
+```
+
+**After (fixed idea):**
+```css
+ytd-masthead[data-fyp-mobile-search-open='true'] #center {
+  width: calc(100vw - 24px);
+}
+ytd-masthead[data-fyp-mobile-search-open='true'] #end #search-button {
+  visibility: hidden;
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — full-width overlay, hide duplicate header icon.
+- `tests/mobile-search.test.cjs` — lock the viewport width and header-icon hide.
+- `BUG-FIXES.md` — search-bar ledger.
+
+## 2026-08-20 — Closing the hamburger greyed the page and froze scroll (fyp 3.1.0, issue #1)
+
+### In plain English
+- **What was broken:** Opening the sidebar and closing it again turned the whole screen grey. Scrolling stopped.
+- **Why it happened:** Two leftovers fought after close. YouTube’s drawer dimmer (`#scrim`) can stay painted because we hide the mini-guide rail Polymer expects to return to. The overlay also leaves `overflow: hidden` on the page. Ad-blocker cleanup used to delete every open overlay backdrop, which can include the drawer’s.
+- **What we changed:** Hide leftover dimmer only when the drawer is not open. Restore page overflow after close. Remove only orphan ad backdrops, never drawer-owned ones. Leave YouTube’s drawer open/close attributes alone.
+- **How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Tap the hamburger. 3) Close it. 4) Confirm the page is not grey and still scrolls.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+if (!document.querySelector('tp-yt-paper-dialog[opened]')) {
+  document.querySelectorAll('tp-yt-iron-overlay-backdrop.opened')
+    .forEach((backdrop) => backdrop.remove());
+}
+```
+
+**After (fixed idea):**
+```css
+tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim {
+  pointer-events: none;
+  opacity: 0;
+}
+```
+
+```js
+if (guideDrawerIsBusy() || overlayHostIsOpen()) return;
+if (backdrop.closest('tp-yt-app-drawer')) return;
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — scrim CSS, overflow restore, narrower ad-backdrop cleanup.
+- `firefox-extension/content.template.js` — same fallback path.
+- `tests/guide-scroll-restore.test.cjs` — lock the drawer-safe restore.
+- `BUG-FIXES.md` — issue #1 ledger.
+
+## 2026-08-20 — Refreshing a watch page hid the transport strip (fyp 3.1.0, issue #2)
+
+### In plain English
+- **What was broken:** Refreshing a video hid the FYP rewind / play / forward strip. It came back after navigating from another YouTube page.
+- **Why it happened:** On reload the player exists before the title. The strip was parked after the player. Full-bleed CSS then hides that player slot, so the strip vanished. A leftover hidden title still counted as a valid mount, so the strip was never moved.
+- **What we changed:** Only mount the strip on a visible title/metadata block. Never park it on the player. If it is already stuck on the player before the title exists, remove it and wait.
+- **How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Open a watch page and confirm the strip is under the title. 3) Refresh. 4) Confirm the strip is still under the title.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+if (title) title.insertAdjacentElement('afterend', toolbar);
+else if (playerAnchor) playerAnchor.insertAdjacentElement('afterend', toolbar);
+```
+
+**After (fixed idea):**
+```js
+if (!(title || metadata)) {
+  if (toolbarIsParkedOnPlayer(toolbar)) toolbar.remove();
+  return;
+}
+if (title) title.insertAdjacentElement('afterend', toolbar);
+else if (metadata) metadata.insertAdjacentElement('afterbegin', toolbar);
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — visible title mount; never park on player.
+- `firefox-extension/content.template.js` — same fallback path.
+- `tests/player-controls-delay.test.cjs` — layout version `icon-strip-v310-title-mount`.
+- `BUG-FIXES.md` — issue #2 ledger.
+
 ## 2026-08-20 — Search cards did not match the screenshot stack (fyp 3.0.4)
 
 ### In plain English

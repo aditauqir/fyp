@@ -7,6 +7,8 @@
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
+> **Active issue branch:** GitHub issue work happens on **`bug-fixes-pr`**. Read [`BUG-FIXES.md`](./BUG-FIXES.md) **first**, then this file.
+>
 > **Active performance branch:** if the user says they switched agents / “read the files” / performance work — read [`PERFORMANCE-FIXES.md`](./PERFORMANCE-FIXES.md) **first**, then this file.
 >
 > **Search/menu checklist (historical):** [`FIX-BRANCH.md`](./FIX-BRANCH.md) documents the **2.1.5–2.2.0 search failure** as **REVERTED / FAILED — do not revive without user approval**. After finishing an item, ask the user whether to continue on this branch, a separate branch, or stop.
@@ -37,7 +39,8 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ```
 ./
 ├── HANDOFF.md
-├── PERFORMANCE-FIXES.md                ← active CPU/energy branch handoff (`fix/performance-fixes`)
+├── BUG-FIXES.md                        ← GitHub issue ledger (`bug-fixes-pr`)
+├── PERFORMANCE-FIXES.md                ← CPU/energy branch handoff (`fix/performance-fixes`)
 ├── FIX-BRANCH.md                       ← search/menu history (2.2.3 shipped; S1–S5 reverted)
 ├── ARCHITECTURE.md                     ← product and technical contract
 ├── PATCH_NOTES.md                      ← release and popup changelog source
@@ -346,9 +349,9 @@ After reinstall + hard refresh on Orion:
 
 ## Next agent: first actions
 
-1. Read this file + [`FIX-BRANCH.md`](./FIX-BRANCH.md) + skim `youtube-mobile-background.user.js` headers/constants.
-2. Confirm the latest GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`, and that it matches `@version`.
-3. Pick the next **Not fixed** row from `FIX-BRANCH.md` (or the user’s new request).
-4. Implement in the **userscript**, mirror fallback if needed, update the FIX-BRANCH status table.
+1. If the work is a GitHub issue, read [`BUG-FIXES.md`](./BUG-FIXES.md) first, stay on **`bug-fixes-pr`**, then this file.
+2. Confirm the latest shipped GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`. Do not treat unreleased `3.1.0` as shipped.
+3. Pick the next **open** GitHub issue / **Not fixed** row from `BUG-FIXES.md` (or the user’s new request). Do not continue `FIX-BRANCH.md` search experiments unless asked.
+4. Implement in the **userscript**, mirror fallback if needed, update the BUG-FIXES ledger.
 5. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
-6. Ask whether to continue on **this branch**, a **separate branch**, or **stop**.
+6. Ask whether to continue on **`bug-fixes-pr`**, **ship**, or **stop**.

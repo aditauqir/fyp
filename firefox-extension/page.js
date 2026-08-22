@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.0.4');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.0');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -24,12 +24,12 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v310-title-mount';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v304-search-shot';
+  const NAV_LAYOUT_VERSION = 'ext-v310-search-bar';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
   const CPU_TAMER_ENABLED_BY_DEFAULT = false;
@@ -51,6 +51,9 @@
     'ytd-masthead button[aria-label="Search"]',
     'ytd-masthead [role="button"][aria-label="Search"]',
     'ytd-masthead yt-icon-button[aria-label="Search"]',
+    'ytd-masthead yt-searchbox',
+    'ytd-masthead ytd-searchbox',
+    'ytd-masthead .ytSearchboxComponentSearchButton',
   ].join(',');
   const PLAYER_CONTROLS_VISIBLE_MS = 10000;
   const MENU_OPTION_TAP_SLOP_PX = 12;
@@ -3015,6 +3018,86 @@
   const AD_BLOCK_ENFORCEMENT_PATTERN =
     /ad blockers? (?:are not allowed|violate)|ad blocker.{0,40}youtube|video playback is blocked|disable (?:your )?ad blocker|allow youtube ads|ad-blocking software/i;
 
+  function guideDrawerIsBusy() {
+    /*
+     * Issue #1: hamburger close can leave YouTube's overlay lock behind.
+     * Treat the drawer as busy while it is open, opening, or peeking so we
+     * never clear overflow / scrim while the user is still in the menu.
+     * Read Polymer state only. Do not set opened / peeking / swipe.
+     */
+    const drawer = document.querySelector(
+      'tp-yt-app-drawer#guide, tp-yt-app-drawer'
+    );
+    if (!(drawer instanceof HTMLElement)) return false;
+    if (
+      drawer.hasAttribute('opened') ||
+      drawer.hasAttribute('opening') ||
+      drawer.hasAttribute('peeking')
+    ) {
+      return true;
+    }
+    try {
+      if (drawer.opened === true) return true;
+    } catch {
+      // Polymer may throw on unready custom elements.
+    }
+    return false;
+  }
+
+  function overlayHostIsOpen() {
+    return Boolean(
+      document.querySelector(
+        'tp-yt-paper-dialog[opened], tp-yt-iron-dropdown[opened], ' +
+          'iron-dropdown[opened]'
+      )
+    );
+  }
+
+  function removeOrphanAdBackdrops() {
+    /*
+     * Ad-blocker dialogs share YouTube's iron overlay backdrop class with the
+     * hamburger drawer. Only remove backdrops that are not inside the drawer
+     * and only when no dialog or drawer is open.
+     */
+    if (guideDrawerIsBusy() || overlayHostIsOpen()) return;
+    document.querySelectorAll('tp-yt-iron-overlay-backdrop').forEach((backdrop) => {
+      if (!(backdrop instanceof HTMLElement)) return;
+      if (backdrop.closest('tp-yt-app-drawer')) return;
+      backdrop.remove();
+    });
+  }
+
+  function restoreScrollAfterGuideClose() {
+    /*
+     * After close, Polymer may keep overflow:hidden on html/body/ytd-app
+     * because the mini-guide rail we hide is the state it expects to restore.
+     * Clear that leftover lock. CSS hides leftover #scrim separately.
+     */
+    if (guideDrawerIsBusy() || overlayHostIsOpen()) return;
+
+    for (const node of [
+      document.documentElement,
+      document.body,
+      document.querySelector('ytd-app'),
+      document.querySelector('ytm-app'),
+      document.querySelector('ytd-page-manager'),
+    ]) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.style.overflow === 'hidden' || node.style.overflowY === 'hidden') {
+        node.style.removeProperty('overflow');
+        node.style.removeProperty('overflow-y');
+      }
+    }
+
+    const app = document.querySelector('ytd-app');
+    if (
+      app instanceof HTMLElement &&
+      app.getAttribute('aria-hidden') === 'true'
+    ) {
+      app.removeAttribute('aria-hidden');
+    }
+  }
+
   function dismissAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -3034,17 +3117,8 @@
     }
     if (!removed) return;
 
-    if (!document.querySelector('tp-yt-paper-dialog[opened]')) {
-      document
-        .querySelectorAll(
-          'tp-yt-iron-overlay-backdrop.opened, ' +
-            'tp-yt-paper-dialog + tp-yt-iron-overlay-backdrop'
-        )
-        .forEach((backdrop) => backdrop.remove());
-      document.documentElement.style.removeProperty('overflow');
-      document.body?.style.removeProperty('overflow');
-      document.querySelector('ytd-app')?.removeAttribute('aria-hidden');
-    }
+    removeOrphanAdBackdrops();
+    restoreScrollAfterGuideClose();
 
     const video = findVideo();
     if (video && video.paused && !video.ended && video.readyState > 0) {
@@ -3177,6 +3251,19 @@
       ytd-app[mini-guide-visible] {
         --ytd-mini-guide-width: 0px !important;
         --ytd-mini-guide-width-min: 0px !important;
+      }
+
+      /*
+       * 3.1.0 / issue #1: Closing the hamburger can leave #scrim painted over
+       * the page (grey overlay + no scroll) because the mini-guide rail is
+       * hidden. Hide leftover scrim only when the drawer is not open,
+       * opening, or peeking. Do not touch opened / peeking / swipe attributes.
+       */
+      tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim,
+      tp-yt-app-drawer:not([opened]):not([opening]):not([peeking]) > #scrim {
+        pointer-events: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
       }
 
       /* Kill YouTube miniplayer when leaving a video. */
@@ -4279,6 +4366,12 @@
          * search form, but present it as a phone-width overlay after the
          * search icon is tapped. 16px input prevents WebKit keyboard zoom.
          * Ask/voice/AI clutter stays hidden (critical style + below).
+         *
+         * 3.1.0 (iPhone 16): do not set width:auto on the overlay. WebKit
+         * shrink-to-fit then sizes #center to the collapsed search icon, so
+         * the field becomes a small block on the left and two search buttons
+         * show (header icon + form submit). Pin a viewport width, stretch
+         * yt-searchbox internals, and hide the header search icon while open.
          */
         ytd-masthead,
         ytd-masthead #container,
@@ -4313,18 +4406,20 @@
           z-index: 2147483646 !important;
           box-sizing: border-box !important;
           display: flex !important;
-          width: auto !important;
-          min-width: 0 !important;
-          max-width: none !important;
+          flex-wrap: nowrap !important;
+          width: calc(100vw - 24px) !important;
+          min-width: calc(100vw - 24px) !important;
+          max-width: calc(100vw - 24px) !important;
           height: 48px !important;
           margin: 0 !important;
-          padding: 4px !important;
+          padding: 4px 4px 4px 8px !important;
           align-items: center !important;
           color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: var(--yt-spec-base-background, #fff) !important;
           border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12)) !important;
           border-radius: 24px !important;
           box-shadow: 0 8px 28px rgba(0, 0, 0, .18) !important;
+          overflow: hidden !important;
         }
 
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
@@ -4336,24 +4431,47 @@
           box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
         }
 
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end #search-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end #search-button-narrow,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end #search-icon-legacy,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end button[aria-label='Search'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end [role='button'][aria-label='Search'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end yt-icon-button[aria-label='Search'] {
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentHost,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInputBox,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] form {
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #container,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-input {
           box-sizing: border-box !important;
           display: flex !important;
           flex: 1 1 auto !important;
+          flex-wrap: nowrap !important;
           width: 100% !important;
           min-width: 0 !important;
-          max-width: 100% !important;
+          max-width: none !important;
           height: 40px !important;
           align-items: center !important;
         }
 
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center
+          .ytSearchboxComponentInnerSearchIcon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center
+          #search-icon:not(#search-icon-legacy) {
+          display: none !important;
+        }
+
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInput {
           box-sizing: border-box !important;
           display: block !important;
           flex: 1 1 auto !important;
@@ -4372,10 +4490,12 @@
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInput,
         html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input[name='search_query'],
-        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input {
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInput {
           color: #fff !important;
         }
 
@@ -5140,6 +5260,12 @@
       .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
   }
 
+  /*
+   * Phone-width tap on the masthead search icon/box. We own the overlay
+   * (data-fyp-mobile-search-open) so YouTube's collapsed desktop searchbox
+   * does not stay icon-sized. Clicks inside an already-open #center pass
+   * through so the user can type and submit.
+   */
   function handleMobileSearchClick(event) {
     if (!window.matchMedia?.('(max-width: 700px)').matches) return;
     const target = event.target;
@@ -5164,7 +5290,8 @@
     }
 
     const input = masthead.querySelector(
-      'input#search, input[name="search_query"], .yt-searchbox-input'
+      'input#search, input[name="search_query"], .yt-searchbox-input, ' +
+        '.ytSearchboxComponentInput'
     );
     if (!(input instanceof HTMLInputElement)) return;
 
@@ -5273,6 +5400,7 @@
     }
 
     hideShortsGuideEntries(document);
+    restoreScrollAfterGuideClose();
   }
 
   function ensureGuideButtonVisible() {
@@ -6035,7 +6163,38 @@
    * Prefer a mounted watch title/metadata node even when its layout height is
    * briefly 0 during YouTube remounts. Requiring height > 0 caused the strip to
    * bounce between #below (order 4 / huge gap) and after-title on every scan.
+   * Issue #2: never treat a hidden ancestor or the player shell as a valid
+   * mount. Reload paints the player before the title; parking there clips the
+   * strip when full-bleed CSS collapses #columns #player.
    */
+  const COLLAPSED_PLAYER_SHELL_SELECTOR = [
+    'ytd-watch-flexy[full-bleed-player] #columns #player',
+    'ytd-watch-flexy[theater] #columns #player',
+    'ytd-watch-flexy:not([full-bleed-player]) #player-full-bleed-container',
+  ].join(', ');
+
+  function isUsableWatchMount(node) {
+    if (!(node instanceof Element) || !node.isConnected) return false;
+    if (node.closest('[hidden]')) return false;
+    if (node.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
+    let current = node;
+    while (current instanceof Element) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    if (typeof node.checkVisibility === 'function') {
+      try {
+        if (!node.checkVisibility()) return false;
+      } catch {
+        // Older WebKit may throw; ancestor display/visibility already ran.
+      }
+    }
+    return true;
+  }
+
   function findWatchTitleAnchor() {
     const selectors = [
       'ytd-watch-metadata #title',
@@ -6044,23 +6203,25 @@
       'ytd-watch-flexy #below h1',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
-      const style = getComputedStyle(candidate);
-      if (style.display === 'none' || style.visibility === 'hidden') continue;
-      return candidate.closest('#title') || candidate;
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (!isUsableWatchMount(candidate)) continue;
+        return candidate.closest('#title') || candidate;
+      }
     }
     return null;
   }
 
   function findWatchMetadataHost() {
-    return (
-      document.querySelector('ytd-watch-flexy ytd-watch-metadata') ||
-      document.querySelector(
-        'ytd-watch-flexy ytd-video-primary-info-renderer'
-      ) ||
-      null
-    );
+    const selectors = [
+      'ytd-watch-flexy ytd-watch-metadata',
+      'ytd-watch-flexy ytd-video-primary-info-renderer',
+    ];
+    for (const selector of selectors) {
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (isUsableWatchMount(candidate)) return candidate;
+      }
+    }
+    return null;
   }
 
   function findWatchPlayerAnchor() {
@@ -6092,21 +6253,39 @@
     );
   }
 
-  function toolbarIsCorrectlyPlaced(toolbar, title, metadata, playerAnchor) {
+  function toolbarIsParkedOnPlayer(toolbar) {
+    /*
+     * Issue #2: a strip sitting after #player / inside the collapsed full-bleed
+     * shell is invisible. Treat that as the wrong place even if a leftover
+     * hidden title node still exists in the DOM.
+     */
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
+    if (toolbar.closest('#movie_player, .html5-video-player')) return true;
+    if (toolbar.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return true;
+    const playerAnchor = findWatchPlayerAnchor();
+    if (!(playerAnchor instanceof Element)) return false;
+    return (
+      playerAnchor.contains(toolbar) ||
+      playerAnchor.nextElementSibling === toolbar
+    );
+  }
+
+  function toolbarIsCorrectlyPlaced(toolbar, title, metadata) {
+    if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
+      return false;
+    }
+    if (toolbarIsParkedOnPlayer(toolbar)) return false;
     if (title instanceof Element) {
-      return title.nextElementSibling === toolbar;
+      return title.nextElementSibling === toolbar && isUsableWatchMount(title);
     }
     if (metadata instanceof Element) {
       return (
         toolbar.parentElement === metadata &&
-        metadata.firstElementChild === toolbar
+        metadata.firstElementChild === toolbar &&
+        isUsableWatchMount(metadata)
       );
-    }
-    if (playerAnchor instanceof Element) {
-      return playerAnchor.nextElementSibling === toolbar;
     }
     return false;
   }
@@ -6119,12 +6298,19 @@
 
     const title = findWatchTitleAnchor();
     const metadata = findWatchMetadataHost();
-    const playerAnchor = findWatchPlayerAnchor();
-    if (!(title instanceof Element) && !(metadata instanceof Element) && !(playerAnchor instanceof Element)) {
+    let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+
+    /*
+     * Reload order is player first, title later. If we parked the strip on
+     * the player while waiting, remove it. Do not insert after the player.
+     */
+    if (!(title instanceof Element) && !(metadata instanceof Element)) {
+      if (toolbar instanceof HTMLElement && toolbarIsParkedOnPlayer(toolbar)) {
+        toolbar.remove();
+      }
       return;
     }
 
-    let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (
       !(toolbar instanceof HTMLElement) ||
       toolbar.dataset.fypControlsLayout !== PLAYER_CONTROLS_LAYOUT_VERSION
@@ -6139,16 +6325,14 @@
     }
 
     /*
-     * Stable stack: title → strip (preferred), else metadata host, else under
-     * the player. Skip reparenting when already correct to stop layout jitter.
+     * Stable stack: title → strip (preferred), else metadata host.
+     * Never park under the player. Skip reparenting when already correct.
      */
-    if (!toolbarIsCorrectlyPlaced(toolbar, title, metadata, playerAnchor)) {
+    if (!toolbarIsCorrectlyPlaced(toolbar, title, metadata)) {
       if (title instanceof Element) {
         title.insertAdjacentElement('afterend', toolbar);
       } else if (metadata instanceof Element) {
         metadata.insertAdjacentElement('afterbegin', toolbar);
-      } else if (playerAnchor instanceof Element) {
-        playerAnchor.insertAdjacentElement('afterend', toolbar);
       }
     }
     syncCustomPlayerControls();
@@ -6239,6 +6423,7 @@
     applyMobileShell();
     enforceSimpleSearchLayout();
     ensureGuideButtonVisible();
+    restoreScrollAfterGuideClose();
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();
@@ -6268,6 +6453,12 @@
     if (isReallyHidden()) prepareForBackground();
   }, true);
   nativeDocumentAddEventListener('freeze', prepareForBackground, true);
+  nativeDocumentAddEventListener('yt-guide-close', restoreScrollAfterGuideClose, true);
+  nativeDocumentAddEventListener(
+    'iron-overlay-closed',
+    restoreScrollAfterGuideClose,
+    true
+  );
   nativeDocumentAddEventListener('yt-navigate-finish', () => {
     if (redirectChannelRootToVideos()) return;
     if (location.pathname.startsWith('/shorts')) {
@@ -6279,6 +6470,7 @@
     hideNativeNavigationAndShorts();
     enforceSimpleSearchLayout();
     ensureGuideButtonVisible();
+    restoreScrollAfterGuideClose();
     hideUploadControls();
     dismissMiniplayer();
     ensurePlayerControlsToolbar();
@@ -6409,6 +6601,7 @@
     syncCustomPlayerControls();
     hideAskGeminiControls();
     ensureGuideButtonVisible();
+    restoreScrollAfterGuideClose();
     hideUploadControls();
     hideNativeNavigationAndShorts();
     dismissMiniplayer();

@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.0.4';
+  const EXPECTED_PAGE_VERSION = '3.1.0';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v310-title-mount';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1306,6 +1306,83 @@
   const FALLBACK_AD_BLOCK_ENFORCEMENT_PATTERN =
     /ad blockers? (?:are not allowed|violate)|ad blocker.{0,40}youtube|video playback is blocked|disable (?:your )?ad blocker|allow youtube ads|ad-blocking software/i;
 
+  function fallbackGuideDrawerIsBusy() {
+    /*
+     * Issue #1 fallback: same hamburger leftover lock as page.js. Read
+     * Polymer opened/opening/peeking only. Do not set drawer attributes.
+     */
+    const drawer = document.querySelector(
+      'tp-yt-app-drawer#guide, tp-yt-app-drawer'
+    );
+    if (!(drawer instanceof HTMLElement)) return false;
+    if (
+      drawer.hasAttribute('opened') ||
+      drawer.hasAttribute('opening') ||
+      drawer.hasAttribute('peeking')
+    ) {
+      return true;
+    }
+    try {
+      if (drawer.opened === true) return true;
+    } catch {
+      // Polymer may throw on unready custom elements.
+    }
+    return false;
+  }
+
+  function fallbackOverlayHostIsOpen() {
+    return Boolean(
+      document.querySelector(
+        'tp-yt-paper-dialog[opened], tp-yt-iron-dropdown[opened], ' +
+          'iron-dropdown[opened]'
+      )
+    );
+  }
+
+  function removeFallbackOrphanAdBackdrops() {
+    /*
+     * Do not delete every .opened iron backdrop. The hamburger drawer can
+     * share that class; only remove orphans when the drawer is closed.
+     */
+    if (fallbackGuideDrawerIsBusy() || fallbackOverlayHostIsOpen()) return;
+    document.querySelectorAll('tp-yt-iron-overlay-backdrop').forEach((backdrop) => {
+      if (!(backdrop instanceof HTMLElement)) return;
+      if (backdrop.closest('tp-yt-app-drawer')) return;
+      backdrop.remove();
+    });
+  }
+
+  function restoreFallbackScrollAfterGuideClose() {
+    if (pageRuntimeReady()) return;
+    /*
+     * Issue #1 fallback: after hamburger close, restore overflow if Polymer
+     * left html/body/ytd-app locked. CSS hides leftover #scrim separately.
+     */
+    if (fallbackGuideDrawerIsBusy() || fallbackOverlayHostIsOpen()) return;
+
+    for (const node of [
+      document.documentElement,
+      document.body,
+      document.querySelector('ytd-app'),
+      document.querySelector('ytm-app'),
+      document.querySelector('ytd-page-manager'),
+    ]) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.style.overflow === 'hidden' || node.style.overflowY === 'hidden') {
+        node.style.removeProperty('overflow');
+        node.style.removeProperty('overflow-y');
+      }
+    }
+
+    const app = document.querySelector('ytd-app');
+    if (
+      app instanceof HTMLElement &&
+      app.getAttribute('aria-hidden') === 'true'
+    ) {
+      app.removeAttribute('aria-hidden');
+    }
+  }
+
   function dismissFallbackAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -1325,17 +1402,8 @@
     }
     if (!removed) return;
 
-    if (!document.querySelector('tp-yt-paper-dialog[opened]')) {
-      document
-        .querySelectorAll(
-          'tp-yt-iron-overlay-backdrop.opened, ' +
-            'tp-yt-paper-dialog + tp-yt-iron-overlay-backdrop'
-        )
-        .forEach((backdrop) => backdrop.remove());
-      document.documentElement.style.removeProperty('overflow');
-      document.body?.style.removeProperty('overflow');
-      document.querySelector('ytd-app')?.removeAttribute('aria-hidden');
-    }
+    removeFallbackOrphanAdBackdrops();
+    restoreFallbackScrollAfterGuideClose();
 
     const video = fallbackVideo();
     if (video && video.paused && !video.ended && video.readyState > 0) {
@@ -1353,23 +1421,58 @@
       'ytd-watch-flexy #below h1',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
-      const style = getComputedStyle(candidate);
-      if (style.display === 'none' || style.visibility === 'hidden') continue;
-      return candidate.closest('#title') || candidate;
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (!isFallbackUsableWatchMount(candidate)) continue;
+        return candidate.closest('#title') || candidate;
+      }
     }
     return null;
   }
 
   function findFallbackWatchMetadataHost() {
-    return (
-      document.querySelector('ytd-watch-flexy ytd-watch-metadata') ||
-      document.querySelector(
-        'ytd-watch-flexy ytd-video-primary-info-renderer'
-      ) ||
-      null
-    );
+    const selectors = [
+      'ytd-watch-flexy ytd-watch-metadata',
+      'ytd-watch-flexy ytd-video-primary-info-renderer',
+    ];
+    for (const selector of selectors) {
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (isFallbackUsableWatchMount(candidate)) return candidate;
+      }
+    }
+    return null;
+  }
+
+  const FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR = [
+    'ytd-watch-flexy[full-bleed-player] #columns #player',
+    'ytd-watch-flexy[theater] #columns #player',
+    'ytd-watch-flexy:not([full-bleed-player]) #player-full-bleed-container',
+  ].join(', ');
+
+  /*
+   * Issue #2 fallback: title/metadata must be visible and not inside the
+   * collapsed player shell. Reload can park the strip there before the title
+   * exists.
+   */
+  function isFallbackUsableWatchMount(node) {
+    if (!(node instanceof Element) || !node.isConnected) return false;
+    if (node.closest('[hidden]')) return false;
+    if (node.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
+    let current = node;
+    while (current instanceof Element) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    if (typeof node.checkVisibility === 'function') {
+      try {
+        if (!node.checkVisibility()) return false;
+      } catch {
+        // Older WebKit may throw; ancestor display/visibility already ran.
+      }
+    }
+    return true;
   }
 
   function findFallbackWatchPlayerAnchor() {
@@ -1389,26 +1492,37 @@
     return null;
   }
 
-  function fallbackToolbarIsCorrectlyPlaced(
-    toolbar,
-    title,
-    metadata,
-    playerAnchor
-  ) {
+  function fallbackToolbarIsParkedOnPlayer(toolbar) {
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
+    if (toolbar.closest('#movie_player, .html5-video-player')) return true;
+    if (toolbar.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return true;
+    const playerAnchor = findFallbackWatchPlayerAnchor();
+    if (!(playerAnchor instanceof Element)) return false;
+    return (
+      playerAnchor.contains(toolbar) ||
+      playerAnchor.nextElementSibling === toolbar
+    );
+  }
+
+  function fallbackToolbarIsCorrectlyPlaced(toolbar, title, metadata) {
+    if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
+      return false;
+    }
+    if (fallbackToolbarIsParkedOnPlayer(toolbar)) return false;
     if (title instanceof Element) {
-      return title.nextElementSibling === toolbar;
+      return (
+        title.nextElementSibling === toolbar &&
+        isFallbackUsableWatchMount(title)
+      );
     }
     if (metadata instanceof Element) {
       return (
         toolbar.parentElement === metadata &&
-        metadata.firstElementChild === toolbar
+        metadata.firstElementChild === toolbar &&
+        isFallbackUsableWatchMount(metadata)
       );
-    }
-    if (playerAnchor instanceof Element) {
-      return playerAnchor.nextElementSibling === toolbar;
     }
     return false;
   }
@@ -1420,15 +1534,16 @@
     }
     const title = findFallbackWatchTitleAnchor();
     const metadata = findFallbackWatchMetadataHost();
-    const playerAnchor = findFallbackWatchPlayerAnchor();
-    if (
-      !(title instanceof Element) &&
-      !(metadata instanceof Element) &&
-      !(playerAnchor instanceof Element)
-    ) {
+    let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
+    if (!(title instanceof Element) && !(metadata instanceof Element)) {
+      if (
+        toolbar instanceof HTMLElement &&
+        fallbackToolbarIsParkedOnPlayer(toolbar)
+      ) {
+        toolbar.remove();
+      }
       return;
     }
-    let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (
       !(toolbar instanceof HTMLElement) ||
       toolbar.dataset.fypControlsLayout !== PLAYER_CONTROLS_LAYOUT_VERSION
@@ -1441,20 +1556,11 @@
       toolbar.setAttribute('aria-label', 'Video player controls');
       toolbar.innerHTML = playerControlsMarkup();
     }
-    if (
-      !fallbackToolbarIsCorrectlyPlaced(
-        toolbar,
-        title,
-        metadata,
-        playerAnchor
-      )
-    ) {
+    if (!fallbackToolbarIsCorrectlyPlaced(toolbar, title, metadata)) {
       if (title instanceof Element) {
         title.insertAdjacentElement('afterend', toolbar);
       } else if (metadata instanceof Element) {
         metadata.insertAdjacentElement('afterbegin', toolbar);
-      } else if (playerAnchor instanceof Element) {
-        playerAnchor.insertAdjacentElement('afterend', toolbar);
       }
     }
     syncFallbackPlayerControls();
@@ -1664,12 +1770,25 @@
       ensureFallbackPlayerControlsToolbar();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
+      restoreFallbackScrollAfterGuideClose();
     }, 1200);
     setInterval(() => {
       if (pageRuntimeReady()) return;
       skipFallbackPlayerAd();
       dismissFallbackAdBlockEnforcement();
+      restoreFallbackScrollAfterGuideClose();
     }, 300);
+
+    document.addEventListener(
+      'yt-guide-close',
+      restoreFallbackScrollAfterGuideClose,
+      true
+    );
+    document.addEventListener(
+      'iron-overlay-closed',
+      restoreFallbackScrollAfterGuideClose,
+      true
+    );
 
     document.addEventListener(
       'click',
@@ -1704,6 +1823,14 @@
         a[href*="youtube.com/shorts/"],
         [is-shorts] {
           display: none !important;
+        }
+
+        tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim,
+        tp-yt-app-drawer:not([opened]):not([opening]):not([peeking]) > #scrim {
+          /* Issue #1: leftover drawer dimmer after close. */
+          pointer-events: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
         }
 
         ytd-enforcement-message-view-model,
