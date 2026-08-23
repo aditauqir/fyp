@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  issues:
+    types: [opened, edited, deleted, transferred, closed, reopened]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check build-script syntax
+        run: bash -n rebuild-extension.sh
+
+      - name: Rebuild and validate extension packages
+        run: ./rebuild-extension.sh
+
+      - name: Run tests
+        run: node --test tests/*.cjs
+
+      - name: Check whitespace errors
+        run: git diff --check
+
+      - name: Check generated extension files
+        run: git diff --exit-code -- chrome-extension firefox-extension
+
+      - name: Check the live GitHub issue ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/check-issue-ledger.cjs
