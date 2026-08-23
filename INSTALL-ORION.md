@@ -1,6 +1,6 @@
 # Install Fyoutube on Orion iOS
 
-This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `3.0.4_release.zip`).
+This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `3.1.1_release.zip`).
 
 ## Packages
 

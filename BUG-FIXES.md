@@ -7,7 +7,7 @@
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version stays **`3.0.4`** until the user asks to ship. This branch currently builds **`3.1.1`**.
+> Shipped public version is **`3.1.1`**. GitHub Release title is `Fyoutube 3.1.1`, tag `v3.1.1`.
 
 ---
 
@@ -66,9 +66,9 @@ Last live check: **2026-08-23**.
 
 | Issue | GitHub title | GitHub state | Branch state | Summary |
 |---|---|---|---|---|
-| [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **OPEN** | **Addressed in `316702e`; CI passes; iPhone verification pending** | Hamburger close left a grey overlay and froze scroll. |
-| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **OPEN** | **3.1.1 remount on reload; CI pending; iPhone verification pending** | Reload removed the strip when title/metadata failed the visibility check. |
-| [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **OPEN** | **Addressed in `316702e`; CI passes; iPhone 16 verification pending** | Tapping search showed two buttons and a tiny field on the left. |
+| [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Hamburger close left a grey overlay and froze scroll. |
+| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2` remount on reload)** | Reload removed the strip when title/metadata failed the visibility check. |
+| [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Tapping search showed two buttons and a tiny field on the left. |
 
 `OPEN` and `CLOSED` in the GitHub state column are live issue states. The branch state records implementation and verification separately.
 
@@ -82,7 +82,7 @@ Last live check: **2026-08-23**.
 
 **What we changed:** Hide leftover `#scrim` with CSS only when the drawer is not `opened` / `opening` / `peeking`. Restore html/body/`ytd-app` overflow after close. Remove only orphan ad backdrops, never drawer-owned ones. Do not set or clear drawer Polymer attributes.
 
-**How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Open the hamburger. 3) Close it. 4) Confirm the page is not grey and Home/watch still scrolls. 5) Confirm ads are still dismissed if YouTube shows an ad-blocker dialog.
+**How to verify:** 1) Reinstall `3.1.1_release.zip` and hard-refresh. 2) Open the hamburger. 3) Close it. 4) Confirm the page is not grey and Home/watch still scrolls. 5) Confirm ads are still dismissed if YouTube shows an ad-blocker dialog.
 
 ---
 
@@ -106,7 +106,7 @@ Last live check: **2026-08-23**.
 
 **What we changed:** Pin the overlay to `calc(100vw - 24px)`. Stretch `yt-searchbox` / `ytd-searchbox` internals so the input can grow. Hide the header search icon while the overlay is open. Keep one native input and the form submit control.
 
-**How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Tap search in the top bar. 3) Confirm one full-width field. 4) Confirm one search submit control, not two icons. 5) Type and submit a search.
+**How to verify:** 1) Reinstall `3.1.1_release.zip` and hard-refresh. 2) Tap search in the top bar. 3) Confirm one full-width field. 4) Confirm one search submit control, not two icons. 5) Type and submit a search.
 
 ---
 
@@ -115,4 +115,4 @@ Last live check: **2026-08-23**.
 1. Implement in `youtube-mobile-background.user.js`. Mirror fallback in `firefox-extension/content.template.js` when the isolated-world path can hit the same bug.
 2. Run `./rebuild-extension.sh` and `node --test tests/*.cjs`.
 3. Update this ledger and append `fixes.md`.
-4. Ask whether to continue on **`bug-fixes-pr`**, **ship 3.1.1**, or **stop**.
+4. Ask whether to continue on **`bug-fixes-pr`** or **stop**.

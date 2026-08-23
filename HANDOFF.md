@@ -1,7 +1,7 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `3.0.4` SHIPPED** (GitHub Release `v3.0.4`, title `FYouTube Extension 3.0.4`; branches `main` and `features`)
+> **Current ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -83,7 +83,7 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.0.4_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 3.1.1_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -129,7 +129,26 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 3.0.4)
+## Latest changes (through 3.1.1)
+
+### 3.1.1 — public ship (`Fyoutube 3.1.1`)
+- GitHub Release tag `v3.1.1`. Title is `Fyoutube 3.1.1`.
+- Recommended installer: `3.1.1_release.zip` (Chrome MV3).
+- Refreshing a watch page keeps the rewind / play / forward strip under the video.
+- Closing the hamburger menu no longer leaves a grey overlay or frozen scrolling.
+- Tapping search on iPhone shows one full-width field and one search button.
+- Product name in headings, popup, and the extension listing is **Fyoutube**.
+- Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
+Direct assets:
+
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/3.1.1_release.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-chrome-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-firefox-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-orion-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-orion-3.1.1.xpi`
+
+Older `v3.0.4` download URLs stay available.
 
 ### 3.0.4 — public ship (`FYouTube Extension 3.0.4`)
 - GitHub Release tag `v3.0.4`. Title is `FYouTube Extension 3.0.4`.
@@ -312,9 +331,9 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 ## GitHub Release policy (mandatory)
 
 - Never delete an old GitHub Release or its assets.
-- Publish the newest version as `FYouTube Extension <version>`.
+- Publish the newest version as `Fyoutube <version>`.
 - Use tag `v<version>`.
-- Append `hotfix` when the ship is a hotfix, for example `FYouTube Extension 2.1.1 hotfix`.
+- Append `hotfix` when the ship is a hotfix, for example `Fyoutube 2.1.1 hotfix`.
 - After the new release is live, prefix every older release title with `[DEPRECATED] `. Keep the older title text.
 - Do not add `[DEPRECATED]` to the current latest release.
 - Verify with `gh release list --repo aditauqir/fyp`.
@@ -386,7 +405,7 @@ After reinstall + hard refresh on Orion:
 1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
 2. Run `node scripts/check-issue-ledger.cjs`.
 3. Report every issue, live GitHub state, and branch state to the user.
-4. Confirm the latest shipped GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`. Do not treat unreleased `3.1.1` as shipped.
+4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.1.1`, tag `v3.1.1`.
 5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
 6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
 7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.

@@ -43,7 +43,7 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `3.0.4_release.zip`) | Recommended install for Orion |
+| `*_release.zip` (example: `3.1.1_release.zip`) | Recommended install for Orion |
 | `fyoutube-chrome-*.zip` | Chrome Manifest V3 fallback |
 | `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
 | `fyoutube-orion-*.xpi` | XPI fallback |
@@ -131,7 +131,7 @@ Orion does not replace a manually installed extension automatically. Use this up
 
 ### Release history policy
 
-Old GitHub Releases and their downloads stay available. The current release title is `FYouTube Extension <version>`. When a new version becomes the latest release, each older release title gets the prefix **`[DEPRECATED]`**.
+Old GitHub Releases and their downloads stay available. The current release title is `Fyoutube <version>`. When a new version becomes the latest release, each older release title gets the prefix **`[DEPRECATED]`**.
 
 ## Update
 
