@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.0.4';
+  const EXPECTED_PAGE_VERSION = '3.1.1';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1306,6 +1306,83 @@
   const FALLBACK_AD_BLOCK_ENFORCEMENT_PATTERN =
     /ad blockers? (?:are not allowed|violate)|ad blocker.{0,40}youtube|video playback is blocked|disable (?:your )?ad blocker|allow youtube ads|ad-blocking software/i;
 
+  function fallbackGuideDrawerIsBusy() {
+    /*
+     * Issue #1 fallback: same hamburger leftover lock as page.js. Read
+     * Polymer opened/opening/peeking only. Do not set drawer attributes.
+     */
+    const drawer = document.querySelector(
+      'tp-yt-app-drawer#guide, tp-yt-app-drawer'
+    );
+    if (!(drawer instanceof HTMLElement)) return false;
+    if (
+      drawer.hasAttribute('opened') ||
+      drawer.hasAttribute('opening') ||
+      drawer.hasAttribute('peeking')
+    ) {
+      return true;
+    }
+    try {
+      if (drawer.opened === true) return true;
+    } catch {
+      // Polymer may throw on unready custom elements.
+    }
+    return false;
+  }
+
+  function fallbackOverlayHostIsOpen() {
+    return Boolean(
+      document.querySelector(
+        'tp-yt-paper-dialog[opened], tp-yt-iron-dropdown[opened], ' +
+          'iron-dropdown[opened]'
+      )
+    );
+  }
+
+  function removeFallbackOrphanAdBackdrops() {
+    /*
+     * Do not delete every .opened iron backdrop. The hamburger drawer can
+     * share that class; only remove orphans when the drawer is closed.
+     */
+    if (fallbackGuideDrawerIsBusy() || fallbackOverlayHostIsOpen()) return;
+    document.querySelectorAll('tp-yt-iron-overlay-backdrop').forEach((backdrop) => {
+      if (!(backdrop instanceof HTMLElement)) return;
+      if (backdrop.closest('tp-yt-app-drawer')) return;
+      backdrop.remove();
+    });
+  }
+
+  function restoreFallbackScrollAfterGuideClose() {
+    if (pageRuntimeReady()) return;
+    /*
+     * Issue #1 fallback: after hamburger close, restore overflow if Polymer
+     * left html/body/ytd-app locked. CSS hides leftover #scrim separately.
+     */
+    if (fallbackGuideDrawerIsBusy() || fallbackOverlayHostIsOpen()) return;
+
+    for (const node of [
+      document.documentElement,
+      document.body,
+      document.querySelector('ytd-app'),
+      document.querySelector('ytm-app'),
+      document.querySelector('ytd-page-manager'),
+    ]) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.style.overflow === 'hidden' || node.style.overflowY === 'hidden') {
+        node.style.removeProperty('overflow');
+        node.style.removeProperty('overflow-y');
+      }
+    }
+
+    const app = document.querySelector('ytd-app');
+    if (
+      app instanceof HTMLElement &&
+      app.getAttribute('aria-hidden') === 'true'
+    ) {
+      app.removeAttribute('aria-hidden');
+    }
+  }
+
   function dismissFallbackAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -1325,17 +1402,8 @@
     }
     if (!removed) return;
 
-    if (!document.querySelector('tp-yt-paper-dialog[opened]')) {
-      document
-        .querySelectorAll(
-          'tp-yt-iron-overlay-backdrop.opened, ' +
-            'tp-yt-paper-dialog + tp-yt-iron-overlay-backdrop'
-        )
-        .forEach((backdrop) => backdrop.remove());
-      document.documentElement.style.removeProperty('overflow');
-      document.body?.style.removeProperty('overflow');
-      document.querySelector('ytd-app')?.removeAttribute('aria-hidden');
-    }
+    removeFallbackOrphanAdBackdrops();
+    restoreFallbackScrollAfterGuideClose();
 
     const video = fallbackVideo();
     if (video && video.paused && !video.ended && video.readyState > 0) {
@@ -1353,62 +1421,167 @@
       'ytd-watch-flexy #below h1',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
-      const style = getComputedStyle(candidate);
-      if (style.display === 'none' || style.visibility === 'hidden') continue;
-      return candidate.closest('#title') || candidate;
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (!isFallbackUsableWatchMount(candidate)) continue;
+        return candidate.closest('#title') || candidate;
+      }
     }
     return null;
   }
 
   function findFallbackWatchMetadataHost() {
-    return (
-      document.querySelector('ytd-watch-flexy ytd-watch-metadata') ||
-      document.querySelector(
-        'ytd-watch-flexy ytd-video-primary-info-renderer'
-      ) ||
-      null
-    );
+    const selectors = [
+      'ytd-watch-flexy ytd-watch-metadata',
+      'ytd-watch-flexy ytd-video-primary-info-renderer',
+    ];
+    for (const selector of selectors) {
+      for (const candidate of document.querySelectorAll(selector)) {
+        if (isFallbackUsableWatchMount(candidate)) return candidate;
+      }
+    }
+    return null;
   }
 
-  function findFallbackWatchPlayerAnchor() {
+  const FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR = [
+    'ytd-watch-flexy[full-bleed-player] #columns #player',
+    'ytd-watch-flexy[theater] #columns #player',
+    'ytd-watch-flexy:not([full-bleed-player]) #player-full-bleed-container',
+  ].join(', ');
+
+  /*
+   * Issue #2 fallback: title/metadata must be visible and not inside the
+   * collapsed player shell. Reload can park the strip there before the title
+   * exists.
+   */
+  function isFallbackUsableWatchMount(node) {
+    if (!(node instanceof Element) || !node.isConnected) return false;
+    if (node.closest('[hidden]')) return false;
+    if (node.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
+    const style = getComputedStyle(node);
+    if (style.display === 'none') return false;
+    return true;
+  }
+
+  function findFallbackWatchBelowHost() {
     const selectors = [
-      'ytd-watch-flexy #player-full-bleed-container',
-      'ytd-watch-flexy #player-container-outer',
-      'ytd-watch-flexy #player',
-      '#player-container-outer',
-      '#player',
+      'ytd-watch-flexy #below',
+      'ytd-watch-flexy #primary-inner',
     ];
     for (const selector of selectors) {
       const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
+      if (isFallbackUsableWatchMount(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function findFallbackVisibleWatchPlayerHost() {
+    const watch = document.querySelector('ytd-watch-flexy');
+    if (!(watch instanceof Element)) return null;
+    const fullBleed =
+      watch.hasAttribute('full-bleed-player') ||
+      watch.hasAttribute('theater');
+    const selectors = fullBleed
+      ? [
+          'ytd-watch-flexy #player-full-bleed-container',
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+        ]
+      : [
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+          'ytd-watch-flexy #player-full-bleed-container',
+        ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element) || !candidate.isConnected) continue;
+      if (candidate.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
+      if (candidate.closest('[hidden]')) continue;
       if (getComputedStyle(candidate).display === 'none') continue;
       return candidate;
     }
     return null;
   }
 
+  function fallbackToolbarIsParkedOnPlayer(toolbar) {
+    if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
+      return false;
+    }
+    if (toolbar.closest('#movie_player, .html5-video-player')) return true;
+    if (toolbar.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return true;
+    return false;
+  }
+
   function fallbackToolbarIsCorrectlyPlaced(
     toolbar,
     title,
     metadata,
-    playerAnchor
+    below,
+    playerHost,
+    watch
   ) {
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
+    if (fallbackToolbarIsParkedOnPlayer(toolbar)) return false;
     if (title instanceof Element) {
-      return title.nextElementSibling === toolbar;
+      return (
+        title.nextElementSibling === toolbar &&
+        isFallbackUsableWatchMount(title)
+      );
     }
     if (metadata instanceof Element) {
       return (
         toolbar.parentElement === metadata &&
-        metadata.firstElementChild === toolbar
+        metadata.firstElementChild === toolbar &&
+        isFallbackUsableWatchMount(metadata)
       );
     }
-    if (playerAnchor instanceof Element) {
-      return playerAnchor.nextElementSibling === toolbar;
+    if (below instanceof Element) {
+      return (
+        toolbar.parentElement === below &&
+        below.firstElementChild === toolbar &&
+        isFallbackUsableWatchMount(below)
+      );
+    }
+    if (playerHost instanceof Element) {
+      return (
+        playerHost.nextElementSibling === toolbar &&
+        !playerHost.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)
+      );
+    }
+    if (watch instanceof Element) {
+      return toolbar.parentElement === watch;
+    }
+    return false;
+  }
+
+  function mountFallbackPlayerControlsToolbar(
+    toolbar,
+    title,
+    metadata,
+    below,
+    playerHost,
+    watch
+  ) {
+    if (title instanceof Element) {
+      title.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (metadata instanceof Element) {
+      metadata.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (below instanceof Element) {
+      below.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (playerHost instanceof Element) {
+      playerHost.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (watch instanceof Element) {
+      watch.append(toolbar);
+      return true;
     }
     return false;
   }
@@ -1420,14 +1593,17 @@
     }
     const title = findFallbackWatchTitleAnchor();
     const metadata = findFallbackWatchMetadataHost();
-    const playerAnchor = findFallbackWatchPlayerAnchor();
-    if (
-      !(title instanceof Element) &&
-      !(metadata instanceof Element) &&
-      !(playerAnchor instanceof Element)
-    ) {
-      return;
-    }
+    const below = findFallbackWatchBelowHost();
+    const playerHost = findFallbackVisibleWatchPlayerHost();
+    const watch = document.querySelector('ytd-watch-flexy');
+    const watchChromeExists =
+      title instanceof Element ||
+      metadata instanceof Element ||
+      below instanceof Element ||
+      playerHost instanceof Element ||
+      watch instanceof Element;
+    if (!watchChromeExists) return;
+
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (
       !(toolbar instanceof HTMLElement) ||
@@ -1446,27 +1622,36 @@
         toolbar,
         title,
         metadata,
-        playerAnchor
+        below,
+        playerHost,
+        watch
       )
     ) {
-      if (title instanceof Element) {
-        title.insertAdjacentElement('afterend', toolbar);
-      } else if (metadata instanceof Element) {
-        metadata.insertAdjacentElement('afterbegin', toolbar);
-      } else if (playerAnchor instanceof Element) {
-        playerAnchor.insertAdjacentElement('afterend', toolbar);
-      }
+      mountFallbackPlayerControlsToolbar(
+        toolbar,
+        title,
+        metadata,
+        below,
+        playerHost,
+        watch
+      );
     }
     syncFallbackPlayerControls();
   }
 
+  const FALLBACK_PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
+    0, 60, 160, 400, 900, 1800, 3500,
+  ]);
+  let fallbackPlayerControlsToolbarScheduleToken = 0;
+
   function scheduleFallbackPlayerControlsToolbar() {
-    if (fallbackUiQueued) return;
-    fallbackUiQueued = true;
-    setTimeout(() => {
-      fallbackUiQueued = false;
-      ensureFallbackPlayerControlsToolbar();
-    }, 0);
+    const token = ++fallbackPlayerControlsToolbarScheduleToken;
+    for (const delay of FALLBACK_PLAYER_CONTROLS_TOOLBAR_RETRY_MS) {
+      setTimeout(() => {
+        if (token !== fallbackPlayerControlsToolbarScheduleToken) return;
+        ensureFallbackPlayerControlsToolbar();
+      }, delay);
+    }
   }
 
   function redirectShorts() {
@@ -1540,7 +1725,7 @@
     redirectShorts();
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
-    ensureFallbackPlayerControlsToolbar();
+    scheduleFallbackPlayerControlsToolbar();
 
     const videoObserver = new MutationObserver((mutations) => {
       if (pageRuntimeReady()) {
@@ -1635,11 +1820,13 @@
       () => {
         if (!redirectChannelRootToVideos()) {
           markFallbackHistoryFeedBrowse();
-          ensureFallbackPlayerControlsToolbar();
+          scheduleFallbackPlayerControlsToolbar();
         }
       },
       true
     );
+    window.addEventListener('pageshow', scheduleFallbackPlayerControlsToolbar, true);
+    window.addEventListener('popstate', scheduleFallbackPlayerControlsToolbar, true);
     window.addEventListener(
       'blur',
       prepareFallbackBackgroundPlayback,
@@ -1664,12 +1851,25 @@
       ensureFallbackPlayerControlsToolbar();
       syncFallbackPlayerControls();
       updateFallbackMediaSessionMetadata();
+      restoreFallbackScrollAfterGuideClose();
     }, 1200);
     setInterval(() => {
       if (pageRuntimeReady()) return;
       skipFallbackPlayerAd();
       dismissFallbackAdBlockEnforcement();
+      restoreFallbackScrollAfterGuideClose();
     }, 300);
+
+    document.addEventListener(
+      'yt-guide-close',
+      restoreFallbackScrollAfterGuideClose,
+      true
+    );
+    document.addEventListener(
+      'iron-overlay-closed',
+      restoreFallbackScrollAfterGuideClose,
+      true
+    );
 
     document.addEventListener(
       'click',
@@ -1704,6 +1904,14 @@
         a[href*="youtube.com/shorts/"],
         [is-shorts] {
           display: none !important;
+        }
+
+        tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim,
+        tp-yt-app-drawer:not([opened]):not([opening]):not([peeking]) > #scrim {
+          /* Issue #1: leftover drawer dimmer after close. */
+          pointer-events: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
         }
 
         ytd-enforcement-message-view-model,
@@ -1968,7 +2176,7 @@
           visibility: visible !important;
           opacity: 1 !important;
           flex-wrap: wrap !important;
-          width: fit-content !important;
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           margin: clamp(.5rem, 2.4vw, .8rem) auto !important;

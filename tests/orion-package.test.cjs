@@ -3,23 +3,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const version = '3.0.4';
+const version = '3.1.1';
 const releasePath = path.join(root, `${version}_release.zip`);
 const orionZipPath = path.join(
   root,
-  `fuck-youtube-premium-orion-${version}.zip`
+  `fyoutube-orion-${version}.zip`
 );
 const xpiPath = path.join(
   root,
-  `fuck-youtube-premium-orion-${version}.xpi`
+  `fyoutube-orion-${version}.xpi`
 );
 const firefoxZipPath = path.join(
   root,
-  `fuck-youtube-premium-firefox-${version}.zip`
+  `fyoutube-firefox-${version}.zip`
 );
 const chromeZipPath = path.join(
   root,
-  `fuck-youtube-premium-chrome-${version}.zip`
+  `fyoutube-chrome-${version}.zip`
 );
 const manifest = JSON.parse(
   fs.readFileSync(

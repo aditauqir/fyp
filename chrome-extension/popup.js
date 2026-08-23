@@ -65,6 +65,9 @@
     const release = await fetchLatestRelease();
     const latestVersion = String(release.tag_name || '').replace(/^v/i, '');
     const expectedNames = [
+      `fyoutube-chrome-${latestVersion}.zip`,
+      `fyoutube-orion-${latestVersion}.xpi`,
+      `fyoutube-firefox-${latestVersion}.zip`,
       `fuck-youtube-premium-chrome-${latestVersion}.zip`,
       `fuck-youtube-premium-orion-${latestVersion}.xpi`,
       `fuck-youtube-premium-firefox-${latestVersion}.zip`,

@@ -36,6 +36,24 @@ assert.doesNotMatch(source, /duration - 0\.05/);
 assert.match(template, /function skipFallbackPlayerAd\(/);
 assert.match(template, /FALLBACK_MAX_AD_SEEK_DURATION_S = 90/);
 assert.match(template, /restoreFallbackAdSkipTweaks/);
+assert.match(source, /function restoreScrollAfterGuideClose\(/);
+assert.match(source, /function guideDrawerIsBusy\(/);
+assert.match(source, /function removeOrphanAdBackdrops\(/);
+assert.match(
+  source,
+  /tp-yt-app-drawer#guide:not\(\[opened\]\):not\(\[opening\]\):not\(\[peeking\]\) #scrim/
+);
+assert.doesNotMatch(
+  source,
+  /tp-yt-iron-overlay-backdrop\.opened,[\s\S]{0,80}tp-yt-paper-dialog \+ tp-yt-iron-overlay-backdrop/
+);
+assert.doesNotMatch(source, /drawer\.opened\s*=(?!=)/);
+assert.match(template, /function restoreFallbackScrollAfterGuideClose\(/);
+assert.match(template, /function removeFallbackOrphanAdBackdrops\(/);
+assert.doesNotMatch(
+  template,
+  /tp-yt-iron-overlay-backdrop\.opened,[\s\S]{0,80}tp-yt-paper-dialog \+ tp-yt-iron-overlay-backdrop/
+);
 
 assert.match(readme, /## Credits/);
 assert.match(readme, /Gorstak/);

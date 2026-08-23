@@ -1,11 +1,15 @@
-# HANDOFF — Fuck YouTube Premium for Orion (iOS)
+# HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `3.0.4` SHIPPED** (GitHub Release `v3.0.4`, title `FYouTube Extension 3.0.4`; branches `main` and `features`)
+> **Current ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`)
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
+>
+> **Active issue branch:** GitHub issue work happens on **`bug-fixes-pr`**. Read [`BUG-FIXES.md`](./BUG-FIXES.md) **first**, then this file.
+>
+> **Session-start requirement:** Run `node scripts/check-issue-ledger.cjs`. Report every issue and its live state to the user before other work.
 >
 > **Active performance branch:** if the user says they switched agents / “read the files” / performance work — read [`PERFORMANCE-FIXES.md`](./PERFORMANCE-FIXES.md) **first**, then this file.
 >
@@ -32,12 +36,45 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 
 ---
 
+## Report all issues at the start of each session
+
+Use this procedure for every new agent session in this repository:
+
+1. Read `BUG-FIXES.md`.
+2. Run `node scripts/check-issue-ledger.cjs`.
+3. Report every issue to the user before you edit code.
+4. Include the live GitHub state and the branch state for each issue.
+5. Update `BUG-FIXES.md` if an issue is missing or a state changed.
+
+If GitHub is unavailable, report the ledger from `BUG-FIXES.md`. Label the report as **cached, not live**. Do not present a cached state as a live state.
+
+The GitHub Actions CI also runs the issue-ledger check. CI fails if the ledger omits an issue or records the wrong GitHub state.
+
+---
+
+## Record every completed task for resume material
+
+After every completed task, append a dated entry to `RESUME-WORK-LOG.md`.
+
+The file is a raw accomplishment ledger. The file is not a formatted resume. Separate major and minor accomplishments. Describe ownership, technical difficulty, product effect, and verification with strong language. Do not invent facts or metrics.
+
+Keep `RESUME-WORK-LOG.md` ignored by Git. If the file is missing, create the file before the final response. Never commit the file.
+
+If the user asks for a resume or resume material, provide the complete `RESUME-WORK-LOG.md` file for use by another agent. Do not rewrite the ledger into a resume unless the user asks.
+
+---
+
 ## Repo layout
 
 ```
 ./
+├── AGENTS.md                           ← mandatory session-start issue report
 ├── HANDOFF.md
-├── PERFORMANCE-FIXES.md                ← active CPU/energy branch handoff (`fix/performance-fixes`)
+├── BUG-FIXES.md                        ← GitHub issue ledger (`bug-fixes-pr`)
+├── scripts/check-issue-ledger.cjs      ← live issue report and ledger check
+├── .github/workflows/ci.yml            ← rebuild, tests, generated-file and issue checks
+├── RESUME-WORK-LOG.md                  ← local ignored accomplishment ledger
+├── PERFORMANCE-FIXES.md                ← CPU/energy branch handoff (`fix/performance-fixes`)
 ├── FIX-BRANCH.md                       ← search/menu history (2.2.3 shipped; S1–S5 reverted)
 ├── ARCHITECTURE.md                     ← product and technical contract
 ├── PATCH_NOTES.md                      ← release and popup changelog source
@@ -46,7 +83,7 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.0.4_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 3.1.1_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
@@ -92,7 +129,26 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 3.0.4)
+## Latest changes (through 3.1.1)
+
+### 3.1.1 — public ship (`Fyoutube 3.1.1`)
+- GitHub Release tag `v3.1.1`. Title is `Fyoutube 3.1.1`.
+- Recommended installer: `3.1.1_release.zip` (Chrome MV3).
+- Refreshing a watch page keeps the rewind / play / forward strip under the video.
+- Closing the hamburger menu no longer leaves a grey overlay or frozen scrolling.
+- Tapping search on iPhone shows one full-width field and one search button.
+- Product name in headings, popup, and the extension listing is **Fyoutube**.
+- Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
+Direct assets:
+
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/3.1.1_release.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-chrome-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-firefox-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-orion-3.1.1.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.1.1/fyoutube-orion-3.1.1.xpi`
+
+Older `v3.0.4` download URLs stay available.
 
 ### 3.0.4 — public ship (`FYouTube Extension 3.0.4`)
 - GitHub Release tag `v3.0.4`. Title is `FYouTube Extension 3.0.4`.
@@ -265,8 +321,8 @@ chmod +x rebuild-extension.sh   # once
 
 Outputs:
 
-- `fuck-youtube-premium-chrome-<version>.zip`
-- `fuck-youtube-premium-firefox-<version>.zip`
+- `fyoutube-chrome-<version>.zip`
+- `fyoutube-firefox-<version>.zip`
 
 Syntax check is included (`node --check` on `page.js` / `content.js`).
 
@@ -275,9 +331,9 @@ Syntax check is included (`node --check` on `page.js` / `content.js`).
 ## GitHub Release policy (mandatory)
 
 - Never delete an old GitHub Release or its assets.
-- Publish the newest version as `FYouTube Extension <version>`.
+- Publish the newest version as `Fyoutube <version>`.
 - Use tag `v<version>`.
-- Append `hotfix` when the ship is a hotfix, for example `FYouTube Extension 2.1.1 hotfix`.
+- Append `hotfix` when the ship is a hotfix, for example `Fyoutube 2.1.1 hotfix`.
 - After the new release is live, prefix every older release title with `[DEPRECATED] `. Keep the older title text.
 - Do not add `[DEPRECATED]` to the current latest release.
 - Verify with `gh release list --repo aditauqir/fyp`.
@@ -346,9 +402,11 @@ After reinstall + hard refresh on Orion:
 
 ## Next agent: first actions
 
-1. Read this file + [`FIX-BRANCH.md`](./FIX-BRANCH.md) + skim `youtube-mobile-background.user.js` headers/constants.
-2. Confirm the latest GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`, and that it matches `@version`.
-3. Pick the next **Not fixed** row from `FIX-BRANCH.md` (or the user’s new request).
-4. Implement in the **userscript**, mirror fallback if needed, update the FIX-BRANCH status table.
-5. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
-6. Ask whether to continue on **this branch**, a **separate branch**, or **stop**.
+1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
+2. Run `node scripts/check-issue-ledger.cjs`.
+3. Report every issue, live GitHub state, and branch state to the user.
+4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.1.1`, tag `v3.1.1`.
+5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
+6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
+7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
+8. Ask whether to continue on **`bug-fixes-pr`**, **ship**, or **stop**.

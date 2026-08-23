@@ -38,15 +38,15 @@ assert.match(popupScript, /Go to YouTube|open-youtube/);
 assert.match(popupScript, /checkForUpdates/);
 assert.match(
   popupScript,
-  /fuck-youtube-premium-chrome-\$\{latestVersion\}\.zip/
+  /fyoutube-chrome-\$\{latestVersion\}\.zip/
 );
 assert.match(
   popupScript,
-  /fuck-youtube-premium-orion-\$\{latestVersion\}\.xpi/
+  /fyoutube-orion-\$\{latestVersion\}\.xpi/
 );
 assert.ok(
-  popupScript.indexOf('fuck-youtube-premium-chrome-') <
-    popupScript.indexOf('fuck-youtube-premium-orion-'),
+  popupScript.indexOf('fyoutube-chrome-') <
+    popupScript.indexOf('fyoutube-orion-'),
   'Chrome package must be preferred before the XPI fallback'
 );
 assert.doesNotMatch(popupScript, /toggleActionCard/);

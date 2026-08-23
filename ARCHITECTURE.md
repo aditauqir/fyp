@@ -1,9 +1,9 @@
-# Architecture — Fuck YouTube Premium
+# Architecture — Fyoutube
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `3.0.4` (`3.0.4_release.zip`)
-**GitHub Release:** `FYouTube Extension 3.0.4` (`v3.0.4`)
+**Current shipped version:** `3.1.1` (`3.1.1_release.zip`)
+**GitHub Release:** `Fyoutube 3.1.1` (`v3.1.1`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -21,7 +21,7 @@ This is not a replacement YouTube client, proxy, scraper, or embedded player. No
 ```mermaid
 flowchart TD
     U["User in Orion iOS"] --> O["www.youtube.com desktop mode"]
-    E["Fuck YouTube Premium WebExtension"] --> C["content.js at document_start"]
+    E["Fyoutube WebExtension"] --> C["content.js at document_start"]
     C --> F["DOM-level inline, viewport, and Shorts fallback"]
     C --> P["page.js with readiness handshake"]
     P --> B["Desktop YouTube behavior and account session"]
@@ -290,13 +290,15 @@ Required edit flow:
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
-Current package names:
+Shipped package names (GitHub `v3.1.1`):
 
-- `3.0.4_release.zip` (recommended Orion Chrome MV3 installer)
-- `fuck-youtube-premium-chrome-3.0.4.zip`
-- `fuck-youtube-premium-firefox-3.0.4.zip`
-- `fuck-youtube-premium-orion-3.0.4.zip`
-- `fuck-youtube-premium-orion-3.0.4.xpi`
+- `3.1.1_release.zip` (recommended Orion Chrome MV3 installer)
+- `fyoutube-chrome-3.1.1.zip`
+- `fyoutube-firefox-3.1.1.zip`
+- `fyoutube-orion-3.1.1.zip`
+- `fyoutube-orion-3.1.1.xpi`
+
+Older `v3.0.4` download URLs stay available.
 
 ## Verification contract
 
@@ -339,7 +341,7 @@ Releases are published to `aditauqir/fyp`.
 Rules:
 
 - Never delete an older release or its assets.
-- The newest release title is `FYouTube Extension <version>` (append `hotfix` when the ship is a hotfix, e.g. `FYouTube Extension 2.1.1 hotfix`).
+- The newest release title is `Fyoutube <version>` (append `hotfix` when the ship is a hotfix, e.g. `Fyoutube 2.1.1 hotfix`).
 - The release tag is `v<version>`.
 - After publishing a new version, prefix each older release title with `[DEPRECATED] `. Keep the older title text.
 - Upload the recommended Orion installer plus Chrome, Firefox, Orion ZIP, and XPI fallbacks.

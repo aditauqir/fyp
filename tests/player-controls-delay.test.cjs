@@ -30,9 +30,27 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v2213-airplay'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
+assert.match(source, /function isUsableWatchMount\(/);
+assert.match(source, /function findWatchBelowHost\(/);
+assert.match(source, /function findVisibleWatchPlayerHost\(/);
+assert.match(source, /function schedulePlayerControlsToolbar\(/);
+assert.match(source, /function toolbarIsParkedOnPlayer\(/);
+assert.doesNotMatch(
+  source,
+  /toolbarIsParkedOnPlayer\(toolbar\)\) \{\s*toolbar\.remove\(\);\s*\}\s*return;/
+);
+assert.match(source, /COLLAPSED_PLAYER_SHELL_SELECTOR/);
+assert.match(
+  source,
+  /ytd-watch-flexy\[full-bleed-player\] #columns #player/
+);
+assert.doesNotMatch(
+  source,
+  /else if \(playerAnchor instanceof Element\) \{\s*playerAnchor\.insertAdjacentElement\('afterend', toolbar\)/
+);
 assert.doesNotMatch(source, /function ensurePlayerChromeExtras\(\)/);
 assert.doesNotMatch(source, /PLAYER_CHROME_EXTRAS_ID/);
 assert.match(source, /function runPlayerControlAction\(action, sourceButton\)/);

@@ -12,13 +12,13 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+3\.0\.4/);
-assert.match(source, /data-fyp-page-ready', '3\.0\.4'/);
+assert.match(source, /\/\/ @version\s+3\.1\.1/);
+assert.match(source, /data-fyp-page-ready', '3\.1\.1'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
-assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v304-search-shot'/);
+assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v310-search-bar'/);
 assert.match(source, /injectCriticalAskHideStyle/);
 
 // Search cards stay under ytd-search. Screenshot stack. Home is untouched.
@@ -104,7 +104,17 @@ assert.match(
 );
 assert.match(
   source,
-  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] input#search[\s\S]*font-size: 16px !important/
+  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center[\s\S]*width: calc\(100vw - 24px\) !important/
+);
+assert.match(
+  source,
+  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #end #search-button/
+);
+assert.match(source, /\.ytSearchboxComponentInput/);
+assert.match(source, /ytd-masthead yt-searchbox/);
+assert.doesNotMatch(
+  source,
+  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center \{[\s\S]{0,400}width: auto !important/
 );
 assert.match(source, /input\.focus\(\{ preventScroll: true \}\)/);
 assert.match(source, /Ask YouTube/);
@@ -136,7 +146,7 @@ assert.doesNotMatch(
   /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button[\s\S]*display: none !important/
 );
 
-assert.match(template, /EXPECTED_PAGE_VERSION = '3\.0\.4'/);
+assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.1'/);
 assert.match(template, /Ask YouTube/);
 assert.match(template, /#voice-search-button/);
 assert.doesNotMatch(

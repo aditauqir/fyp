@@ -1,15 +1,15 @@
-# Install Fuck YouTube Premium on Orion iOS
+# Install Fyoutube on Orion iOS
 
-This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `3.0.4_release.zip`).
+This guide matches the install steps in [README.md](README.md). Use the [latest GitHub Release](https://github.com/aditauqir/fyp/releases/latest). The recommended package is the Chrome Manifest V3 `*_release.zip` (example: `3.1.1_release.zip`).
 
 ## Packages
 
 | Package | Use |
 | --- | --- |
 | `*_release.zip` | Recommended install for Orion |
-| `fuck-youtube-premium-orion-*.xpi` | XPI fallback |
-| `fuck-youtube-premium-firefox-*.zip` | Firefox ZIP fallback |
-| `fuck-youtube-premium-chrome-*.zip` | Chrome ZIP fallback |
+| `fyoutube-orion-*.xpi` | XPI fallback |
+| `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
+| `fyoutube-chrome-*.zip` | Chrome ZIP fallback |
 
 Do not unzip the file. Do not rename the file.
 
@@ -22,13 +22,13 @@ Do not unzip the file. Do not rename the file.
 5. Open **Orion → Settings → Extensions**.
 6. Enable **Chrome Extensions**.
 7. Enable **Firefox Extensions**.
-8. Uninstall every older **Fuck YouTube Premium** or **YouTube Mobile for Orion** entry.
+8. Uninstall every older **Fyoutube** or **YouTube Mobile for Orion** entry.
 9. Tap **+**.
 10. Tap **Install from File**.
 11. Open **On My iPhone → Downloads**.
 12. Select the `*_release.zip` file.
-13. Enable **Fuck YouTube Premium**.
-14. Allow **Fuck YouTube Premium** to access YouTube.
+13. Enable **Fyoutube**.
+14. Allow **Fyoutube** to access YouTube.
 15. Open `https://www.youtube.com`.
 
 If the release zip does not install, repeat the same steps with the Chrome ZIP, then the Firefox ZIP, then the XPI.
@@ -41,15 +41,15 @@ If the release zip does not install, repeat the same steps with the Chrome ZIP, 
 ## Final extension result
 
 <p align="center">
-  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fuck YouTube Premium enabled" width="420">
+  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fyoutube enabled" width="420">
 </p>
 
 ## Update procedure
 
-1. Tap the **Fuck YouTube Premium** extension icon.
+1. Tap the **Fyoutube** extension icon.
 2. Tap **Check for updates**.
 3. Download the offered zip.
-4. Uninstall the current **Fuck YouTube Premium** extension.
+4. Uninstall the current **Fyoutube** extension.
 5. Tap **+**.
 6. Tap **Install from File**.
 7. Select the new zip from local device storage.
@@ -57,7 +57,7 @@ If the release zip does not install, repeat the same steps with the Chrome ZIP, 
 The extension also checks GitHub every six hours. When a newer version exists, the icon shows an **UP** badge. Orion does not replace a manually installed extension automatically.
 
 <p align="center">
-  <img src="docs/images/orion-install-from-file.png" alt="Install from File option for a manual Fuck YouTube Premium OTA update" width="420">
+  <img src="docs/images/orion-install-from-file.png" alt="Install from File option for a manual Fyoutube OTA update" width="420">
 </p>
 
 ## What should be true after install
@@ -79,7 +79,7 @@ The extension also checks GitHub every six hours. When a newer version exists, t
 
 If these results are missing:
 
-1. Confirm that **Fuck YouTube Premium** is enabled.
+1. Confirm that **Fyoutube** is enabled.
 2. Confirm that the extension can access youtube.com.
 3. Close the YouTube tab.
 4. Open YouTube again.
@@ -103,7 +103,7 @@ If you select another language, that language replaces the default. It does not 
 ## If the extension icon does not open the buttons
 
 1. Uninstall the Firefox/XPI copy.
-2. Install the latest `*_release.zip` or `fuck-youtube-premium-chrome-*.zip`.
+2. Install the latest `*_release.zip` or `fyoutube-chrome-*.zip`.
 3. Enable the extension.
 4. Allow YouTube access.
 5. Tap the toolbar icon again.
@@ -113,7 +113,7 @@ The panel must show three changelog lines, **Go to YouTube**, and **Check for up
 ## If Orion says the extension could not be installed
 
 1. Close the YouTube tab.
-2. Uninstall every older **Fuck YouTube Premium** entry.
+2. Uninstall every older **Fyoutube** entry.
 3. In Files, move the downloaded zip from iCloud Drive to **On My iPhone → Downloads**.
 4. Open **Orion → Settings → Extensions**.
 5. Tap **+**.

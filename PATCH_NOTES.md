@@ -1,5 +1,20 @@
 # Patch Notes
 
+## v3.1.1
+
+- Fixed: Refreshing a watch page keeps the transport strip under the video. 3.1.0 still lost it on Orion iOS reload.
+- Changed: Product name in headings, popup, and the extension listing is **Fyoutube**.
+- Notes: Shipped as GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`. Includes the 3.1.0 hamburger and search fixes.
+- Packaging: Numeric version `3.1.1`; recommended Orion installer `3.1.1_release.zip` (Chrome MV3). Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
+## v3.1.0
+
+- Fixed: Refreshing a watch page keeps the transport strip under the title instead of hiding it inside the player.
+- Fixed: Closing the hamburger menu no longer leaves a grey overlay or frozen scrolling.
+- Fixed: Tapping search on iPhone no longer shows two search buttons or a tiny field on the left. The overlay is phone-width with one input.
+- Notes: Never shipped as its own GitHub Release. The hamburger, search overlay, and first watch-strip fixes landed in `Fyoutube 3.1.1`.
+- Packaging: Numeric version `3.1.0`; local Orion installer `3.1.0_release.zip` after rebuild (Chrome MV3).
+
 ## v3.0.4
 
 - Added: Built-in YouTube ad blocking. uBlock Origin is no longer required.

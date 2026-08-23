@@ -1,4 +1,4 @@
-# FYouTube Premium- Get "Free" YTPremium on iPhone
+# Fyoutube
 <p align="center">
   <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
     <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
@@ -21,7 +21,7 @@
 
 ### Basically free YouTube Premium for iPhone
 
-I built **FYouTube Premium** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, so this extension turns desktop YouTube into something closer to the useful parts of YouTube Premium without the subscription.
+I built **Fyoutube** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, so this extension turns desktop YouTube into something closer to the useful parts of YouTube Premium without the subscription.
 
 #### The Architecture
 The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, screen-off audio, and built-in YouTube ad blocking. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube.
@@ -43,10 +43,10 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `3.0.4_release.zip`) | Recommended install for Orion |
-| `fuck-youtube-premium-chrome-*.zip` | Chrome Manifest V3 fallback |
-| `fuck-youtube-premium-firefox-*.zip` | Firefox ZIP fallback |
-| `fuck-youtube-premium-orion-*.xpi` | XPI fallback |
+| `*_release.zip` (example: `3.1.1_release.zip`) | Recommended install for Orion |
+| `fyoutube-chrome-*.zip` | Chrome Manifest V3 fallback |
+| `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
+| `fyoutube-orion-*.xpi` | XPI fallback |
 
 Do not unzip the file. Do not rename the file.
 
@@ -54,7 +54,7 @@ Do not unzip the file. Do not rename the file.
 
 1. On your iPhone, [install Orion Browser from the App Store](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200).
 2. Confirm that your iPhone uses iOS 17 or later.
-3. If an older **Fuck YouTube Premium** build is installed, uninstall that build.
+3. If an older **Fyoutube** build is installed, uninstall that build.
 
 ### Install procedure
 
@@ -67,8 +67,8 @@ Do not unzip the file. Do not rename the file.
 7. In **Extensions**, tap **+**.
 8. Tap **Install from File**.
 9. Select the `*_release.zip` file.
-10. Enable **Fuck YouTube Premium**.
-11. Allow **Fuck YouTube Premium** to access YouTube.
+10. Enable **Fyoutube**.
+11. Allow **Fyoutube** to access YouTube.
 12. Open [youtube.com](https://www.youtube.com/).
 
 ### Notes after install
@@ -80,24 +80,24 @@ Do not unzip the file. Do not rename the file.
 
 ## Final extension result
 
-After the install procedure, **Fuck YouTube Premium** must be enabled in Orion:
+After the install procedure, **Fyoutube** must be enabled in Orion:
 
 <p align="center">
-  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fuck YouTube Premium enabled" width="420">
+  <img src="docs/images/final-extension-result.png" alt="Orion Extensions screen with Fyoutube enabled" width="420">
 </p>
 
 ## Screenshots
 
 | YouTube native app like experienc | Phone-friendly recommendation feed |
 | --- | --- |
-| <img src="docs/images/player-inline-controls.png" alt="Fuck YouTube Premium enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fuck YouTube Premium one-column YouTube feed in Orion" width="390"> |
+| <img src="docs/images/player-inline-controls.png" alt="Fyoutube enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fyoutube one-column YouTube feed in Orion" width="390"> |
 
 ### AirPlay and Return YouTube Dislike
 
 The inline player includes an AirPlay button. Return YouTube Dislike also restores the public dislike count beside YouTube's like button.
 
 <p align="center">
-  <img src="docs/images/airplay-return-youtube-dislike.png" alt="Fuck YouTube Premium inline player with AirPlay and a restored Return YouTube Dislike count" width="390">
+  <img src="docs/images/airplay-return-youtube-dislike.png" alt="Fyoutube inline player with AirPlay and a restored Return YouTube Dislike count" width="390">
 </p>
 
 ### Background Player options on iPhone
@@ -105,7 +105,7 @@ The inline player includes an AirPlay button. Return YouTube Dislike also restor
 The video keeps playing from the iPhone Lock Screen, including when the display is off:
 
 <p align="center">
-  <img src="docs/images/background-playback-lock-screen.png" alt="iPhone Lock Screen showing YouTube background playback controls for a video playing through Fuck YouTube Premium" width="390">
+  <img src="docs/images/background-playback-lock-screen.png" alt="iPhone Lock Screen showing YouTube background playback controls for a video playing through Fyoutube" width="390">
 </p>
 
 ## Extension menu and updates
@@ -120,7 +120,7 @@ The extension also checks GitHub on a schedule. When a newer release exists, the
 Orion does not replace a manually installed extension automatically. Use this update procedure:
 
 1. Download the new release zip.
-2. Uninstall the old **Fuck YouTube Premium** extension.
+2. Uninstall the old **Fyoutube** extension.
 3. Tap **+**.
 4. Tap **Install from File**.
 5. Select the new release zip.
@@ -131,11 +131,11 @@ Orion does not replace a manually installed extension automatically. Use this up
 
 ### Release history policy
 
-Old GitHub Releases and their downloads stay available. The current release title is `FYouTube Extension <version>`. When a new version becomes the latest release, each older release title gets the prefix **`[DEPRECATED]`**.
+Old GitHub Releases and their downloads stay available. The current release title is `Fyoutube <version>`. When a new version becomes the latest release, each older release title gets the prefix **`[DEPRECATED]`**.
 
 ## Update
 
-1. Uninstall the older **Fuck YouTube Premium** copy in Orion.
+1. Uninstall the older **Fyoutube** copy in Orion.
 2. Download the newest release zip from [GitHub Releases](https://github.com/aditauqir/fyp/releases).
 3. Repeat the install procedure above.
 
@@ -150,7 +150,7 @@ For more steps, see [INSTALL-ORION.md](INSTALL-ORION.md).
 3. Close the YouTube tab.
 4. Open YouTube again.
 
-Fuck YouTube Premium already selects the desktop backend and then applies the phone layout. If Orion desktop mode stays on, the interface can enlarge or misalign.
+Fyoutube already selects the desktop backend and then applies the phone layout. If Orion desktop mode stays on, the interface can enlarge or misalign.
 
 ### Captions appear twice or multiple languages are selected
 
@@ -171,7 +171,7 @@ Duplicate English rows are collapsed. If you select another language, that langu
 ### Tapping the extension icon shows no buttons
 
 1. Uninstall the Firefox/XPI build.
-2. Install the latest `fuck-youtube-premium-chrome-*.zip` or `*_release.zip`.
+2. Install the latest `fyoutube-chrome-*.zip` or `*_release.zip`.
 3. Enable the extension.
 4. Allow YouTube access.
 5. Tap the toolbar icon again.
@@ -182,14 +182,14 @@ The panel must show three changelog lines, **Go to YouTube**, and **Check for up
 
 1. Close the YouTube tab in Orion.
 2. Open **Orion → Settings → Extensions**.
-3. Uninstall every older **Fuck YouTube Premium** entry.
+3. Uninstall every older **Fyoutube** entry.
 4. In Files, move the downloaded release zip from iCloud Drive to **On My iPhone → Downloads**.
 5. Tap **+**.
 6. Tap **Install from File**.
 7. Select the local zip.
 8. If Orion shows the error again, repeat steps 7–9 until Orion confirms the install.
-9. Enable **Fuck YouTube Premium**.
-10. Allow YouTube access for **Fuck YouTube Premium**.
+9. Enable **Fyoutube**.
+10. Allow YouTube access for **Fyoutube**.
 11. Open YouTube again.
 
 Do not unzip the file. Do not rename the file. [Orion’s issue tracker](https://orionfeedback.org/d/936-install-from-file-for-extensions/15) recommends device storage when iCloud permissions block install. If the release zip still fails, try the Orion ZIP or the XPI.
