@@ -12,8 +12,8 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+3\.1\.0/);
-assert.match(source, /data-fyp-page-ready', '3\.1\.0'/);
+assert.match(source, /\/\/ @version\s+3\.1\.1/);
+assert.match(source, /data-fyp-page-ready', '3\.1\.1'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
@@ -146,7 +146,7 @@ assert.doesNotMatch(
   /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button[\s\S]*display: none !important/
 );
 
-assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.0'/);
+assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.1'/);
 assert.match(template, /Ask YouTube/);
 assert.match(template, /#voice-search-button/);
 assert.doesNotMatch(

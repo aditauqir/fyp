@@ -1,4 +1,4 @@
-# HANDOFF — Fuck YouTube Premium for Orion (iOS)
+# HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
 > **Current ship version: `3.0.4` SHIPPED** (GitHub Release `v3.0.4`, title `FYouTube Extension 3.0.4`; branches `main` and `features`)
@@ -8,6 +8,8 @@
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
 > **Active issue branch:** GitHub issue work happens on **`bug-fixes-pr`**. Read [`BUG-FIXES.md`](./BUG-FIXES.md) **first**, then this file.
+>
+> **Session-start requirement:** Run `node scripts/check-issue-ledger.cjs`. Report every issue and its live state to the user before other work.
 >
 > **Active performance branch:** if the user says they switched agents / “read the files” / performance work — read [`PERFORMANCE-FIXES.md`](./PERFORMANCE-FIXES.md) **first**, then this file.
 >
@@ -34,12 +36,44 @@ Target browser: **Orion iOS** (WebKit + Firefox WebExtensions, install-from-file
 
 ---
 
+## Report all issues at the start of each session
+
+Use this procedure for every new agent session in this repository:
+
+1. Read `BUG-FIXES.md`.
+2. Run `node scripts/check-issue-ledger.cjs`.
+3. Report every issue to the user before you edit code.
+4. Include the live GitHub state and the branch state for each issue.
+5. Update `BUG-FIXES.md` if an issue is missing or a state changed.
+
+If GitHub is unavailable, report the ledger from `BUG-FIXES.md`. Label the report as **cached, not live**. Do not present a cached state as a live state.
+
+The GitHub Actions CI also runs the issue-ledger check. CI fails if the ledger omits an issue or records the wrong GitHub state.
+
+---
+
+## Record every completed task for resume material
+
+After every completed task, append a dated entry to `RESUME-WORK-LOG.md`.
+
+The file is a raw accomplishment ledger. The file is not a formatted resume. Separate major and minor accomplishments. Describe ownership, technical difficulty, product effect, and verification with strong language. Do not invent facts or metrics.
+
+Keep `RESUME-WORK-LOG.md` ignored by Git. If the file is missing, create the file before the final response. Never commit the file.
+
+If the user asks for a resume or resume material, provide the complete `RESUME-WORK-LOG.md` file for use by another agent. Do not rewrite the ledger into a resume unless the user asks.
+
+---
+
 ## Repo layout
 
 ```
 ./
+├── AGENTS.md                           ← mandatory session-start issue report
 ├── HANDOFF.md
 ├── BUG-FIXES.md                        ← GitHub issue ledger (`bug-fixes-pr`)
+├── scripts/check-issue-ledger.cjs      ← live issue report and ledger check
+├── .github/workflows/ci.yml            ← rebuild, tests, generated-file and issue checks
+├── RESUME-WORK-LOG.md                  ← local ignored accomplishment ledger
 ├── PERFORMANCE-FIXES.md                ← CPU/energy branch handoff (`fix/performance-fixes`)
 ├── FIX-BRANCH.md                       ← search/menu history (2.2.3 shipped; S1–S5 reverted)
 ├── ARCHITECTURE.md                     ← product and technical contract
@@ -268,8 +302,8 @@ chmod +x rebuild-extension.sh   # once
 
 Outputs:
 
-- `fuck-youtube-premium-chrome-<version>.zip`
-- `fuck-youtube-premium-firefox-<version>.zip`
+- `fyoutube-chrome-<version>.zip`
+- `fyoutube-firefox-<version>.zip`
 
 Syntax check is included (`node --check` on `page.js` / `content.js`).
 
@@ -349,9 +383,11 @@ After reinstall + hard refresh on Orion:
 
 ## Next agent: first actions
 
-1. If the work is a GitHub issue, read [`BUG-FIXES.md`](./BUG-FIXES.md) first, stay on **`bug-fixes-pr`**, then this file.
-2. Confirm the latest shipped GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`. Do not treat unreleased `3.1.0` as shipped.
-3. Pick the next **open** GitHub issue / **Not fixed** row from `BUG-FIXES.md` (or the user’s new request). Do not continue `FIX-BRANCH.md` search experiments unless asked.
-4. Implement in the **userscript**, mirror fallback if needed, update the BUG-FIXES ledger.
-5. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
-6. Ask whether to continue on **`bug-fixes-pr`**, **ship**, or **stop**.
+1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
+2. Run `node scripts/check-issue-ledger.cjs`.
+3. Report every issue, live GitHub state, and branch state to the user.
+4. Confirm the latest shipped GitHub Release title is `FYouTube Extension 3.0.4`, tag `v3.0.4`. Do not treat unreleased `3.1.1` as shipped.
+5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
+6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
+7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.
+8. Ask whether to continue on **`bug-fixes-pr`**, **ship**, or **stop**.

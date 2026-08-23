@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '3\.1\.0'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '3\.1\.1'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '3\.1\.0'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '3\.1\.1'\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -50,7 +50,14 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v310-title-mount'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
+);
+assert.match(content, /function findFallbackWatchBelowHost\(/);
+assert.match(content, /function findFallbackVisibleWatchPlayerHost\(/);
+assert.match(content, /function scheduleFallbackPlayerControlsToolbar\(/);
+assert.doesNotMatch(
+  content,
+  /fallbackToolbarIsParkedOnPlayer\(toolbar\)\s*\) \{\s*toolbar\.remove\(\);\s*\}\s*return;/
 );
 for (const action of [
   'rewind',

@@ -1,4 +1,4 @@
-# Architecture — Fuck YouTube Premium
+# Architecture — Fyoutube
 
 This document is the technical contract for agents continuing the project.
 
@@ -21,7 +21,7 @@ This is not a replacement YouTube client, proxy, scraper, or embedded player. No
 ```mermaid
 flowchart TD
     U["User in Orion iOS"] --> O["www.youtube.com desktop mode"]
-    E["Fuck YouTube Premium WebExtension"] --> C["content.js at document_start"]
+    E["Fyoutube WebExtension"] --> C["content.js at document_start"]
     C --> F["DOM-level inline, viewport, and Shorts fallback"]
     C --> P["page.js with readiness handshake"]
     P --> B["Desktop YouTube behavior and account session"]
@@ -290,13 +290,21 @@ Required edit flow:
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
-Current package names:
+Shipped package names (GitHub `v3.0.4`):
 
 - `3.0.4_release.zip` (recommended Orion Chrome MV3 installer)
 - `fuck-youtube-premium-chrome-3.0.4.zip`
 - `fuck-youtube-premium-firefox-3.0.4.zip`
 - `fuck-youtube-premium-orion-3.0.4.zip`
 - `fuck-youtube-premium-orion-3.0.4.xpi`
+
+Unreleased 3.1.1 local names after rebuild:
+
+- `3.1.1_release.zip`
+- `fyoutube-chrome-3.1.1.zip`
+- `fyoutube-firefox-3.1.1.zip`
+- `fyoutube-orion-3.1.1.zip`
+- `fyoutube-orion-3.1.1.xpi`
 
 ## Verification contract
 

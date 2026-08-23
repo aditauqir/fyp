@@ -1,6 +1,40 @@
 # Bug fix log
 
+## 2026-08-23 — Refreshing a watch page hid the transport strip (fyp 3.1.1, issue #2)
+
+### In plain English
+- **What was broken:** Refreshing a video page hid the rewind / play / forward strip. It only came back after leaving the video and opening another one.
+- **Why it happened:** On reload the player exists before the title. iOS WebKit often reports unpainted Polymer title nodes as not visible, so the script deleted the parked strip and returned without mounting it anywhere. SPA navigation had a painted title, so the strip appeared there.
+- **What we changed:** Never leave a watch page without the strip once the watch chrome exists. Relax the mount check. Retry in a burst after reload. Prefer the title, then metadata, then the area under the video, then after the visible player, then the watch page root.
+- **How to verify:** 1) Reinstall `3.1.1_release.zip` and hard-refresh. 2) Open a watch page. 3) Confirm the strip is under the video. 4) Refresh. 5) Confirm the strip is still under the video.
+
+### Code that mattered
+**Before (broken idea):**
+```js
+if (!(title instanceof Element) && !(metadata instanceof Element)) {
+  if (toolbar instanceof HTMLElement && toolbarIsParkedOnPlayer(toolbar)) {
+    toolbar.remove();
+  }
+  return;
+}
+```
+
+**After (fixed idea):**
+```js
+if (!watchChromeExists) return;
+if (!toolbarIsCorrectlyPlaced(toolbar, title, metadata, below, playerHost, watch)) {
+  mountPlayerControlsToolbar(toolbar, title, metadata, below, playerHost, watch);
+}
+```
+
+### Files touched
+- `youtube-mobile-background.user.js` — remount on reload, burst retries, 3.1.1.
+- `firefox-extension/content.template.js` — same fallback path.
+- `tests/player-controls-delay.test.cjs` — layout version `icon-strip-v311-reload-mount`.
+- `tests/content-fallback.test.cjs` — fallback remount helpers.
+
 ## 2026-08-22 — Search overlay showed two buttons and a tiny left field (fyp 3.1.0)
+
 
 ### In plain English
 - **What was broken:** Tapping the top search control on iPhone showed two search buttons. The text field shrank to a small block on the left.

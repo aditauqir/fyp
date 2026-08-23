@@ -35,7 +35,7 @@ assert.match(readme, /docs\/images\/player-inline-controls\.png/);
 assert.match(readme, /docs\/images\/background-playback-lock-screen\.png/);
 assert.match(readme, /docs\/images\/orion-install-from-file\.png/);
 assert.match(readme, /checks GitHub on a schedule/);
-assert.match(readme, /Uninstall the old \*\*Fuck YouTube Premium\*\* extension/);
+assert.match(readme, /Uninstall the old \*\*Fyoutube\*\* extension/);
 assert.match(install, /Tap \*\*\+\*\*\.[\s\S]*Tap \*\*Install from File\*\*\./);
 assert.match(readme, /send a pull request/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);

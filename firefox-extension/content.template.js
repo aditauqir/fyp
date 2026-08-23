@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.1.0';
+  const EXPECTED_PAGE_VERSION = '3.1.1';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v310-title-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1457,35 +1457,45 @@
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
     if (node.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
-    let current = node;
-    while (current instanceof Element) {
-      const style = getComputedStyle(current);
-      if (style.display === 'none' || style.visibility === 'hidden') {
-        return false;
-      }
-      current = current.parentElement;
-    }
-    if (typeof node.checkVisibility === 'function') {
-      try {
-        if (!node.checkVisibility()) return false;
-      } catch {
-        // Older WebKit may throw; ancestor display/visibility already ran.
-      }
-    }
+    const style = getComputedStyle(node);
+    if (style.display === 'none') return false;
     return true;
   }
 
-  function findFallbackWatchPlayerAnchor() {
+  function findFallbackWatchBelowHost() {
     const selectors = [
-      'ytd-watch-flexy #player-full-bleed-container',
-      'ytd-watch-flexy #player-container-outer',
-      'ytd-watch-flexy #player',
-      '#player-container-outer',
-      '#player',
+      'ytd-watch-flexy #below',
+      'ytd-watch-flexy #primary-inner',
     ];
     for (const selector of selectors) {
       const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
+      if (isFallbackUsableWatchMount(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function findFallbackVisibleWatchPlayerHost() {
+    const watch = document.querySelector('ytd-watch-flexy');
+    if (!(watch instanceof Element)) return null;
+    const fullBleed =
+      watch.hasAttribute('full-bleed-player') ||
+      watch.hasAttribute('theater');
+    const selectors = fullBleed
+      ? [
+          'ytd-watch-flexy #player-full-bleed-container',
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+        ]
+      : [
+          'ytd-watch-flexy #player-container-outer',
+          'ytd-watch-flexy #player',
+          'ytd-watch-flexy #player-full-bleed-container',
+        ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (!(candidate instanceof Element) || !candidate.isConnected) continue;
+      if (candidate.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
+      if (candidate.closest('[hidden]')) continue;
       if (getComputedStyle(candidate).display === 'none') continue;
       return candidate;
     }
@@ -1498,15 +1508,17 @@
     }
     if (toolbar.closest('#movie_player, .html5-video-player')) return true;
     if (toolbar.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return true;
-    const playerAnchor = findFallbackWatchPlayerAnchor();
-    if (!(playerAnchor instanceof Element)) return false;
-    return (
-      playerAnchor.contains(toolbar) ||
-      playerAnchor.nextElementSibling === toolbar
-    );
+    return false;
   }
 
-  function fallbackToolbarIsCorrectlyPlaced(toolbar, title, metadata) {
+  function fallbackToolbarIsCorrectlyPlaced(
+    toolbar,
+    title,
+    metadata,
+    below,
+    playerHost,
+    watch
+  ) {
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
@@ -1524,6 +1536,53 @@
         isFallbackUsableWatchMount(metadata)
       );
     }
+    if (below instanceof Element) {
+      return (
+        toolbar.parentElement === below &&
+        below.firstElementChild === toolbar &&
+        isFallbackUsableWatchMount(below)
+      );
+    }
+    if (playerHost instanceof Element) {
+      return (
+        playerHost.nextElementSibling === toolbar &&
+        !playerHost.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)
+      );
+    }
+    if (watch instanceof Element) {
+      return toolbar.parentElement === watch;
+    }
+    return false;
+  }
+
+  function mountFallbackPlayerControlsToolbar(
+    toolbar,
+    title,
+    metadata,
+    below,
+    playerHost,
+    watch
+  ) {
+    if (title instanceof Element) {
+      title.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (metadata instanceof Element) {
+      metadata.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (below instanceof Element) {
+      below.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (playerHost instanceof Element) {
+      playerHost.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (watch instanceof Element) {
+      watch.append(toolbar);
+      return true;
+    }
     return false;
   }
 
@@ -1534,16 +1593,18 @@
     }
     const title = findFallbackWatchTitleAnchor();
     const metadata = findFallbackWatchMetadataHost();
+    const below = findFallbackWatchBelowHost();
+    const playerHost = findFallbackVisibleWatchPlayerHost();
+    const watch = document.querySelector('ytd-watch-flexy');
+    const watchChromeExists =
+      title instanceof Element ||
+      metadata instanceof Element ||
+      below instanceof Element ||
+      playerHost instanceof Element ||
+      watch instanceof Element;
+    if (!watchChromeExists) return;
+
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
-    if (!(title instanceof Element) && !(metadata instanceof Element)) {
-      if (
-        toolbar instanceof HTMLElement &&
-        fallbackToolbarIsParkedOnPlayer(toolbar)
-      ) {
-        toolbar.remove();
-      }
-      return;
-    }
     if (
       !(toolbar instanceof HTMLElement) ||
       toolbar.dataset.fypControlsLayout !== PLAYER_CONTROLS_LAYOUT_VERSION
@@ -1556,23 +1617,41 @@
       toolbar.setAttribute('aria-label', 'Video player controls');
       toolbar.innerHTML = playerControlsMarkup();
     }
-    if (!fallbackToolbarIsCorrectlyPlaced(toolbar, title, metadata)) {
-      if (title instanceof Element) {
-        title.insertAdjacentElement('afterend', toolbar);
-      } else if (metadata instanceof Element) {
-        metadata.insertAdjacentElement('afterbegin', toolbar);
-      }
+    if (
+      !fallbackToolbarIsCorrectlyPlaced(
+        toolbar,
+        title,
+        metadata,
+        below,
+        playerHost,
+        watch
+      )
+    ) {
+      mountFallbackPlayerControlsToolbar(
+        toolbar,
+        title,
+        metadata,
+        below,
+        playerHost,
+        watch
+      );
     }
     syncFallbackPlayerControls();
   }
 
+  const FALLBACK_PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
+    0, 60, 160, 400, 900, 1800, 3500,
+  ]);
+  let fallbackPlayerControlsToolbarScheduleToken = 0;
+
   function scheduleFallbackPlayerControlsToolbar() {
-    if (fallbackUiQueued) return;
-    fallbackUiQueued = true;
-    setTimeout(() => {
-      fallbackUiQueued = false;
-      ensureFallbackPlayerControlsToolbar();
-    }, 0);
+    const token = ++fallbackPlayerControlsToolbarScheduleToken;
+    for (const delay of FALLBACK_PLAYER_CONTROLS_TOOLBAR_RETRY_MS) {
+      setTimeout(() => {
+        if (token !== fallbackPlayerControlsToolbarScheduleToken) return;
+        ensureFallbackPlayerControlsToolbar();
+      }, delay);
+    }
   }
 
   function redirectShorts() {
@@ -1646,7 +1725,7 @@
     redirectShorts();
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
-    ensureFallbackPlayerControlsToolbar();
+    scheduleFallbackPlayerControlsToolbar();
 
     const videoObserver = new MutationObserver((mutations) => {
       if (pageRuntimeReady()) {
@@ -1741,11 +1820,13 @@
       () => {
         if (!redirectChannelRootToVideos()) {
           markFallbackHistoryFeedBrowse();
-          ensureFallbackPlayerControlsToolbar();
+          scheduleFallbackPlayerControlsToolbar();
         }
       },
       true
     );
+    window.addEventListener('pageshow', scheduleFallbackPlayerControlsToolbar, true);
+    window.addEventListener('popstate', scheduleFallbackPlayerControlsToolbar, true);
     window.addEventListener(
       'blur',
       prepareFallbackBackgroundPlayback,
@@ -2095,7 +2176,7 @@
           visibility: visible !important;
           opacity: 1 !important;
           flex-wrap: wrap !important;
-          width: fit-content !important;
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           margin: clamp(.5rem, 2.4vw, .8rem) auto !important;

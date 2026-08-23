@@ -1,4 +1,4 @@
-# Fuck YouTube Premium for Orion
+# Fyoutube for Orion
 
 [![iPhone only](https://img.shields.io/badge/iPhone-iOS%2017%2B-000000?logo=apple&logoColor=white)](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200)
 [![Orion Browser](https://img.shields.io/badge/Orion-Browser-14B86E?logo=safari&logoColor=white)](https://browser.kagi.com/)
@@ -8,7 +8,7 @@ Firefox WebExtension fallback build for **Orion on iPhone only**. Use the Chrome
 
 ## Install
 
-1. [Install Orion Browser](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `fuck-youtube-premium-chrome-2.0.20.zip` from the [latest release](https://github.com/aditauqir/fyp/releases/latest). Use `fuck-youtube-premium-orion-2.0.20.xpi` only if the Chrome zip cannot be installed.
+1. [Install Orion Browser](https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200), then download `fyoutube-chrome-2.0.20.zip` from the [latest release](https://github.com/aditauqir/fyp/releases/latest). Use `fyoutube-orion-2.0.20.xpi` only if the Chrome zip cannot be installed.
 2. In Orion Settings, enable both Firefox and Chrome extensions.
 3. Open Extensions, tap **+**, choose **Install from File**, and select the zip.
 4. Allow the extension to access YouTube. You do not need uBlock Origin.

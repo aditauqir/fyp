@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Fuck YouTube Premium
+// @name         Fyoutube
 // @namespace    https://github.com/violentmonkey
-// @version      3.1.0
-// @release-label 3.1.0
+// @version      3.1.1
+// @release-label 3.1.1
 // @description  Orion iOS: inline playback, built-in YouTube ad blocking, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.0');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.1');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -39,7 +39,7 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v310-title-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -5718,13 +5718,16 @@
      * instead of after playlist/recommendations/comments.
      */
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
-    if (toolbar instanceof HTMLElement && toolbar.parentElement === below) {
+    if (toolbar instanceof HTMLElement) {
       const titleInMeta = descriptionBlock.querySelector('#title, h1');
-      if (titleInMeta instanceof Element) {
+      if (titleInMeta instanceof Element && isUsableWatchMount(titleInMeta)) {
         if (titleInMeta.nextElementSibling !== toolbar) {
           titleInMeta.insertAdjacentElement('afterend', toolbar);
         }
-      } else if (descriptionBlock.firstElementChild !== toolbar) {
+      } else if (
+        isUsableWatchMount(descriptionBlock) &&
+        descriptionBlock.firstElementChild !== toolbar
+      ) {
         descriptionBlock.insertAdjacentElement('afterbegin', toolbar);
       }
     }
@@ -5821,7 +5824,7 @@
     welcome.id = WELCOME_ID;
     welcome.setAttribute('role', 'status');
     welcome.setAttribute('aria-live', 'polite');
-    welcome.textContent = 'Welcome to Fuck YouTube Premium';
+    welcome.textContent = 'Welcome to Fyoutube';
     setImportantStyles(welcome, {
       'box-sizing': 'border-box',
       position: 'fixed',
@@ -6192,21 +6195,8 @@
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
     if (node.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
-    let current = node;
-    while (current instanceof Element) {
-      const style = getComputedStyle(current);
-      if (style.display === 'none' || style.visibility === 'hidden') {
-        return false;
-      }
-      current = current.parentElement;
-    }
-    if (typeof node.checkVisibility === 'function') {
-      try {
-        if (!node.checkVisibility()) return false;
-      } catch {
-        // Older WebKit may throw; ancestor display/visibility already ran.
-      }
-    }
+    const style = getComputedStyle(node);
+    if (style.display === 'none') return false;
     return true;
   }
 
@@ -6239,11 +6229,24 @@
     return null;
   }
 
-  function findWatchPlayerAnchor() {
+  function findWatchBelowHost() {
+    const selectors = [
+      'ytd-watch-flexy #below',
+      'ytd-watch-flexy #primary-inner',
+    ];
+    for (const selector of selectors) {
+      const candidate = document.querySelector(selector);
+      if (isUsableWatchMount(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  function findVisibleWatchPlayerHost() {
     const watch = document.querySelector('ytd-watch-flexy');
+    if (!(watch instanceof Element)) return null;
     const fullBleed =
-      watch?.hasAttribute('full-bleed-player') ||
-      watch?.hasAttribute('theater');
+      watch.hasAttribute('full-bleed-player') ||
+      watch.hasAttribute('theater');
     const selectors = fullBleed
       ? [
           'ytd-watch-flexy #player-full-bleed-container',
@@ -6257,37 +6260,36 @@
         ];
     for (const selector of selectors) {
       const candidate = document.querySelector(selector);
-      if (!(candidate instanceof Element)) continue;
-      const style = getComputedStyle(candidate);
-      if (style.display === 'none') continue;
+      if (!(candidate instanceof Element) || !candidate.isConnected) continue;
+      if (candidate.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
+      if (candidate.closest('[hidden]')) continue;
+      if (getComputedStyle(candidate).display === 'none') continue;
       return candidate;
     }
-    return (
-      document.querySelector('#player-container-outer') ||
-      document.querySelector('#player')
-    );
+    return null;
   }
 
   function toolbarIsParkedOnPlayer(toolbar) {
     /*
-     * Issue #2: a strip sitting after #player / inside the collapsed full-bleed
-     * shell is invisible. Treat that as the wrong place even if a leftover
-     * hidden title node still exists in the DOM.
+     * CLIPPED only: inside the video engine or a collapsed unused player
+     * shell. Sitting after the visible player host is a valid fallback.
      */
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
     if (toolbar.closest('#movie_player, .html5-video-player')) return true;
     if (toolbar.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return true;
-    const playerAnchor = findWatchPlayerAnchor();
-    if (!(playerAnchor instanceof Element)) return false;
-    return (
-      playerAnchor.contains(toolbar) ||
-      playerAnchor.nextElementSibling === toolbar
-    );
+    return false;
   }
 
-  function toolbarIsCorrectlyPlaced(toolbar, title, metadata) {
+  function toolbarIsCorrectlyPlaced(
+    toolbar,
+    title,
+    metadata,
+    below,
+    playerHost,
+    watch
+  ) {
     if (!(toolbar instanceof HTMLElement) || !toolbar.isConnected) {
       return false;
     }
@@ -6302,6 +6304,53 @@
         isUsableWatchMount(metadata)
       );
     }
+    if (below instanceof Element) {
+      return (
+        toolbar.parentElement === below &&
+        below.firstElementChild === toolbar &&
+        isUsableWatchMount(below)
+      );
+    }
+    if (playerHost instanceof Element) {
+      return (
+        playerHost.nextElementSibling === toolbar &&
+        !playerHost.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)
+      );
+    }
+    if (watch instanceof Element) {
+      return toolbar.parentElement === watch;
+    }
+    return false;
+  }
+
+  function mountPlayerControlsToolbar(
+    toolbar,
+    title,
+    metadata,
+    below,
+    playerHost,
+    watch
+  ) {
+    if (title instanceof Element) {
+      title.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (metadata instanceof Element) {
+      metadata.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (below instanceof Element) {
+      below.insertAdjacentElement('afterbegin', toolbar);
+      return true;
+    }
+    if (playerHost instanceof Element) {
+      playerHost.insertAdjacentElement('afterend', toolbar);
+      return true;
+    }
+    if (watch instanceof Element) {
+      watch.append(toolbar);
+      return true;
+    }
     return false;
   }
 
@@ -6313,19 +6362,19 @@
 
     const title = findWatchTitleAnchor();
     const metadata = findWatchMetadataHost();
+    const below = findWatchBelowHost();
+    const playerHost = findVisibleWatchPlayerHost();
+    const watch = document.querySelector('ytd-watch-flexy');
+    const watchChromeExists =
+      title instanceof Element ||
+      metadata instanceof Element ||
+      below instanceof Element ||
+      playerHost instanceof Element ||
+      watch instanceof Element;
+
+    if (!watchChromeExists) return;
+
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
-
-    /*
-     * Reload order is player first, title later. If we parked the strip on
-     * the player while waiting, remove it. Do not insert after the player.
-     */
-    if (!(title instanceof Element) && !(metadata instanceof Element)) {
-      if (toolbar instanceof HTMLElement && toolbarIsParkedOnPlayer(toolbar)) {
-        toolbar.remove();
-      }
-      return;
-    }
-
     if (
       !(toolbar instanceof HTMLElement) ||
       toolbar.dataset.fypControlsLayout !== PLAYER_CONTROLS_LAYOUT_VERSION
@@ -6339,18 +6388,41 @@
       toolbar.innerHTML = playerControlsMarkup();
     }
 
-    /*
-     * Stable stack: title → strip (preferred), else metadata host.
-     * Never park under the player. Skip reparenting when already correct.
-     */
-    if (!toolbarIsCorrectlyPlaced(toolbar, title, metadata)) {
-      if (title instanceof Element) {
-        title.insertAdjacentElement('afterend', toolbar);
-      } else if (metadata instanceof Element) {
-        metadata.insertAdjacentElement('afterbegin', toolbar);
-      }
+    if (
+      !toolbarIsCorrectlyPlaced(
+        toolbar,
+        title,
+        metadata,
+        below,
+        playerHost,
+        watch
+      )
+    ) {
+      mountPlayerControlsToolbar(
+        toolbar,
+        title,
+        metadata,
+        below,
+        playerHost,
+        watch
+      );
     }
     syncCustomPlayerControls();
+  }
+
+  const PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
+    0, 60, 160, 400, 900, 1800, 3500,
+  ]);
+  let playerControlsToolbarScheduleToken = 0;
+
+  function schedulePlayerControlsToolbar() {
+    const token = ++playerControlsToolbarScheduleToken;
+    for (const delay of PLAYER_CONTROLS_TOOLBAR_RETRY_MS) {
+      setTimeout(() => {
+        if (token !== playerControlsToolbarScheduleToken) return;
+        ensurePlayerControlsToolbar();
+      }, delay);
+    }
   }
 
   function enforceSimpleSearchLayout() {
@@ -6488,7 +6560,7 @@
     restoreScrollAfterGuideClose();
     hideUploadControls();
     dismissMiniplayer();
-    ensurePlayerControlsToolbar();
+    schedulePlayerControlsToolbar();
     closeMobileSearch();
     arrangeWatchComments();
     enhanceComments();
@@ -6575,10 +6647,15 @@
     removeFloatingPillNav();
     dismissMiniplayer();
     updateMobileNavigation();
+    schedulePlayerControlsToolbar();
+  }, true);
+  nativeWindowAddEventListener('pageshow', () => {
+    schedulePlayerControlsToolbar();
   }, true);
 
   injectStyle();
   applyMobileShell();
+  schedulePlayerControlsToolbar();
 
   if (document.readyState === 'loading') {
     nativeDocumentAddEventListener('DOMContentLoaded', scanPage, { once: true });

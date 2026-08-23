@@ -1,5 +1,12 @@
 # Patch Notes
 
+## v3.1.1
+
+- Fixed: Refreshing a watch page keeps the transport strip under the video. 3.1.0 still lost it on Orion iOS reload.
+- Changed: Product name in headings, popup, and the extension listing is **Fyoutube**.
+- Notes: Unreleased on `bug-fixes-pr`. GitHub issue [#2](https://github.com/aditauqir/fyp/issues/2) is still open. Do not treat this as shipped until the user asks.
+- Packaging: Numeric version `3.1.1`; local Orion installer `3.1.1_release.zip` after rebuild (Chrome MV3). Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
 ## v3.1.0
 
 - Fixed: Refreshing a watch page keeps the transport strip under the title instead of hiding it inside the player.

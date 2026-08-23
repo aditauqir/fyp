@@ -7,14 +7,14 @@
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version stays **`3.0.4`** until the user asks to ship. This branch currently builds **`3.1.0`**.
+> Shipped public version stays **`3.0.4`** until the user asks to ship. This branch currently builds **`3.1.1`**.
 
 ---
 
 ## Agent contract (read before any work)
 
 1. You are on branch **`bug-fixes-pr`**, based on latest `origin/main` (shipped **3.0.4** at branch creation).
-2. This branch’s job is **GitHub issues** for Fuck YouTube Premium / FYouTube Extension — not performance taming, not reviving 2.1.5–2.2.0 custom search, not popup changelog edits.
+2. This branch’s job is **GitHub issues** for Fyoutube / FYouTube Extension — not performance taming, not reviving 2.1.5–2.2.0 custom search, not popup changelog edits.
 3. After finishing a change: rebuild, update the ledger below, and **ask the user** whether to continue on this branch, ship, or stop.
 4. Do **not** revive `FIX-BRANCH.md` search experiments (S1–S5) without explicit user approval.
 5. Do **not** fight native Play, drawer Polymer `opened` / `peeking` / swipe, or the 10000 ms player-control hold.
@@ -44,13 +44,33 @@ Take open GitHub issues from [aditauqir/fyp](https://github.com/aditauqir/fyp/is
 
 ---
 
+## Start each agent session with a live issue report
+
+Before other work, run:
+
+```bash
+node scripts/check-issue-ledger.cjs
+```
+
+The command reads every GitHub issue, compares its live state with this ledger, and prints a status table.
+
+The agent must send that table to the user before the agent edits code. The report must include each issue, its live GitHub state, and its branch state.
+
+If the command reports a mismatch, update this ledger in the same change. If GitHub is unavailable, use this ledger and label every state as **cached, not live**.
+
+---
+
 ## Ledger
 
-| ID | Source | Status | Summary |
-|----|--------|--------|---------|
-| #1 | [Opening the sidebar and closing it again breaks scrolling](https://github.com/aditauqir/fyp/issues/1) | **Fixed in 3.1.0 (unreleased)** | Hamburger close left a grey overlay and froze scroll. |
-| #2 | [Refreshing a video hides the FYP transport strip](https://github.com/aditauqir/fyp/issues/2) | **Fixed in 3.1.0 (unreleased)** | Reload parked the strip under a collapsed player shell. |
-| search-bar | Chat report (iPhone 16, latest iOS) | **Fixed in 3.1.0 (unreleased)** | Tapping search showed two buttons and a tiny field on the left. |
+Last live check: **2026-08-23**.
+
+| Issue | GitHub title | GitHub state | Branch state | Summary |
+|---|---|---|---|---|
+| [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **OPEN** | **Addressed in `316702e`; CI passes; iPhone verification pending** | Hamburger close left a grey overlay and froze scroll. |
+| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **OPEN** | **3.1.1 remount on reload; CI pending; iPhone verification pending** | Reload removed the strip when title/metadata failed the visibility check. |
+| [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **OPEN** | **Addressed in `316702e`; CI passes; iPhone 16 verification pending** | Tapping search showed two buttons and a tiny field on the left. |
+
+`OPEN` and `CLOSED` in the GitHub state column are live issue states. The branch state records implementation and verification separately.
 
 ---
 
@@ -72,13 +92,13 @@ Take open GitHub issues from [aditauqir/fyp](https://github.com/aditauqir/fyp/is
 
 **Probable cause:** On a full reload the player shell exists before the title/metadata. The strip was parked after `#player` / `#player-full-bleed-container`. Full-bleed CSS then collapses `#columns #player` with `overflow: hidden`. Title-mount checks only looked at the leftover Polymer title’s own `display`, so a hidden title counted as a valid mount forever.
 
-**What we changed:** Require a visible title/metadata mount (`isUsableWatchMount`). Never insert the strip after the player. If the strip is already parked on the collapsed player and title is not ready, remove it and wait. Layout version `icon-strip-v310-title-mount`.
+**What we changed:** 3.1.0 was not enough on device. `isUsableWatchMount` no longer fails on iOS `checkVisibility()` or ancestor `visibility:hidden`. Once watch chrome exists, the strip is always remounted: visible title, then metadata, then `#below` / `#primary-inner`, then after the visible player host, then `ytd-watch-flexy`. Never remove the strip without putting it back. Burst retries on boot, `yt-navigate-finish`, `pageshow`, and `popstate`. Layout version `icon-strip-v311-reload-mount`.
 
-**How to verify:** 1) Reinstall `3.1.0_release.zip` and hard-refresh. 2) Open a watch page. 3) Confirm the strip sits under the title. 4) Refresh the watch page. 5) Confirm the strip returns under the title, not inside/under the player.
+**How to verify:** 1) Reinstall `3.1.1_release.zip` and hard-refresh. 2) Open a watch page. 3) Confirm the strip sits under the video. 4) Refresh the watch page. 5) Confirm the strip is still under the video, not missing and not inside the collapsed player.
 
 ---
 
-## Search bar — two buttons and a tiny field (iPhone 16)
+## Issue #3 — two search buttons and a tiny field (iPhone 16)
 
 **What it is:** Tap the top search control. Two search buttons appear. The search field shrinks to a small block on the left.
 
@@ -95,4 +115,4 @@ Take open GitHub issues from [aditauqir/fyp](https://github.com/aditauqir/fyp/is
 1. Implement in `youtube-mobile-background.user.js`. Mirror fallback in `firefox-extension/content.template.js` when the isolated-world path can hit the same bug.
 2. Run `./rebuild-extension.sh` and `node --test tests/*.cjs`.
 3. Update this ledger and append `fixes.md`.
-4. Ask whether to continue on **`bug-fixes-pr`**, **ship 3.1.0**, or **stop**.
+4. Ask whether to continue on **`bug-fixes-pr`**, **ship 3.1.1**, or **stop**.
