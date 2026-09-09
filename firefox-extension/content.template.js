@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.1.1';
+  const EXPECTED_PAGE_VERSION = '3.1.3.g';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
@@ -1655,7 +1655,12 @@
   }
 
   function redirectShorts() {
-    if (!location.pathname.startsWith('/shorts')) return false;
+    if (
+      !location.pathname.startsWith('/shorts') &&
+      !location.pathname.startsWith('/playables')
+    ) {
+      return false;
+    }
     location.replace('https://www.youtube.com/?app=desktop&persist_app=1');
     return true;
   }
@@ -1874,7 +1879,9 @@
     document.addEventListener(
       'click',
       (event) => {
-        const link = event.target?.closest?.('a[href*="/shorts"]');
+        const link = event.target?.closest?.(
+          'a[href*="/shorts"], a[href*="/playables"]'
+        );
         if (!link) return;
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -1893,17 +1900,65 @@
         ytd-mini-guide-renderer,
         ytd-mini-guide-entry-renderer,
         ytd-guide-entry-renderer:has(a[href^="/shorts"]),
+        ytd-guide-entry-renderer:has(a[href*="/playables"]),
+        ytd-guide-entry-renderer:has(a[title*="Playables" i]),
+        ytd-mini-guide-entry-renderer:has(a[href*="/playables"]),
+        tp-yt-paper-item:has(a[href^="/shorts"]),
+        tp-yt-paper-item:has(a[href*="/playables"]),
         ytd-rich-shelf-renderer:has(a[href*="/shorts"]),
+        ytd-rich-shelf-renderer:has(a[href*="/playables"]),
+        ytd-rich-shelf-renderer:has([title*="Playables" i]),
+        ytd-rich-shelf-renderer:has([aria-label*="Playables" i]),
         ytd-reel-shelf-renderer,
+        ytd-rich-section-renderer:has(a[href*="/shorts"]),
+        ytd-rich-section-renderer:has(a[href*="/playables"]),
+        ytd-rich-section-renderer:has([title*="Playables" i]),
+        ytd-rich-section-renderer:has([aria-label*="Playables" i]),
         ytm-reel-shelf-renderer,
         ytm-shorts-lockup-view-model,
         ytm-shorts-lockup-view-model-v2,
         ytd-rich-item-renderer:has(a[href*="/shorts"]),
+        ytd-rich-item-renderer:has(a[href*="/playables"]),
         yt-lockup-view-model:has(a[href*="/shorts"]),
+        yt-lockup-view-model:has(a[href*="/playables"]),
+        grid-shelf-view-model:has(a[href*="/shorts"]),
+        grid-shelf-view-model:has(a[href*="/playables"]),
+        grid-shelf-view-model:has([title*="Playables" i]),
+        grid-shelf-view-model:has([aria-label*="Playables" i]),
+        yt-playable-game-renderer,
+        ytd-game-card-renderer,
+        ytd-playable-renderer,
+        ytd-playables-shelf-renderer,
+        yt-playables-shelf-renderer,
+        yt-chip-cloud-chip-renderer:has(yt-formatted-string[title*="Playables" i]),
+        yt-chip-cloud-chip-renderer:has([title*="Playables" i]),
         a[href^="/shorts"],
         a[href*="youtube.com/shorts/"],
-        [is-shorts] {
+        a[href^="/playables"],
+        a[href*="youtube.com/playables"],
+        [is-shorts],
+        [is-playables],
+        [is-playable] {
           display: none !important;
+        }
+
+        tp-yt-app-drawer#guide {
+          touch-action: pan-y !important;
+        }
+        tp-yt-app-drawer#guide #contentContainer {
+          touch-action: pan-y !important;
+          overscroll-behavior: contain !important;
+          overscroll-behavior-y: contain !important;
+        }
+        tp-yt-app-drawer#guide ytd-guide-renderer,
+        tp-yt-app-drawer#guide #guide-wrapper,
+        tp-yt-app-drawer#guide #guide-inner-content,
+        tp-yt-app-drawer#guide #sections,
+        tp-yt-app-drawer#guide #items {
+          touch-action: pan-y !important;
+          overscroll-behavior: contain !important;
+          overscroll-behavior-y: contain !important;
+          -webkit-overflow-scrolling: touch !important;
         }
 
         tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim,
@@ -2375,7 +2430,7 @@
           pointer-events: none !important;
         }
 
-        /* Mirror page.js 2.2.3: leave native search alone; hide Ask/voice only. */
+        /* Mirror page.js: leave native search alone; hide Ask/voice only. */
         ytd-masthead #voice-search-button,
         ytd-masthead button[aria-label*='Search with your voice' i],
         ytd-masthead button[aria-label*='Voice search' i],
@@ -2388,6 +2443,52 @@
         [aria-label*='Ask Gemini' i] {
           display: none !important;
           visibility: hidden !important;
+          pointer-events: none !important;
+        }
+
+        /* Force-hide back button completely */
+        #fyp-search-back-button,
+        [data-fyp-mobile-search-open='true'] #fyp-search-back-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #fyp-search-back-button,
+        body[data-fyp-search-active='true'] #fyp-search-back-button {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* Force-hide hamburger menu & drawer during search */
+        html[data-fyp-search-active='true'] #start,
+        html[data-fyp-search-active='true'] #guide-button,
+        html[data-fyp-search-active='true'] #guide-button-icon,
+        html[data-fyp-search-active='true'] button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        html[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        html[data-fyp-search-active='true'] #guide,
+        body[data-fyp-search-active='true'] #start,
+        body[data-fyp-search-active='true'] #guide-button,
+        body[data-fyp-search-active='true'] #guide-button-icon,
+        body[data-fyp-search-active='true'] button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        body[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        body[data-fyp-search-active='true'] #guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #start,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #end,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #guide-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #guide-button-icon,
+        ytd-masthead[data-fyp-mobile-search-open='true'] button[aria-label='Guide'],
+        ytd-masthead[data-fyp-mobile-search-open='true'] yt-icon-button#guide-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ #guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ tp-yt-app-drawer#guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ ytd-mini-guide-renderer {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
           pointer-events: none !important;
         }
       `;
@@ -2404,6 +2505,8 @@
   }
 
   installDomFallbacks();
+
+  /* __EMBEDDED_PAGE_SOURCE_DECLARATION__ */
 
   const src = api.runtime.getURL('page.js');
 
@@ -2443,9 +2546,15 @@
     document.getElementById(PAGE_SCRIPT_ID)?.remove();
 
     try {
-      const response = await fetch(src);
-      if (!response.ok) throw new Error(`page.js returned ${response.status}`);
-      const code = await response.text();
+      let code =
+        typeof __fyp_embedded_page_code === 'string' && __fyp_embedded_page_code
+          ? __fyp_embedded_page_code
+          : null;
+      if (!code) {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error(`page.js returned ${response.status}`);
+        code = await response.text();
+      }
       const script = document.createElement('script');
       script.id = PAGE_SCRIPT_ID;
       const nonceSource = document.querySelector('script[nonce]');
@@ -2460,19 +2569,21 @@
     }
   }
 
+  // FORCE INJECTION: Inject immediately at document_start without waiting
+  if (!pageRuntimeReady()) injectWithText();
+
   if (!injectWithSrc()) {
     const observer = new MutationObserver(() => {
+      if (!pageRuntimeReady()) injectWithText();
       if (injectWithSrc()) observer.disconnect();
     });
     observer.observe(document, { childList: true, subtree: true });
   }
 
   // A tag can exist without executing in Orion. Verify a PAGE-world handshake.
-  setTimeout(() => {
-    if (!pageRuntimeReady()) injectWithText();
-  }, 200);
-
-  setTimeout(() => {
-    if (!pageRuntimeReady()) injectWithText();
-  }, 1200);
+  for (const delay of [0, 20, 50, 100, 200, 500, 1200]) {
+    setTimeout(() => {
+      if (!pageRuntimeReady()) injectWithText();
+    }, delay);
+  }
 })();

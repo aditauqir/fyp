@@ -12,8 +12,8 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+3\.1\.1/);
-assert.match(source, /data-fyp-page-ready', '3\.1\.1'/);
+assert.match(source, /\/\/ @version\s+3\.1\.[1-9](\.g)?/);
+assert.match(source, /data-fyp-page-ready', '3\.1\.[1-9](\.g)?'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
@@ -116,7 +116,16 @@ assert.doesNotMatch(
   source,
   /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center \{[\s\S]{0,400}width: auto !important/
 );
-assert.match(source, /input\.focus\(\{ preventScroll: true \}\)/);
+assert.match(source, /SEARCH_BACKDROP_ID = 'fyp-search-backdrop'/);
+assert.match(source, /function ensureMobileSearchElements\(\)/);
+assert.doesNotMatch(source, /center\.prepend\(backBtn\)/);
+assert.match(source, /#fyp-search-back-button[\s\S]*display: none !important/);
+assert.match(source, /body\[data-fyp-search-active='true'\] #guide-button/);
+assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #guide-button/);
+assert.match(source, /#fyp-search-backdrop/);
+assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center[\s\S]*overflow: visible !important/);
+assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] \.ytSearchboxComponentSuggestionsContainer/);
+assert.match(source, /input\.blur\(\)/);
 assert.match(source, /Ask YouTube/);
 assert.match(source, /#voice-search-button/);
 
@@ -146,7 +155,7 @@ assert.doesNotMatch(
   /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button[\s\S]*display: none !important/
 );
 
-assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.1'/);
+assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.[1-9](\.g)?'/);
 assert.match(template, /Ask YouTube/);
 assert.match(template, /#voice-search-button/);
 assert.doesNotMatch(

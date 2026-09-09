@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Fyoutube
+// @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      3.1.1
-// @release-label 3.1.1
-// @description  Orion iOS: inline playback, built-in YouTube ad blocking, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
+// @version      3.1.3.g
+// @release-label 3.1.3.g
+// @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
 // @match        *://www.youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.1');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.3.g');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -587,8 +587,11 @@
 
   if (redirectChannelRootToVideos()) return;
 
-  // Never land on Shorts — send those URLs to Home.
-  if (location.pathname.startsWith('/shorts')) {
+  // Never land on Shorts or Playables (mini-games) — send those URLs to Home.
+  if (
+    location.pathname.startsWith('/shorts') ||
+    location.pathname.startsWith('/playables')
+  ) {
     location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
     return;
   }
@@ -2231,6 +2234,11 @@
   }
 
   function enforceHorizontalViewportLock() {
+    const event = arguments[0];
+    if (guideDrawerIsBusy()) {
+      event?.stopImmediatePropagation?.();
+      return;
+    }
     const scrollingElement = document.scrollingElement;
     if (scrollingElement?.scrollLeft) scrollingElement.scrollLeft = 0;
     if (document.documentElement.scrollLeft) {
@@ -3221,26 +3229,48 @@
         pointer-events: none !important;
       }
 
-      /* Burger drawer only — hide every persistent Home/Shorts/Subs/You rail. */
+      /* Burger drawer only — hide every persistent Home/Shorts/Subs/You rail and mini-games. */
       ytm-pivot-bar-renderer,
       ytd-mini-guide-renderer,
       ytd-mini-guide-entry-renderer,
       #guide-button-badge,
       ytd-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-guide-entry-renderer:has(a[href*='/playables']),
+      ytd-guide-entry-renderer:has(a[title*='Playables' i]),
       ytd-mini-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-mini-guide-entry-renderer:has(a[href*='/playables']),
       ytd-guide-entry-renderer:has(a[title='Shorts']),
       tp-yt-paper-item:has(a[href^='/shorts']),
+      tp-yt-paper-item:has(a[href*='/playables']),
       ytd-rich-shelf-renderer:has(a[href*='/shorts']),
+      ytd-rich-shelf-renderer:has(a[href*='/playables']),
+      ytd-rich-shelf-renderer:has([title*='Playables' i]),
+      ytd-rich-shelf-renderer:has([aria-label*='Playables' i]),
       ytd-reel-shelf-renderer,
       ytd-rich-section-renderer:has(a[href*='/shorts']),
+      ytd-rich-section-renderer:has(a[href*='/playables']),
+      ytd-rich-section-renderer:has([title*='Playables' i]),
+      ytd-rich-section-renderer:has([aria-label*='Playables' i]),
       ytm-reel-shelf-renderer,
       ytm-shorts-lockup-view-model,
       ytm-shorts-lockup-view-model-v2,
       ytd-reel-item-renderer,
       ytm-reel-item-renderer,
       ytd-rich-item-renderer:has(a[href*='/shorts']),
+      ytd-rich-item-renderer:has(a[href*='/playables']),
       yt-lockup-view-model:has(a[href*='/shorts']),
+      yt-lockup-view-model:has(a[href*='/playables']),
       grid-shelf-view-model:has(a[href*='/shorts']),
+      grid-shelf-view-model:has(a[href*='/playables']),
+      grid-shelf-view-model:has([title*='Playables' i]),
+      grid-shelf-view-model:has([aria-label*='Playables' i]),
+      yt-playable-game-renderer,
+      ytd-game-card-renderer,
+      ytd-playable-renderer,
+      ytd-playables-shelf-renderer,
+      yt-playables-shelf-renderer,
+      yt-chip-cloud-chip-renderer:has(yt-formatted-string[title*='Playables' i]),
+      yt-chip-cloud-chip-renderer:has([title*='Playables' i]),
       ytd-browse[page-subtype='channels'] yt-tab-shape:has(a[href$='/shorts']),
       ytd-browse[page-subtype='channels'] [role='tab']:has(a[href$='/shorts']),
       ytd-browse[page-subtype='channels'] ytd-rich-item-renderer:has(a[href*='/shorts']),
@@ -3250,11 +3280,40 @@
       ytd-browse[page-subtype='channels'] ytd-rich-shelf-renderer:has(a[href*='/shorts']),
       a[href^='/shorts'],
       a[href*='youtube.com/shorts/'],
+      a[href^='/playables'],
+      a[href*='youtube.com/playables'],
       [is-shorts],
-      ytd-thumbnail[href*='/shorts'] {
+      [is-playables],
+      [is-playable],
+      ytd-thumbnail[href*='/shorts'],
+      ytd-thumbnail[href*='/playables'] {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
+      }
+
+      /*
+       * Stabilize guide sidebar scrolling:
+       * Prevent vertical scroll gestures inside the drawer from chaining to
+       * window or triggering Polymer's swipe-to-close gesture.
+       */
+      tp-yt-app-drawer#guide {
+        touch-action: pan-y !important;
+      }
+      tp-yt-app-drawer#guide #contentContainer {
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
+        overscroll-behavior-y: contain !important;
+      }
+      tp-yt-app-drawer#guide ytd-guide-renderer,
+      tp-yt-app-drawer#guide #guide-wrapper,
+      tp-yt-app-drawer#guide #guide-inner-content,
+      tp-yt-app-drawer#guide #sections,
+      tp-yt-app-drawer#guide #items {
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
+        overscroll-behavior-y: contain !important;
+        -webkit-overflow-scrolling: touch !important;
       }
 
       ytd-app {
@@ -4413,37 +4472,103 @@
           pointer-events: none !important;
         }
 
+        /* Mobile Search overlay */
+        #fyp-search-backdrop {
+          display: none;
+        }
+
+        body[data-fyp-search-active='true'] #fyp-search-backdrop,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ #fyp-search-backdrop {
+          display: block !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 2147483645 !important;
+          background: rgba(0, 0, 0, .4) !important;
+          backdrop-filter: blur(2px) !important;
+          -webkit-backdrop-filter: blur(2px) !important;
+        }
+
+        html[data-fyp-search-active='true'] #start,
+        html[data-fyp-search-active='true'] #guide-button,
+        html[data-fyp-search-active='true'] #guide-button-icon,
+        html[data-fyp-search-active='true'] button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        html[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        html[data-fyp-search-active='true'] #guide,
+        html[data-fyp-search-active='true'] ytd-mini-guide-renderer,
+        body[data-fyp-search-active='true'] #start,
+        body[data-fyp-search-active='true'] #guide-button,
+        body[data-fyp-search-active='true'] #guide-button-icon,
+        body[data-fyp-search-active='true'] button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        body[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        body[data-fyp-search-active='true'] #guide,
+        body[data-fyp-search-active='true'] ytd-mini-guide-renderer,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #start,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #guide-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #guide-button-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] button[aria-label='Guide'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-icon-button#guide-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ #guide,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ tp-yt-app-drawer#guide,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ ytd-mini-guide-renderer {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
           position: fixed !important;
-          top: calc(env(safe-area-inset-top, 0px) + 8px) !important;
+          top: calc(env(safe-area-inset-top, 0px) + 6px) !important;
           right: 12px !important;
           left: 12px !important;
           z-index: 2147483646 !important;
           box-sizing: border-box !important;
           display: flex !important;
+          flex-direction: row !important;
           flex-wrap: nowrap !important;
           width: calc(100vw - 24px) !important;
           min-width: calc(100vw - 24px) !important;
           max-width: calc(100vw - 24px) !important;
           height: 48px !important;
           margin: 0 !important;
-          padding: 4px 4px 4px 8px !important;
+          padding: 4px 6px !important;
           align-items: center !important;
           color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: var(--yt-spec-base-background, #fff) !important;
-          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12)) !important;
+          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .15)) !important;
           border-radius: 24px !important;
-          box-shadow: 0 8px 28px rgba(0, 0, 0, .18) !important;
-          overflow: hidden !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, .2) !important;
+          overflow: visible !important;
         }
 
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
         html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
           color: #f1f1f1 !important;
-          background: rgb(15, 15, 15) !important;
+          background: #212121 !important;
           border: 1px solid rgba(255, 255, 255, .22) !important;
-          box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, .5) !important;
+        }
+
+        #fyp-search-back-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #fyp-search-back-button {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end #search-button,
@@ -4452,28 +4577,59 @@
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end button[aria-label='Search'],
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end [role='button'][aria-label='Search'],
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end yt-icon-button[aria-label='Search'] {
+          display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
         }
 
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentHost,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInputBox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #container,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-input {
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentHost {
           box-sizing: border-box !important;
           display: flex !important;
           flex: 1 1 auto !important;
-          flex-wrap: nowrap !important;
-          width: 100% !important;
           min-width: 0 !important;
-          max-width: none !important;
-          height: 40px !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
           align-items: center !important;
+          position: relative !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSearchForm {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          min-width: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          align-items: center !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #container,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-input,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInputBox {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          min-width: 0 !important;
+          width: auto !important;
+          max-width: none !important;
+          height: 38px !important;
+          margin: 0 !important;
+          padding: 0 4px 0 14px !important;
+          align-items: center !important;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
         }
 
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center
@@ -4492,14 +4648,19 @@
           flex: 1 1 auto !important;
           width: 100% !important;
           min-width: 0 !important;
-          height: 40px !important;
-          padding: 0 12px !important;
+          height: 38px !important;
+          padding: 0 4px !important;
+          margin: 0 !important;
           color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: transparent !important;
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
           font-size: 16px !important;
-          line-height: 40px !important;
+          line-height: 38px !important;
           opacity: 1 !important;
           visibility: visible !important;
+          -webkit-appearance: none !important;
         }
 
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
@@ -4512,6 +4673,108 @@
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .yt-searchbox-input,
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInput {
           color: #fff !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder {
+          color: var(--yt-spec-text-secondary, #717171) !important;
+          opacity: 1 !important;
+        }
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder {
+          color: #aaa !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton {
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex: 0 0 38px !important;
+          width: 38px !important;
+          height: 38px !important;
+          min-width: 38px !important;
+          margin: 0 !important;
+          padding: 6px !important;
+          background: transparent !important;
+          border: none !important;
+          border-radius: 50% !important;
+          color: var(--yt-spec-text-primary, #0f0f0f) !important;
+          cursor: pointer !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton,
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy {
+          color: #fff !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy yt-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton yt-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy svg,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton svg {
+          width: 22px !important;
+          height: 22px !important;
+          color: inherit !important;
+          fill: currentColor !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentClearButton {
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex: 0 0 32px !important;
+          width: 32px !important;
+          height: 32px !important;
+          min-width: 32px !important;
+          margin: 0 !important;
+          padding: 4px !important;
+          background: transparent !important;
+          border: none !important;
+          cursor: pointer !important;
+          color: var(--yt-spec-text-secondary, #606060) !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentClearButton,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button {
+          color: #aaa !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        .sbdd_a {
+          position: fixed !important;
+          top: calc(env(safe-area-inset-top, 0px) + 56px) !important;
+          left: 12px !important;
+          right: 12px !important;
+          width: calc(100vw - 24px) !important;
+          max-width: calc(100vw - 24px) !important;
+          max-height: calc(100vh - env(safe-area-inset-top, 0px) - 120px) !important;
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          z-index: 2147483647 !important;
+          background: var(--yt-spec-base-background, #fff) !important;
+          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .15)) !important;
+          border-radius: 16px !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, .25) !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        html[dark] .sbdd_a,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        ytd-app[dark] .sbdd_a {
+          background: #212121 !important;
+          border: 1px solid rgba(255, 255, 255, .2) !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, .5) !important;
         }
 
       }
@@ -5154,9 +5417,9 @@
         .trim();
 
       const isShorts =
-        /\/shorts\b/i.test(href) ||
-        /^shorts\b/i.test(label) ||
-        (/\bshorts\b/i.test(label) && label.length < 48) ||
+        /\/shorts\b|\/playables\b/i.test(href) ||
+        /^(shorts|playables)\b/i.test(label) ||
+        (/(\bshorts\b|\bplayables\b|mini[\s-]?games)/i.test(label) && label.length < 48) ||
         /tab_shorts|shorts_fill|shorts_outline/i.test(
           entry.innerHTML?.slice?.(0, 500) || ''
         );
@@ -5190,6 +5453,11 @@
         'ytm-shorts-lockup-view-model-v2',
         'ytd-reel-item-renderer',
         'ytm-reel-item-renderer',
+        'yt-playable-game-renderer',
+        'ytd-game-card-renderer',
+        'ytd-playable-renderer',
+        'ytd-playables-shelf-renderer',
+        'yt-playables-shelf-renderer',
       ].join(',')
     )) {
       setImportantStyles(element, {
@@ -5204,20 +5472,41 @@
     for (const element of document.querySelectorAll(
       'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
     )) {
+      const titleText = (
+        element.querySelector?.('#title, .title, #title-text, yt-formatted-string, h2, [id*="title"]')
+          ?.textContent || ''
+      ).trim();
+      const ariaLabel = element.getAttribute?.('aria-label') || '';
       const isShortsShelf =
-        Boolean(element.querySelector?.('a[href*="/shorts"]')) ||
-        /shorts/i.test(
-          (element.querySelector?.('#title, .title, yt-formatted-string')
-            ?.textContent || '')
-            .trim()
-        );
+        Boolean(element.querySelector?.('a[href*="/shorts"], a[href*="/playables"]')) ||
+        /shorts|playables|mini[\s-]?games/i.test(titleText) ||
+        /shorts|playables|mini[\s-]?games/i.test(ariaLabel);
       if (!isShortsShelf) continue;
       setImportantStyles(element, {
         display: 'none',
         visibility: 'hidden',
         'pointer-events': 'none',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
       });
+      element.setAttribute('aria-hidden', 'true');
       element.hidden = true;
+      const section = element.closest('ytd-rich-section-renderer');
+      if (section && section !== element) {
+        setImportantStyles(section, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+          height: '0',
+          margin: '0',
+          padding: '0',
+          overflow: 'hidden',
+        });
+        section.setAttribute('aria-hidden', 'true');
+        section.hidden = true;
+      }
     }
 
     const possibleShortsControls = document.querySelectorAll([
@@ -5225,9 +5514,16 @@
       'a[href^="/shorts"]',
       'a[href*="/shorts"]',
       'a[href*="youtube.com/shorts"]',
+      'a[href^="/playables"]',
+      'a[href*="/playables"]',
+      'a[href*="youtube.com/playables"]',
       '[aria-label="Shorts"]',
       '[title="Shorts"]',
+      '[aria-label*="Playables" i]',
+      '[title*="Playables" i]',
       '[is-shorts]',
+      '[is-playables]',
+      '[is-playable]',
     ].join(','));
 
     for (const control of possibleShortsControls) {
@@ -5239,15 +5535,44 @@
             'ytd-rich-shelf-renderer, ytd-reel-shelf-renderer, ytd-rich-section-renderer, ' +
             'ytd-reel-item-renderer, ytm-reel-item-renderer, ' +
             'ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, ' +
-            'yt-lockup-view-model, tp-yt-paper-item'
+            'yt-lockup-view-model, tp-yt-paper-item, grid-shelf-view-model'
         ) || control;
       setImportantStyles(item, {
         display: 'none',
         visibility: 'hidden',
         'pointer-events': 'none',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
       });
       item.setAttribute('aria-hidden', 'true');
       item.hidden = true;
+      const section = item.closest('ytd-rich-section-renderer');
+      if (section && section !== item) {
+        setImportantStyles(section, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+          height: '0',
+          margin: '0',
+          padding: '0',
+          overflow: 'hidden',
+        });
+        section.setAttribute('aria-hidden', 'true');
+        section.hidden = true;
+      }
+    }
+
+    for (const chip of document.querySelectorAll('yt-chip-cloud-chip-renderer')) {
+      if (/playables|mini[\s-]?games/i.test(chip.textContent.trim())) {
+        setImportantStyles(chip, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+        });
+        chip.hidden = true;
+      }
     }
 
     hideShortsGuideEntries(document);
@@ -5256,51 +5581,91 @@
   function blockShortsNavigation(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const link = target.closest('a[href*="/shorts"]');
+    const link = target.closest('a[href*="/shorts"], a[href*="/playables"]');
     if (!link) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
-  function closeMobileSearch() {
+  const SEARCH_BACKDROP_ID = 'fyp-search-backdrop';
+
+  function ensureMobileSearchElements() {
     const masthead = document.querySelector('ytd-masthead');
     if (!masthead) return;
-    masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
-    masthead
-      .querySelectorAll(
-        '#search-button, #search-icon-legacy, button[aria-label="Search"], ' +
-          '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
-      )
-      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    const center = masthead.querySelector('#center');
+    center?.querySelector('#fyp-search-back-button')?.remove();
+    for (const oldBtn of document.querySelectorAll('#fyp-search-back-button')) {
+      oldBtn.remove();
+    }
+
+    if (!document.getElementById(SEARCH_BACKDROP_ID)) {
+      const backdrop = document.createElement('div');
+      backdrop.id = SEARCH_BACKDROP_ID;
+      const dismiss = (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeMobileSearch();
+      };
+      backdrop.addEventListener('click', dismiss, true);
+      backdrop.addEventListener('touchstart', dismiss, { capture: true, passive: false });
+      document.body?.appendChild(backdrop);
+    }
+  }
+
+  function closeMobileSearch() {
+    const masthead = document.querySelector('ytd-masthead');
+    if (masthead) {
+      masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
+      masthead
+        .querySelectorAll(
+          '#search-button, #search-button-narrow, #search-icon-legacy, button[aria-label="Search"], ' +
+            '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
+        )
+        .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    }
+    document.documentElement?.removeAttribute('data-fyp-search-active');
+    document.body?.removeAttribute('data-fyp-search-active');
+    const input = document.querySelector(
+      'ytd-masthead input#search, ytd-masthead input[name="search_query"], ' +
+        'ytd-masthead .yt-searchbox-input, ytd-masthead .ytSearchboxComponentInput'
+    );
+    if (input instanceof HTMLInputElement) {
+      try {
+        input.blur();
+      } catch {
+        // ignore
+      }
+    }
+    ensureGuideButtonVisible();
   }
 
   /*
    * Phone-width tap on the masthead search icon/box. We own the overlay
    * (data-fyp-mobile-search-open) so YouTube's collapsed desktop searchbox
-   * does not stay icon-sized. Clicks inside an already-open #center pass
-   * through so the user can type and submit.
+   * expands to full phone width with clear button, submit button,
+   * and suggestions. Synchronous focus ensures iOS virtual keyboard opens on first tap.
    */
   function handleMobileSearchClick(event) {
-    if (!window.matchMedia?.('(max-width: 700px)').matches) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
-    const masthead = target.closest('ytd-masthead');
-    if (!trigger || !masthead) {
-      const openMasthead = document.querySelector(
-        `ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true']`
-      );
-      if (openMasthead && !target.closest('ytd-masthead #center')) {
-        closeMobileSearch();
-      }
-      return;
-    }
+    const masthead = target.closest('ytd-masthead') || document.querySelector('ytd-masthead');
+    if (!masthead) return;
 
     const alreadyOpen =
       masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
-    if (alreadyOpen && trigger.closest('#center')) {
+
+    // Clicks inside an already-open #center pass through so the user can type and submit.
+    if (alreadyOpen && target.closest('ytd-masthead #center')) {
+      return;
+    }
+
+    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
+    if (!trigger) {
+      if (alreadyOpen && !target.closest('ytd-masthead #center')) {
+        closeMobileSearch();
+      }
       return;
     }
 
@@ -5312,17 +5677,51 @@
 
     event.preventDefault();
     event.stopImmediatePropagation();
+
+    // Close any open guide drawer so it never peeks/shows when search opens.
+    for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
+      if (typeof drawer.close === 'function') {
+        try { drawer.close(); } catch {}
+      }
+    }
+
+    ensureMobileSearchElements();
     masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
+    document.documentElement?.setAttribute('data-fyp-search-active', 'true');
+    document.body?.setAttribute('data-fyp-search-active', 'true');
     trigger.setAttribute('aria-expanded', 'true');
+    ensureGuideButtonVisible();
+
+    // Force-hide hamburger menu elements immediately via inline styles
+    for (const btn of document.querySelectorAll(
+      '#guide-button, ytd-masthead #guide-button, button[aria-label="Guide"], ytd-masthead #start, #start'
+    )) {
+      setImportantStyles(btn, {
+        display: 'none',
+        visibility: 'hidden',
+        opacity: '0',
+        'pointer-events': 'none',
+      });
+      btn.setAttribute('aria-hidden', 'true');
+    }
+
+    // CRITICAL: Synchronous unhide + focus inside user gesture for iOS keyboard activation!
+    input.removeAttribute('hidden');
+    input.setAttribute('aria-hidden', 'false');
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+    const end = input.value.length;
+    input.setSelectionRange?.(end, end);
+
     requestAnimationFrame(() => {
-      input.removeAttribute('hidden');
-      input.setAttribute('aria-hidden', 'false');
       try {
         input.focus({ preventScroll: true });
       } catch {
-        input.focus();
+        // ignore
       }
-      const end = input.value.length;
       input.setSelectionRange?.(end, end);
     });
   }
@@ -5394,6 +5793,16 @@
     }
   }
 
+  function disableGuideSwipe(drawer) {
+    if (!(drawer instanceof HTMLElement)) return;
+    if (!drawer.hasAttribute('disable-swipe')) {
+      drawer.setAttribute('disable-swipe', '');
+    }
+    try {
+      drawer.disableSwipe = true;
+    } catch {}
+  }
+
   function lockGuideToTapOnly() {
     for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
       setImportantStyles(mini, {
@@ -5411,6 +5820,7 @@
     }
 
     for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
+      disableGuideSwipe(drawer);
       hideShortsGuideEntries(drawer);
     }
 
@@ -5428,6 +5838,23 @@
       'button[aria-label="Guide"]',
       'button[aria-label*="Guide"]',
     ].join(','));
+
+    const isSearchActive =
+      document.body?.getAttribute('data-fyp-search-active') === 'true' ||
+      document.querySelector(`ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}="true"]`);
+
+    if (isSearchActive) {
+      for (const button of candidates) {
+        button.setAttribute('aria-hidden', 'true');
+        setImportantStyles(button, {
+          display: 'none',
+          visibility: 'hidden',
+          opacity: '0',
+          'pointer-events': 'none',
+        });
+      }
+      return;
+    }
 
     for (const button of candidates) {
       button.removeAttribute('hidden');
@@ -5541,6 +5968,7 @@
   function applyMobileShell() {
     hideNativeNavigationAndShorts();
     ensureGuideButtonVisible();
+    ensureMobileSearchElements();
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();
@@ -6503,7 +6931,10 @@
   function scanPage() {
     lastPageScanAt = Date.now();
     ensureViewport();
-    if (location.pathname.startsWith('/shorts')) {
+    if (
+      location.pathname.startsWith('/shorts') ||
+      location.pathname.startsWith('/playables')
+    ) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
     }
@@ -6548,7 +6979,10 @@
   );
   nativeDocumentAddEventListener('yt-navigate-finish', () => {
     if (redirectChannelRootToVideos()) return;
-    if (location.pathname.startsWith('/shorts')) {
+    if (
+      location.pathname.startsWith('/shorts') ||
+      location.pathname.startsWith('/playables')
+    ) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
     }
@@ -6613,6 +7047,10 @@
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
   nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
   nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
+  nativeDocumentAddEventListener('touchstart', handleMobileSearchClick, {
+    capture: true,
+    passive: false,
+  });
   nativeDocumentAddEventListener(
     'submit',
     (event) => {

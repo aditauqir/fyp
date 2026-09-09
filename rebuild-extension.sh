@@ -59,9 +59,14 @@ for folder in (ff, ch):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "page.js").write_text(page, encoding="utf-8")
 
-# Build the stable Orion bootstrap from the content script template.
+# Build the stable Orion bootstrap from the content script template with force-injected page bundle.
 template = Path("$TEMPLATE").read_text(encoding="utf-8")
-content = template
+page_json = json.dumps(page)
+embedded_code = f"const __fyp_embedded_page_code = {page_json};"
+content = template.replace(
+    "/* __EMBEDDED_PAGE_SOURCE_DECLARATION__ */",
+    embedded_code
+)
 (ff / "content.js").write_text(content, encoding="utf-8")
 (ch / "content.js").write_text(content, encoding="utf-8")
 

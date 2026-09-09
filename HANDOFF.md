@@ -7,6 +7,8 @@
 >
 > Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
+> **Active branch convention (`google_cuck` / `.g` tag):** The `.g` suffix stands for **google**. Everything on this branch should carry the `g` tag (e.g. version `3.1.2.g`, release label `3.1.2.g`, packages `fyoutube-*-3.1.2.g.zip`, and `3.1.2.g_release.zip`). All deliverables, assets, and tasks worked on during this session/branch must have the `g` tag.
+>
 > **Active issue branch:** GitHub issue work happens on **`bug-fixes-pr`**. Read [`BUG-FIXES.md`](./BUG-FIXES.md) **first**, then this file.
 >
 > **Session-start requirement:** Run `node scripts/check-issue-ledger.cjs`. Report every issue and its live state to the user before other work.
@@ -129,7 +131,42 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 3.1.1)
+## Latest changes (through 3.1.3.g)
+
+### 3.1.3.g — branch `google_cuck` (Playables/mini-games removal & Sidebar scroll stabilization)
+- **Playables (Mini-Games) Removal from For You / Home Page:**
+  - Suppressed all Playables / mini-games shelves (`ytd-rich-shelf-renderer`, `ytd-rich-section-renderer`, `grid-shelf-view-model`) via `:has(a[href*="/playables"])`, `:has([title*="Playables" i])`, `:has([aria-label*="Playables" i])`, and runtime scanning in `hideNativeNavigationAndShorts()`.
+  - Collapsed empty section space (`ytd-rich-section-renderer`) to `height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important;` so no blank gaps remain on the home feed.
+  - Removed individual playable cards, lockups, and game renderers (`yt-playable-game-renderer`, `ytd-game-card-renderer`, `ytd-playable-renderer`, `ytd-playables-shelf-renderer`, `yt-playables-shelf-renderer`, `ytd-rich-item-renderer:has(a[href*="/playables"])`).
+  - Filtered top chip cloud chips (`yt-chip-cloud-chip-renderer`) and guide drawer entries (`ytd-guide-entry-renderer`) mentioning Playables or mini-games.
+  - Blocked `/playables` link clicks and added automatic redirection to Home (`/`) if landing on `/playables`.
+  - Mirrored all rules into `content.template.js`'s parse-time CSS (`DOM_FALLBACK_STYLE_ID`) and click fallbacks.
+- **Sidebar (Guide Drawer) Scroll Stabilization:**
+  - Fixed premature drawer dismissal when scrolling down the sidebar on iPhone.
+  - Disabled Polymer swipe tracking on the drawer via `disableGuideSwipe` (`drawer.setAttribute('disable-swipe', '')` and `drawer.disableSwipe = true`), preventing thumb swipe slop/horizontal arc deviation from being misinterpreted by Polymer as a swipe-to-close gesture.
+  - Injected CSS scroll containment (`touch-action: pan-y !important; overscroll-behavior: contain !important; overscroll-behavior-y: contain !important; -webkit-overflow-scrolling: touch !important;`) on `tp-yt-app-drawer#guide`, `#contentContainer`, `ytd-guide-renderer`, `#guide-wrapper`, and `#sections` to eliminate scroll chaining to the window.
+  - Isolated window/document scroll handlers while `guideDrawerIsBusy()` is true: prevented `scroll` events from triggering desktop YouTube's `_onScroll` drawer auto-close logic or `enforceHorizontalViewportLock()`.
+  - Maintained full support for closing via the hamburger button or tapping outside on the scrim.
+- **Rebuilt Packages:** Generated `3.1.3.g_release.zip` and all companion extension archives.
+
+### 3.1.2.g — branch `google_cuck` (Search UI refinement & Force Injection)
+- **Synchronous Force Injection:** Embedded the full `page.js` bundle directly into `content.js` (`__fyp_embedded_page_code`) during `rebuild-extension.sh`. At `document_start`, `content.js` synchronously force-injects `page.js` via inline script text without waiting on network fetch or WebKit external script execution.
+- **Immediate DOM Fallback Protection:** Injected search overlay and hamburger/back-button suppression styles directly into `content.js` (`DOM_FALLBACK_STYLE_ID`) so styling is applied instantly at parse time.
+- **Removed Back Button:** Removed `#fyp-search-back-button` completely from DOM and CSS; active search field occupies full width with clean spacing.
+- **Hidden Hamburger Menu & Drawer:** Set `#guide-button`, `ytd-masthead #guide-button`, `button[aria-label='Guide']`, `#start`, and `tp-yt-app-drawer#guide` to `display: none !important` during active search (`MOBILE_SEARCH_OPEN_ATTR='true'` and `data-fyp-search-active='true'`) on both `html` and `body` levels, with inline style enforcement.
+- **Responsive Trigger & Touch Activation:** Removed width restrictions on `handleMobileSearchClick` and added a `touchstart` listener so tapping the search button on mobile triggers immediately without being dropped by iOS WebKit gesture cancellation.
+- **Restoration on Close:** When search is closed via backdrop or submit, the hamburger button is automatically restored.
+- **Rebuilt Packages:** Generated updated `3.1.2.g_release.zip` and browser companion packages.
+
+### 3.1.1.g — branch `google_cuck` (Google search UI overhaul)
+- **Branch convention (`.g` tag):** The `.g` suffix stands for **google**. Everything on this branch should carry the `g` tag (version `3.1.1.g`, release label `3.1.1.g`, packages `fyoutube-*-3.1.1.g.zip`, and `3.1.1.g_release.zip`).
+- **Search UI Overhaul:**
+  - Tapping the search icon smoothly activates the native desktop search input with full screen width on mobile/iOS Orion without layout clipping.
+  - **Synchronous iOS keyboard activation:** Changed input focus from deferred `requestAnimationFrame` to synchronous user-gesture execution (`input.removeAttribute('hidden')`, `input.setAttribute('aria-hidden', 'false')`, and `input.focus({ preventScroll: true })`), enabling iOS WebKit to reliably pop the software keyboard immediately.
+  - **Back button navigation:** Injected `#fyp-search-back-button` (`[←]`) inside `#center` to cleanly close search, blur the input, dismiss the keyboard, and restore masthead visibility.
+  - **Touch backdrop dismissal:** Injected `#fyp-search-backdrop` with subtle blur to dismiss the search overlay when tapping outside, preventing accidental click-through to videos below.
+  - **Suggestions dropdown unclipped:** Configured `#center` to `overflow: visible !important` so `.ytSearchboxComponentSuggestionsContainer` / `.sbsb_a` drops down cleanly without getting clipped.
+  - **Preserved controls:** Form submit button (`[🔍]`) and clear button (`[✕]`) properly styled and positioned on screen.
 
 ### 3.1.1 — public ship (`Fyoutube 3.1.1`)
 - GitHub Release tag `v3.1.1`. Title is `Fyoutube 3.1.1`.
