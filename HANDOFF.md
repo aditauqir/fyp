@@ -1,7 +1,7 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`)
+> **Current public ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`). The active bug-fix branch currently carries `3.1.4.g` search-overlay work.
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -139,7 +139,15 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
-## Latest changes (through 3.1.3.g)
+## Latest changes (through 3.1.4.g)
+
+### 3.1.4.g — branch `bug-fixes-pr` (separate search overlay)
+- Replaced the native masthead takeover with a direct `#fyp-search-overlay` layer owned by Fyoutube. This prevents YouTube's changing searchbox internals from controlling the overlay layout.
+- Added a plain DOM search form with synchronous focus, backdrop/Escape dismissal, Enter submission, and a visible Search button.
+- Supports YouTube's current `textarea[name="search_query"]` as well as legacy input fields when copying any existing query into the overlay.
+- Navigates through `https://www.youtube.com/results?search_query=...` using `URLSearchParams`, preserving YouTube's `+`-separated space encoding.
+- Kept Ask YouTube and voice search hidden in both the critical page CSS and runtime control scan.
+- SolidJS was evaluated as a possible UI layer. It is not bundled for this single overlay because the Orion page-world build has no package runtime; the implementation stays dependency-free and vanilla.
 
 ### 3.1.3.g — branch `google_cuck` (Playables/mini-games removal & Sidebar scroll stabilization)
 - **Playables (Mini-Games) Removal from For You / Home Page:**

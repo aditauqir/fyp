@@ -18,7 +18,7 @@ assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-op
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
-assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v310-search-bar'/);
+assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v314-search-overlay'/);
 assert.match(source, /injectCriticalAskHideStyle/);
 
 // Search cards stay under ytd-search. Screenshot stack. Home is untouched.
@@ -97,40 +97,33 @@ assert.doesNotMatch(
   /grid-template-columns: 132px minmax\(0, 1fr\)/
 );
 
-// Restored 2.1.2-style native masthead search overlay after icon tap.
+// Search is a separate FYP-owned page layer, not YouTube's native searchbox.
 assert.match(
   source,
-  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center[\s\S]*position: fixed !important/
+  /const SEARCH_OVERLAY_ID = 'fyp-search-overlay'/
 );
 assert.match(
   source,
-  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center[\s\S]*width: calc\(100vw - 24px\) !important/
+  /function ensureMobileSearchElements\(\)[\s\S]*document\.createElement\('form'\)/
 );
 assert.match(
   source,
-  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #end #search-button/
+  /function buildYouTubeSearchUrl\(query\)[\s\S]*new URLSearchParams\(\{ search_query: query \}\)/
 );
 assert.match(source, /\.ytSearchboxComponentInput/);
 assert.match(source, /ytd-masthead yt-searchbox/);
-assert.doesNotMatch(
-  source,
-  /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center \{[\s\S]{0,400}width: auto !important/
-);
-assert.match(source, /SEARCH_BACKDROP_ID = 'fyp-search-backdrop'/);
-assert.match(source, /function ensureMobileSearchElements\(\)/);
-assert.doesNotMatch(source, /center\.prepend\(backBtn\)/);
-assert.match(source, /#fyp-search-back-button[\s\S]*display: none !important/);
+assert.match(source, /#\$\{SEARCH_OVERLAY_ID\}\[data-open='true'\]/);
+assert.match(source, /input\.type = 'search'/);
+assert.match(source, /input\.setAttribute\('enterkeyhint', 'search'\)/);
+assert.match(source, /textarea\[name="search_query"\]/);
+assert.match(source, /HTMLTextAreaElement/);
+assert.match(source, /location\.assign\(buildYouTubeSearchUrl\(query\)\)/);
 assert.match(source, /body\[data-fyp-search-active='true'\] #guide-button/);
-assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #guide-button/);
-assert.match(source, /#fyp-search-backdrop/);
-assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] #center[\s\S]*overflow: visible !important/);
-assert.match(source, /ytd-masthead\[\$\{MOBILE_SEARCH_OPEN_ATTR\}='true'\] \.ytSearchboxComponentSuggestionsContainer/);
 assert.match(source, /input\.blur\(\)/);
 assert.match(source, /Ask YouTube/);
 assert.match(source, /#voice-search-button/);
 
-// Broken 2.1.5–2.2.0 custom search must stay gone.
-assert.doesNotMatch(source, /SEARCH_OVERLAY_ID/);
+// Broken 2.1.5–2.2.0 custom search experiments must stay gone.
 assert.doesNotMatch(source, /SEARCH_TRIGGER_ID/);
 assert.doesNotMatch(source, /UI_SKELETON_ID/);
 assert.doesNotMatch(source, /UI_READY_ATTR/);
@@ -149,11 +142,7 @@ assert.doesNotMatch(
   /bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 14px\)/
 );
 
-// Do not hide the native search icon / center form in critical or layout CSS.
-assert.doesNotMatch(
-  source,
-  /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button[\s\S]*display: none !important/
-);
+assert.match(source, /html\[data-fyp-search-active='true'\] ytd-masthead #center/);
 
 assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.[1-9](\.g)?'/);
 assert.match(template, /Ask YouTube/);
@@ -167,4 +156,4 @@ assert.doesNotMatch(
   /ytd-masthead #center,\s*[\s\S]*ytd-masthead #search-button/
 );
 
-console.log('mobile search native 2.1.2 recovery: ok');
+console.log('mobile search overlay and URL wiring: ok');

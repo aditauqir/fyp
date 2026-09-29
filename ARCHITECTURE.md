@@ -70,6 +70,8 @@ flowchart TD
 | Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
 | Ads | Block YouTube ads in page-world fetch/XHR/beacon, prune player-ad JSON, hide overlay cards, and skip in-player ads. uBlock Origin is not required. |
 | Search cards | Restyle only `ytd-search` results. Stack the thumbnail first. Do not restyle Home, subscriptions, or channel browse with search-card rules. |
+| Search entry | Tapping YouTube's masthead search control opens a separate FYP-owned overlay with a slight blur. Ask YouTube and voice search controls stay hidden. |
+| Search submit | Enter or the overlay Search button navigates to `https://www.youtube.com/results?search_query=<query>` using `URLSearchParams`, which produces YouTube's `+` separators for spaces. |
 
 ## Runtime layers
 
@@ -250,6 +252,26 @@ Search-card restyle is search-only. Home must keep its existing feed rules.
 5. Hide AI Summary / Ask chips inside `ytd-search` only. Keep chapter bars.
 6. Hide `ytd-video-meta-block #byline-container` so the channel name appears once in `#channel-info`.
 7. Use named grid areas on `#dismissible`. Flatten `#details` / `#meta` with `display: contents`. Do not put the thumbnail first with `order: -1`.
+
+### Search interaction overlay
+
+The masthead is only a trigger. `handleMobileSearchClick()` recognizes both
+legacy YouTube inputs and the modern `yt-searchbox` host, whose current field
+may be a `textarea`. It does not reuse YouTube's changing form DOM.
+
+1. `ensureMobileSearchElements()` creates one direct `document.body` child:
+   `#fyp-search-overlay` with a centered `#fyp-search-overlay-form`.
+2. The overlay owns focus, backdrop dismissal, Escape dismissal, and submit
+   handling. The background remains visible through a small dark blur layer.
+3. `submitMobileSearch()` trims and normalizes whitespace, then builds the
+   canonical YouTube URL with `new URLSearchParams({ search_query: query })`.
+4. The overlay intentionally uses plain DOM APIs. SolidJS was evaluated for
+   this small stateful surface, but the extension has no package/bundler
+   runtime and its page-world source is embedded into Orion's content bridge.
+   Adding Solid for one input would increase the install/runtime surface
+   without solving a YouTube integration problem. If the extension later gets
+   a multi-screen settings or diagnostics UI, Solid's `render()` plus signals
+   would be a reasonable isolated component boundary.
 
 ## Navigation architecture
 

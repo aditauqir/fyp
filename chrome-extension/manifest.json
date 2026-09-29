@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fyoutube",
-  "version": "3.1.3.g",
+  "version": "3.1.4.g",
   "description": "Desktop YouTube for Orion: inline play, mobile layout, burger navigation, no Shorts or miniplayer.",
   "icons": {
     "48": "icons/icon-48.png",

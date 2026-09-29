@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.3.g');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.4.g');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -29,7 +29,7 @@
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v310-search-bar';
+  const NAV_LAYOUT_VERSION = 'ext-v314-search-overlay';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
   const CPU_TAMER_ENABLED_BY_DEFAULT = false;
@@ -44,6 +44,9 @@
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const SIMPLE_SEARCH_ATTR = 'data-fyp-simple-search';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
+  const SEARCH_OVERLAY_ID = 'fyp-search-overlay';
+  const SEARCH_OVERLAY_FORM_ID = 'fyp-search-overlay-form';
+  const SEARCH_OVERLAY_INPUT_ID = 'fyp-search-overlay-input';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
@@ -83,9 +86,9 @@
   ].join(',');
 
   /*
-   * 2.2.1 recovery: do not hide native masthead search. Only strip Ask/voice/AI
-   * clutter that fights usable search on Orion. Custom Home chip / Watch pill /
-   * overlay / skeleton from 2.1.5–2.2.0 are intentionally gone.
+   * Search recovery: hide Ask/voice/AI clutter early, then let the stable FYP
+   * overlay own the search interaction instead of depending on YouTube's
+   * changing masthead input implementation.
    */
   const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
   function injectCriticalAskHideStyle() {
@@ -103,6 +106,122 @@
       button[aria-label*='Voice search' i],
       [aria-label*='Ask YouTube' i],
       [aria-label*='Ask Gemini' i] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      /* Search is a FYP-owned layer. Keep it independent from YouTube's
+       * changing masthead DOM, including the modern textarea searchbox. */
+      #${SEARCH_OVERLAY_ID} {
+        box-sizing: border-box !important;
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 2147483647 !important;
+        display: none !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px !important;
+        color: var(--yt-spec-text-primary, #0f0f0f) !important;
+        background: rgba(0, 0, 0, .38) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        pointer-events: auto !important;
+      }
+
+      #${SEARCH_OVERLAY_ID}[data-open='true'] {
+        display: flex !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog] {
+        box-sizing: border-box !important;
+        width: min(640px, 100%) !important;
+        max-width: 640px !important;
+        margin: 0 auto !important;
+        padding: 4px !important;
+        background: var(--yt-spec-base-background, #fff) !important;
+        border: 1px solid rgba(0, 0, 0, .16) !important;
+        border-radius: 28px !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, .28) !important;
+        pointer-events: auto !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} form {
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-height: 48px !important;
+        margin: 0 !important;
+        padding: 0 6px 0 16px !important;
+      }
+
+      #${SEARCH_OVERLAY_INPUT_ID} {
+        box-sizing: border-box !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 42px !important;
+        margin: 0 !important;
+        padding: 0 8px 0 0 !important;
+        color: var(--yt-spec-text-primary, #0f0f0f) !important;
+        background: transparent !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        font: 400 16px/42px Roboto, Arial, sans-serif !important;
+        -webkit-appearance: none !important;
+      }
+
+      #${SEARCH_OVERLAY_INPUT_ID}::placeholder {
+        color: var(--yt-spec-text-secondary, #606060) !important;
+        opacity: 1 !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} button[type='submit'] {
+        box-sizing: border-box !important;
+        flex: 0 0 auto !important;
+        min-width: 76px !important;
+        height: 38px !important;
+        margin: 0 !important;
+        padding: 0 16px !important;
+        color: #fff !important;
+        background: #0f0f0f !important;
+        border: 0 !important;
+        border-radius: 20px !important;
+        cursor: pointer !important;
+        font: 600 14px/38px Roboto, Arial, sans-serif !important;
+        touch-action: manipulation !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
+      html[dark-theme] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
+      ytd-app[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog] {
+        color: #f1f1f1 !important;
+        background: #212121 !important;
+        border-color: rgba(255, 255, 255, .22) !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, .58) !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_INPUT_ID},
+      html[dark-theme] #${SEARCH_OVERLAY_INPUT_ID},
+      ytd-app[dark] #${SEARCH_OVERLAY_INPUT_ID} {
+        color: #fff !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_INPUT_ID}::placeholder,
+      html[dark-theme] #${SEARCH_OVERLAY_INPUT_ID}::placeholder,
+      ytd-app[dark] #${SEARCH_OVERLAY_INPUT_ID}::placeholder {
+        color: #aaa !important;
+      }
+
+      html[data-fyp-search-active='true'] ytd-masthead #center,
+      html[data-fyp-search-active='true'] ytd-masthead #end {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -5573,29 +5692,107 @@
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
-  const SEARCH_BACKDROP_ID = 'fyp-search-backdrop';
+  function isSearchField(element) {
+    return (
+      (typeof HTMLInputElement !== 'undefined' && element instanceof HTMLInputElement) ||
+      (typeof HTMLTextAreaElement !== 'undefined' && element instanceof HTMLTextAreaElement)
+    );
+  }
+
+  function findNativeSearchInput(masthead = document.querySelector('ytd-masthead')) {
+    const input = masthead?.querySelector(
+      'input#search, input[name="search_query"], textarea[name="search_query"], ' +
+        '.yt-searchbox-input, .ytSearchboxComponentInput'
+    );
+    return isSearchField(input) ? input : null;
+  }
 
   function ensureMobileSearchElements() {
-    const masthead = document.querySelector('ytd-masthead');
-    if (!masthead) return;
-    const center = masthead.querySelector('#center');
-    center?.querySelector('#fyp-search-back-button')?.remove();
-    for (const oldBtn of document.querySelectorAll('#fyp-search-back-button')) {
-      oldBtn.remove();
-    }
+    const existing = document.getElementById(SEARCH_OVERLAY_ID);
+    if (existing) return existing;
 
-    if (!document.getElementById(SEARCH_BACKDROP_ID)) {
-      const backdrop = document.createElement('div');
-      backdrop.id = SEARCH_BACKDROP_ID;
-      const dismiss = (event) => {
+    const host = document.body || document.documentElement;
+    if (!host) return null;
+
+    const overlay = document.createElement('div');
+    overlay.id = SEARCH_OVERLAY_ID;
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('data-fyp-search-dialog', 'true');
+
+    const form = document.createElement('form');
+    form.id = SEARCH_OVERLAY_FORM_ID;
+    form.setAttribute('role', 'search');
+
+    const input = document.createElement('input');
+    input.id = SEARCH_OVERLAY_INPUT_ID;
+    input.type = 'search';
+    input.name = 'search_query';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = 'Search YouTube';
+    input.setAttribute('aria-label', 'Search YouTube');
+    input.setAttribute('enterkeyhint', 'search');
+
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.setAttribute('aria-label', 'Search');
+    submit.textContent = 'Search';
+
+    form.append(input, submit);
+    dialog.append(form);
+    overlay.append(dialog);
+    host.append(overlay);
+
+    const dismiss = (event) => {
+      if (event.target !== overlay) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeMobileSearch();
+    };
+    overlay.addEventListener('click', dismiss, true);
+    overlay.addEventListener('touchstart', dismiss, { capture: true, passive: false });
+    form.addEventListener(
+      'submit',
+      (event) => {
         event.preventDefault();
-        event.stopImmediatePropagation();
-        closeMobileSearch();
-      };
-      backdrop.addEventListener('click', dismiss, true);
-      backdrop.addEventListener('touchstart', dismiss, { capture: true, passive: false });
-      document.body?.appendChild(backdrop);
+        event.stopPropagation();
+        submitMobileSearch(input.value);
+      },
+      true
+    );
+    input.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        event.stopPropagation();
+        submitMobileSearch(input.value);
+      },
+      true
+    );
+    return overlay;
+  }
+
+  function buildYouTubeSearchUrl(query) {
+    const url = new URL(`https://${BACKEND_HOST}/results`);
+    url.search = new URLSearchParams({ search_query: query }).toString();
+    return url.href;
+  }
+
+  function submitMobileSearch(rawQuery) {
+    const query = String(rawQuery || '').replace(/\s+/g, ' ').trim();
+    const input = document.getElementById(SEARCH_OVERLAY_INPUT_ID);
+    if (!query) {
+      if (isSearchField(input)) input.focus();
+      return;
     }
+    closeMobileSearch();
+    location.assign(buildYouTubeSearchUrl(query));
   }
 
   function closeMobileSearch() {
@@ -5611,73 +5808,74 @@
     }
     document.documentElement?.removeAttribute('data-fyp-search-active');
     document.body?.removeAttribute('data-fyp-search-active');
-    const input = document.querySelector(
-      'ytd-masthead input#search, ytd-masthead input[name="search_query"], ' +
-        'ytd-masthead .yt-searchbox-input, ytd-masthead .ytSearchboxComponentInput'
-    );
-    if (input instanceof HTMLInputElement) {
-      try {
-        input.blur();
-      } catch {
-        // ignore
+
+    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.removeAttribute('data-open');
+      overlay.setAttribute('aria-hidden', 'true');
+      const input = overlay.querySelector(`#${SEARCH_OVERLAY_INPUT_ID}`);
+      if (isSearchField(input)) {
+        try { input.blur(); } catch {}
       }
+    }
+    const nativeInput = findNativeSearchInput(masthead);
+    if (nativeInput) {
+      try { nativeInput.blur(); } catch {}
     }
     ensureGuideButtonVisible();
   }
 
   /*
-   * Phone-width tap on the masthead search icon/box. We own the overlay
-   * (data-fyp-mobile-search-open) so YouTube's collapsed desktop searchbox
-   * expands to full phone width with clear button, submit button,
-   * and suggestions. Synchronous focus ensures iOS virtual keyboard opens on first tap.
+   * The YouTube masthead is only the trigger. FYP owns a separate, stable
+   * overlay so YouTube can switch between input and textarea implementations
+   * without breaking focus or submit behavior. Synchronous focus keeps the
+   * virtual keyboard eligible on iOS/WebKit.
    */
   function handleMobileSearchClick(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest(`#${SEARCH_OVERLAY_ID}`)) return;
 
     const masthead = target.closest('ytd-masthead') || document.querySelector('ytd-masthead');
     if (!masthead) return;
 
     const alreadyOpen =
-      masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
-
-    // Clicks inside an already-open #center pass through so the user can type and submit.
-    if (alreadyOpen && target.closest('ytd-masthead #center')) {
-      return;
-    }
+      document.documentElement?.getAttribute('data-fyp-search-active') === 'true';
+    if (alreadyOpen) return;
 
     const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
-    if (!trigger) {
-      if (alreadyOpen && !target.closest('ytd-masthead #center')) {
-        closeMobileSearch();
-      }
-      return;
-    }
-
-    const input = masthead.querySelector(
-      'input#search, input[name="search_query"], .yt-searchbox-input, ' +
-        '.ytSearchboxComponentInput'
-    );
-    if (!(input instanceof HTMLInputElement)) return;
+    if (!trigger) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
 
-    // Close any open guide drawer so it never peeks/shows when search opens.
+    // Close any open guide drawer so it never peeks/show through the overlay.
     for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
       if (typeof drawer.close === 'function') {
         try { drawer.close(); } catch {}
       }
     }
 
-    ensureMobileSearchElements();
+    const overlay = ensureMobileSearchElements();
+    const input = overlay?.querySelector(`#${SEARCH_OVERLAY_INPUT_ID}`);
+    if (!overlay || !isSearchField(input)) return;
+
+    const nativeInput = findNativeSearchInput(masthead);
+    input.value = nativeInput?.value || '';
+    try { nativeInput?.blur(); } catch {}
+
     masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
     document.documentElement?.setAttribute('data-fyp-search-active', 'true');
     document.body?.setAttribute('data-fyp-search-active', 'true');
+    overlay.hidden = false;
+    overlay.setAttribute('data-open', 'true');
+    overlay.setAttribute('aria-hidden', 'false');
     trigger.setAttribute('aria-expanded', 'true');
+    hideAskGeminiControls();
     ensureGuideButtonVisible();
 
-    // Force-hide hamburger menu elements immediately via inline styles
+    // Force-hide hamburger menu elements immediately while the overlay is open.
     for (const btn of document.querySelectorAll(
       '#guide-button, ytd-masthead #guide-button, button[aria-label="Guide"], ytd-masthead #start, #start'
     )) {
@@ -5690,9 +5888,7 @@
       btn.setAttribute('aria-hidden', 'true');
     }
 
-    // CRITICAL: Synchronous unhide + focus inside user gesture for iOS keyboard activation!
-    input.removeAttribute('hidden');
-    input.setAttribute('aria-hidden', 'false');
+    // Focus the FYP-owned field synchronously inside the user gesture.
     try {
       input.focus({ preventScroll: true });
     } catch {
@@ -5702,12 +5898,13 @@
     input.setSelectionRange?.(end, end);
 
     requestAnimationFrame(() => {
+      if (document.documentElement?.getAttribute('data-fyp-search-active') !== 'true') return;
       try {
         input.focus({ preventScroll: true });
       } catch {
         // ignore
       }
-      input.setSelectionRange?.(end, end);
+      input.setSelectionRange?.(input.value.length, input.value.length);
     });
   }
 
@@ -5954,6 +6151,7 @@
     hideNativeNavigationAndShorts();
     ensureGuideButtonVisible();
     ensureMobileSearchElements();
+    hideAskGeminiControls();
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();

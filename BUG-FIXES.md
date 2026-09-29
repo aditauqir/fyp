@@ -104,9 +104,9 @@ Last live check: **2026-08-23**.
 
 **Probable cause:** The overlay used `width: auto` on a `position: fixed` `#center`. WebKit shrink-to-fit then sizes the overlay to the collapsed desktop search icon. The header search icon in `#end` stays visible, so it sits next to the form submit button.
 
-**What we changed:** Pin the overlay to `calc(100vw - 24px)`. Stretch `yt-searchbox` / `ytd-searchbox` internals so the input can grow. Hide the header search icon while the overlay is open. Keep one native input and the form submit control.
+**What we changed:** The 3.1.1 fix shipped one native input, but the current YouTube DOM can render the field as a `textarea` and its controls can be rebuilt underneath the extension. Follow-up `3.1.4.g` makes the masthead only a trigger, creates a separate FYP-owned `#fyp-search-overlay`, hides Ask YouTube/voice controls, supports both input and textarea detection, and navigates with `URLSearchParams` to the canonical `/results?search_query=...` URL.
 
-**How to verify:** 1) Reinstall `3.1.1_release.zip` and hard-refresh. 2) Tap search in the top bar. 3) Confirm one full-width field. 4) Confirm one search submit control, not two icons. 5) Type and submit a search.
+**How to verify:** 1) Reinstall `3.1.4.g_release.zip` and hard-refresh. 2) Tap the YouTube search control. 3) Confirm a separate centered field appears over a slightly blurred page, with Ask YouTube and voice search absent. 4) Enter `blue balls` and press Enter or Search. 5) Confirm the URL is `https://www.youtube.com/results?search_query=blue+balls`.
 
 ---
 

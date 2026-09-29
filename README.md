@@ -31,6 +31,20 @@ This extension blocks YouTube ads in the page. You do not need uBlock Origin for
 
 This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
 
+### Search behavior
+
+Fyoutube treats YouTube's masthead search control as a trigger only. Tapping
+it opens a separate centered search layer over the current page with a light
+blur, while **Ask YouTube** and voice search remain hidden. The overlay accepts
+the keyboard Enter key or its Search button and navigates directly to the
+standard YouTube results URL. For example, `blue balls` becomes
+`https://www.youtube.com/results?search_query=blue+balls`.
+
+The implementation stays dependency-free and uses the page-world DOM so it can
+be embedded into Orion's install-from-file extension bridge. The current
+YouTube search field may be a `textarea`, so the extension does not depend on
+YouTube's native input element type.
+
 ## Internal Chromium diagnostics workbench
 
 This branch includes a maintainer-only Chromium extension at [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics) for investigating YouTube regressions. It is not included in the Fyoutube Orion release packages.
@@ -49,7 +63,7 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `3.1.1_release.zip`) | Recommended install for Orion |
+| `*_release.zip` (example: `3.1.4.g_release.zip`) | Recommended install for Orion |
 | `fyoutube-chrome-*.zip` | Chrome Manifest V3 fallback |
 | `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
 | `fyoutube-orion-*.xpi` | XPI fallback |
