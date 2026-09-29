@@ -106,7 +106,17 @@ Last live check: **2026-08-23**.
 
 **What we changed:** The 3.1.1 fix shipped one native input, but the current YouTube DOM can render the field as a `textarea` and its controls can be rebuilt underneath the extension. Follow-up `3.1.4.g` makes the masthead only a trigger, creates a separate FYP-owned `#fyp-search-overlay`, hides Ask YouTube/voice controls, supports both input and textarea detection, and navigates with `URLSearchParams` to the canonical `/results?search_query=...` URL.
 
-**How to verify:** 1) Reinstall `3.1.4.g_release.zip` and hard-refresh. 2) Tap the YouTube search control. 3) Confirm a separate centered field appears over a slightly blurred page, with Ask YouTube and voice search absent. 4) Enter `blue balls` and press Enter or Search. 5) Confirm the URL is `https://www.youtube.com/results?search_query=blue+balls`.
+**How to verify:** 1) Reinstall `3.1.5.g_release.zip` and hard-refresh. 2) Tap the YouTube search control. 3) Confirm a separate centered field appears over a slightly blurred page, with Ask YouTube and voice search absent. 4) Enter `blue balls` and press Enter or Search. 5) Confirm the URL is `https://www.youtube.com/results?search_query=blue+balls`.
+
+---
+
+## Issue #4 — WebKit watch video is present but Fyoutube cannot prove or retain ownership
+
+**What it is:** Safari/WebKit captures show YouTube's real watch video as `video.video-stream.html5-main-video` under `#movie_player`, with a `blob:https://www.youtube.com/...` source and a `paused-mode` player class. The older Chromium capture did not contain Fyoutube markers, so it could not distinguish an extension failure from an uninstalled extension.
+
+**What we changed:** 3.1.5.g prioritizes the main `#movie_player`/`#player-container` video over inline-preview videos, reapplies Orion inline flags on WebKit media lifecycle events, and marks the attached video for diagnostics. The diagnostics workbench now records media events plus WebKit visibility, fullscreen, presentation-mode, AirPlay, audio-session, and Fyoutube attachment state. FYP-owned controls also avoid Trusted Types-sensitive `innerHTML` writes.
+
+**How to verify:** 1) Install `3.1.5.g_release.zip` in Orion and reload a watch page. 2) Confirm video playback and the FYP player strip. 3) Capture a DOM snapshot with the diagnostics helper. 4) Confirm `data-fyp-page-ready`, `data-fyp-video-attached`, and `data-fyp-inline-playback` are present. 5) If playback fails, attach the JSONL and HTML capture and inspect `media-event` records for `error`, `waiting`, `stalled`, `canplay`, and `playing`.
 
 ---
 

@@ -204,6 +204,152 @@
   window.addEventListener('pageshow', () => emit('lifecycle', { method: 'pageshow' }));
   window.addEventListener('pagehide', () => emit('lifecycle', { method: 'pagehide' }));
 
+  // Orion uses WebKit media plumbing, so capture the browser-specific state
+  // around every media element without changing playback behavior. In
+  // particular, a video can exist while WebKit keeps it paused, detached from
+  // the current presentation mode, or unable to enter inline/fullscreen mode.
+  const MEDIA_EVENT_NAMES = [
+    'loadstart',
+    'loadedmetadata',
+    'durationchange',
+    'loadeddata',
+    'canplay',
+    'canplaythrough',
+    'play',
+    'playing',
+    'pause',
+    'waiting',
+    'stalled',
+    'suspend',
+    'abort',
+    'emptied',
+    'error',
+    'seeking',
+    'seeked',
+    'timeupdate',
+    'ended',
+    'ratechange',
+    'volumechange',
+    'webkitbeginfullscreen',
+    'webkitendfullscreen',
+    'webkitpresentationmodechanged',
+    'webkitcurrentplaybacktargetiswirelesschanged',
+    'webkitplaybacktargetavailabilitychanged',
+  ];
+  const WEBKIT_RUNTIME_EVENTS = [
+    'visibilitychange',
+    'webkitvisibilitychange',
+    'fullscreenchange',
+    'webkitfullscreenchange',
+  ];
+  const observedMedia = new WeakSet();
+  const lastTimeupdate = new WeakMap();
+
+  function mediaState(media) {
+    const error = media.error;
+    return {
+      element: safeElement(media),
+      currentSrc: safeUrl(media.currentSrc || media.src || ''),
+      paused: Boolean(media.paused),
+      ended: Boolean(media.ended),
+      autoplay: Boolean(media.autoplay),
+      controls: Boolean(media.controls),
+      loop: Boolean(media.loop),
+      muted: Boolean(media.muted),
+      readyState: media.readyState,
+      networkState: media.networkState,
+      currentTime: Number.isFinite(media.currentTime) ? media.currentTime : null,
+      duration: Number.isFinite(media.duration) ? media.duration : null,
+      playbackRate: media.playbackRate,
+      error: error
+        ? {
+            code: error.code || 0,
+            message: truncate(error.message || '', 500),
+          }
+        : null,
+      flags: {
+        playsInline: Boolean(media.playsInline),
+        webkitPlaysInline: Boolean(media.webkitPlaysInline),
+        disablePictureInPicture: Boolean(media.disablePictureInPicture),
+        xWebkitAirplay: media.getAttribute('x-webkit-airplay') || '',
+        webkitDisplayingFullscreen: Boolean(media.webkitDisplayingFullscreen),
+        webkitPresentationMode: media.webkitPresentationMode || '',
+        webkitCurrentPlaybackTargetIsWireless: Boolean(
+          media.webkitCurrentPlaybackTargetIsWireless
+        ),
+      },
+    };
+  }
+
+  function webkitRuntimeState() {
+    const fullscreenElement =
+      document.fullscreenElement || document.webkitFullscreenElement || null;
+    const audioSession = navigator.audioSession;
+    return {
+      document: {
+        hidden: Boolean(document.hidden),
+        webkitHidden: Boolean(document.webkitHidden),
+        visibilityState: document.visibilityState || '',
+        webkitVisibilityState: document.webkitVisibilityState || '',
+        fullscreenElement: fullscreenElement ? safeElement(fullscreenElement) : null,
+      },
+      audioSessionType: audioSession?.type || '',
+      videos: Array.from(document.querySelectorAll('video, audio'))
+        .slice(0, 50)
+        .map(mediaState),
+    };
+  }
+
+  function emitWebkitRuntime(reason) {
+    emit('webkit-runtime', { reason, state: webkitRuntimeState() });
+  }
+
+  function observeMediaElement(media) {
+    if (!(media instanceof HTMLMediaElement) || observedMedia.has(media)) return;
+    observedMedia.add(media);
+    for (const eventName of MEDIA_EVENT_NAMES) {
+      media.addEventListener(
+        eventName,
+        (event) => {
+          // timeupdate fires frequently. Keep enough timing detail to diagnose
+          // a stalled player without producing an unbounded diagnostic stream.
+          if (eventName === 'timeupdate') {
+            const now = Date.now();
+            if (now - (lastTimeupdate.get(media) || 0) < 500) return;
+            lastTimeupdate.set(media, now);
+          }
+          emit('media-event', {
+            event: eventName,
+            trusted: Boolean(event.isTrusted),
+            media: mediaState(media),
+          });
+        },
+        true
+      );
+    }
+    emit('media-attached', { media: mediaState(media), events: MEDIA_EVENT_NAMES });
+  }
+
+  function scanMedia(root) {
+    if (root instanceof HTMLMediaElement) observeMediaElement(root);
+    if (typeof root?.querySelectorAll !== 'function') return;
+    for (const media of root.querySelectorAll('video, audio')) observeMediaElement(media);
+  }
+
+  for (const eventName of WEBKIT_RUNTIME_EVENTS) {
+    document.addEventListener(eventName, () => emitWebkitRuntime(eventName), true);
+  }
+  const mediaObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) scanMedia(node);
+    }
+  });
+  if (document.documentElement) {
+    mediaObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+  scanMedia(document);
+  emitWebkitRuntime('initial');
+
   window.addEventListener(CONFIG_EVENT_NAME, (event) => {
     try {
       enabled = JSON.parse(event.detail || '{}').enabled !== false;
@@ -212,5 +358,20 @@
     }
   });
 
-  emit('page-hook-ready', { methods: consoleMethods });
+  emit('page-hook-ready', {
+    methods: consoleMethods,
+    mediaEvents: MEDIA_EVENT_NAMES,
+    webkitRuntimeEvents: WEBKIT_RUNTIME_EVENTS,
+    webkitFlags: [
+      'playsInline',
+      'webkitPlaysInline',
+      'webkitDisplayingFullscreen',
+      'webkitPresentationMode',
+      'webkitCurrentPlaybackTargetIsWireless',
+      'audioSession.type',
+      'document.webkitHidden',
+      'document.webkitVisibilityState',
+      'document.webkitFullscreenElement',
+    ],
+  });
 })();

@@ -228,8 +228,17 @@
       'ytd-search',
       'ytd-video-renderer',
       'ytd-rich-item-renderer',
+      'yt-lockup-view-model',
+      'video-display-button-group-layout-view-model',
       'ytd-guide-entry-renderer',
       'video',
+      'yt-searchbox',
+      'textarea[name="search_query"]',
+      '#voice-search-button',
+      'button[aria-label="Search"]',
+      '#fyp-search-overlay',
+      '[data-fyp-player-action]',
+      '#yt-mobile-orion-ext-controls-toolbar',
       'tp-yt-paper-dialog',
       '[role="dialog"]',
       '[aria-label]',
@@ -241,6 +250,60 @@
         .map((element) => elementSummary(element, { important: true }));
     }
     return matches;
+  }
+
+  function fypRuntimeMarkers() {
+    const root = document.documentElement;
+    const videos = Array.from(document.querySelectorAll('video')).map((video) => ({
+      element: elementSummary(video, { important: true }),
+      currentSrc: safeUrl(video.currentSrc || video.src || ''),
+      paused: video.paused,
+      ended: video.ended,
+      readyState: video.readyState,
+      networkState: video.networkState,
+      currentTime: Number.isFinite(video.currentTime) ? video.currentTime : null,
+      duration: Number.isFinite(video.duration) ? video.duration : null,
+      error: video.error
+        ? { code: video.error.code, message: truncate(video.error.message || '', 400) }
+        : null,
+      flags: {
+        playsInline: video.playsInline,
+        webkitPlaysInline: video.webkitPlaysInline,
+        disablePictureInPicture: video.disablePictureInPicture,
+        xWebkitAirplay: video.getAttribute('x-webkit-airplay') || '',
+        webkitDisplayingFullscreen: Boolean(video.webkitDisplayingFullscreen),
+        webkitPresentationMode: video.webkitPresentationMode || '',
+        webkitCurrentPlaybackTargetIsWireless: Boolean(
+          video.webkitCurrentPlaybackTargetIsWireless
+        ),
+      },
+      fyp: {
+        attached: video.getAttribute('data-fyp-video-attached') === 'true',
+        inlinePlayback: video.getAttribute('data-fyp-inline-playback') === 'true',
+      },
+    }));
+    return {
+      pageReady: root?.getAttribute('data-fyp-page-ready') || '',
+      mediaSessionTab: root?.getAttribute('data-fyp-media-session-tab') || '',
+      cpuTamer: root?.getAttribute('data-fyp-cpu-tamer') || '',
+      searchActive:
+        root?.getAttribute('data-fyp-search-active') === 'true' ||
+        document.body?.getAttribute('data-fyp-search-active') === 'true',
+      searchOverlay: Boolean(document.getElementById('fyp-search-overlay')),
+      playerToolbar: Boolean(
+        document.getElementById('yt-mobile-orion-ext-controls-toolbar')
+      ),
+      playerActions: document.querySelectorAll('[data-fyp-player-action]').length,
+      documentHidden: document.hidden,
+      webkitHidden: document.webkitHidden,
+      visibilityState: document.visibilityState,
+      webkitVisibilityState: document.webkitVisibilityState,
+      fullscreenElement: Boolean(
+        document.fullscreenElement || document.webkitFullscreenElement
+      ),
+      audioSessionType: navigator.audioSession?.type || '',
+      videos,
+    };
   }
 
   function yieldToPage() {
@@ -289,6 +352,7 @@
         videos: document.querySelectorAll('video').length,
         iframes: document.querySelectorAll('iframe').length,
       },
+      fypRuntime: fypRuntimeMarkers(),
       selectorMatches: captureSelectorMatches(),
       elements,
     };

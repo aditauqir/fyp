@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.4.g');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.5.g');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -1536,6 +1536,33 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
   });
 
+  /*
+   * YouTube can enforce Trusted Types on Element.innerHTML. Build FYP-owned
+   * controls through DOM nodes so one rejected icon cannot abort scanPage()
+   * before the video is attached to the playback state.
+   */
+  function svgElementFromMarkup(markup) {
+    try {
+      const text = String(markup || '').trim();
+      const source = text.startsWith('<svg')
+        ? text
+        : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      const svg = parsed?.documentElement;
+      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
+      return document.importNode(svg, true);
+    } catch {
+      return null;
+    }
+  }
+
+  function replaceIconContents(element, markup) {
+    if (!(element instanceof Element)) return;
+    const svg = svgElementFromMarkup(markup);
+    if (svg) element.replaceChildren(svg);
+    else element.replaceChildren();
+  }
+
   function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
       action === 'speed' || action === 'quality'
@@ -1586,6 +1613,37 @@
     ].join('');
   }
 
+  function createPlayerControlButton(action, label, icon, extraClass = '') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
+    button.dataset.fypPlayerAction = action;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', 'false');
+    if (action === 'speed' || action === 'quality') {
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
+    }
+    replaceIconContents(button, icon);
+    return button;
+  }
+
+  function createPlayerControlButtons() {
+    return [
+      ['rewind', 'Back 10 seconds', PLAYER_CONTROL_ICONS.rewind],
+      ['play-pause', 'Play', PLAYER_CONTROL_ICONS.play],
+      ['forward', 'Forward 10 seconds', PLAYER_CONTROL_ICONS.forward],
+      ['pip', 'Picture in Picture', PLAYER_CONTROL_ICONS.pip],
+      ['airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay],
+      ['fullscreen', 'Fullscreen', PLAYER_CONTROL_ICONS.fullscreen],
+    ].map(([action, label, icon]) =>
+      createPlayerControlButton(action, label, icon)
+    );
+  }
+
   function controllableVideo(shouldAttach = true) {
     const stateVideo =
       state.video instanceof HTMLVideoElement && state.video.isConnected
@@ -1610,9 +1668,10 @@
       const playbackState = paused ? 'paused' : 'playing';
       if (playButton.dataset.fypPlaybackState !== playbackState) {
         playButton.dataset.fypPlaybackState = playbackState;
-        playButton.innerHTML = paused
-          ? PLAYER_CONTROL_ICONS.play
-          : PLAYER_CONTROL_ICONS.pause;
+        replaceIconContents(
+          playButton,
+          paused ? PLAYER_CONTROL_ICONS.play : PLAYER_CONTROL_ICONS.pause
+        );
       }
       playButton.setAttribute('aria-label', label);
       playButton.title = label;
@@ -1690,7 +1749,7 @@
     button.dataset.fypPlayerOption = 'menu-collapse';
     button.setAttribute('aria-label', 'Collapse menu');
     button.title = 'Collapse menu';
-    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse);
     menu.appendChild(button);
     return button;
   }
@@ -2358,6 +2417,7 @@
 
   function enforceInlinePlayback(video) {
     if (!video) return;
+    video.setAttribute('data-fyp-inline-playback', 'true');
     if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', '');
     if (!video.hasAttribute('webkit-playsinline')) {
       video.setAttribute('webkit-playsinline', '');
@@ -2597,9 +2657,13 @@
       state.video.removeEventListener('ended', onVideoPause);
       state.video.removeEventListener('loadedmetadata', onVideoLoaded);
       state.video.removeEventListener('timeupdate', onVideoTimeUpdate);
+      for (const eventName of WEBKIT_VIDEO_LIFECYCLE_EVENTS) {
+        state.video.removeEventListener(eventName, onVideoInlineLifecycle, true);
+      }
     }
 
     state.video = video;
+    video.setAttribute('data-fyp-video-attached', 'true');
     state.wantsPlayback = !video.paused && !video.ended;
     enforceInlinePlayback(video);
     suppressDuplicateNativeCaptions(video);
@@ -2609,8 +2673,30 @@
     video.addEventListener('ended', onVideoPause, true);
     video.addEventListener('loadedmetadata', onVideoLoaded, true);
     video.addEventListener('timeupdate', onVideoTimeUpdate, true);
+    for (const eventName of WEBKIT_VIDEO_LIFECYCLE_EVENTS) {
+      video.addEventListener(eventName, onVideoInlineLifecycle, true);
+    }
     if (!video.paused && !video.ended) claimMediaSessionOwnership(video);
     installMediaSessionHandlers();
+  }
+
+  const WEBKIT_VIDEO_LIFECYCLE_EVENTS = Object.freeze([
+    'loadstart',
+    'loadeddata',
+    'canplay',
+    'canplaythrough',
+    'emptied',
+    'webkitbeginfullscreen',
+    'webkitendfullscreen',
+    'webkitpresentationmodechanged',
+    'webkitcurrentplaybacktargetiswirelesschanged',
+  ]);
+
+  function onVideoInlineLifecycle(event) {
+    const video = event.currentTarget;
+    if (!(video instanceof HTMLVideoElement)) return;
+    enforceInlinePlayback(video);
+    syncCustomPlayerControls();
   }
 
   function onVideoTimeUpdate() {
@@ -2620,7 +2706,19 @@
 
   function findVideo() {
     const videos = [...document.querySelectorAll('video')];
+    const watchVideos = videos.filter((video) => {
+      if (!(video instanceof HTMLVideoElement)) return false;
+      if (video.hasAttribute('data-no-fullscreen')) return false;
+      if (video.closest('#inline-preview-player, #inline-player')) return false;
+      return Boolean(
+        video.closest('#movie_player, #player-container, ytd-player#ytd-player')
+      );
+    });
+    const candidates = watchVideos.length ? watchVideos : videos;
     return (
+      candidates.find((video) => video.classList.contains('html5-main-video')) ||
+      candidates.find((video) => !video.ended && video.readyState > 0) ||
+      candidates[0] ||
       videos.find((video) => video.classList.contains('html5-main-video')) ||
       videos.find((video) => !video.ended && video.readyState > 0) ||
       videos[0] ||
@@ -6508,14 +6606,19 @@
     link.dataset.id = item.id;
     if (item.create) link.dataset.create = 'true';
     link.setAttribute('aria-label', item.label);
-    link.innerHTML = `
-      <span class="vm-yt-nav-icon-wrap">
-        <svg class="vm-yt-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-          ${item.icon}
-        </svg>
-      </span>
-      <span class="vm-yt-nav-label">${item.label}</span>
-    `;
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'vm-yt-nav-icon-wrap';
+    const icon = svgElementFromMarkup(item.icon);
+    if (icon) {
+      icon.classList.add('vm-yt-nav-icon');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      iconWrap.appendChild(icon);
+    }
+    const label = document.createElement('span');
+    label.className = 'vm-yt-nav-label';
+    label.textContent = item.label;
+    link.append(iconWrap, label);
     return link;
   }
 
@@ -6696,10 +6799,15 @@
         button.type = 'button';
         button.className = 'vm-yt-comment-action';
         button.setAttribute('aria-label', `${label} this comment`);
-        button.innerHTML = `
-          <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>
-          <span>${label}</span>
-        `;
+        const iconElement = svgElementFromMarkup(icon);
+        if (iconElement) {
+          iconElement.setAttribute('viewBox', '0 0 24 24');
+          iconElement.setAttribute('aria-hidden', 'true');
+          button.appendChild(iconElement);
+        }
+        const labelElement = document.createElement('span');
+        labelElement.textContent = label;
+        button.appendChild(labelElement);
         setImportantStyles(button, {
           appearance: 'none',
           display: 'inline-flex',
@@ -6996,7 +7104,7 @@
       toolbar.dataset.fypControlsLayout = PLAYER_CONTROLS_LAYOUT_VERSION;
       toolbar.setAttribute('role', 'toolbar');
       toolbar.setAttribute('aria-label', 'Video player controls');
-      toolbar.innerHTML = playerControlsMarkup();
+      toolbar.replaceChildren(...createPlayerControlButtons());
     }
 
     if (

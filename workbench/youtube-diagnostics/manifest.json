@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YouTube Diagnostics Workbench",
-  "version": "0.1.1",
-  "description": "Capture YouTube page console events, errors, navigation, DOM snapshots, mutations, and interaction targets.",
+  "version": "0.1.2",
+  "description": "Capture YouTube page console events, DOM state, media lifecycle, and WebKit playback flags.",
   "permissions": [
     "activeTab",
     "scripting",

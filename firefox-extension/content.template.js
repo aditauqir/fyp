@@ -27,7 +27,7 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.1.4.g';
+  const EXPECTED_PAGE_VERSION = '3.1.5.g';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
@@ -179,6 +179,30 @@
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   });
 
+  // Trusted Types can reject innerHTML on YouTube pages. Use XML parsing plus
+  // DOM nodes so a rejected icon cannot stop the fallback before video setup.
+  function svgElementFromMarkup(markup) {
+    try {
+      const text = String(markup || '').trim();
+      const source = text.startsWith('<svg')
+        ? text
+        : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      const svg = parsed?.documentElement;
+      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
+      return document.importNode(svg, true);
+    } catch {
+      return null;
+    }
+  }
+
+  function replaceIconContents(element, markup) {
+    if (!(element instanceof Element)) return;
+    const svg = svgElementFromMarkup(markup);
+    if (svg) element.replaceChildren(svg);
+    else element.replaceChildren();
+  }
+
   function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
       action === 'speed' || action === 'quality'
@@ -227,6 +251,37 @@
         PLAYER_CONTROL_ICONS.fullscreen
       ),
     ].join('');
+  }
+
+  function createPlayerControlButton(action, label, icon, extraClass = '') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
+    button.dataset.fypPlayerAction = action;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', 'false');
+    if (action === 'speed' || action === 'quality') {
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
+    }
+    replaceIconContents(button, icon);
+    return button;
+  }
+
+  function createPlayerControlButtons() {
+    return [
+      ['rewind', 'Back 10 seconds', PLAYER_CONTROL_ICONS.rewind],
+      ['play-pause', 'Play', PLAYER_CONTROL_ICONS.play],
+      ['forward', 'Forward 10 seconds', PLAYER_CONTROL_ICONS.forward],
+      ['pip', 'Picture in Picture', PLAYER_CONTROL_ICONS.pip],
+      ['airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay],
+      ['fullscreen', 'Fullscreen', PLAYER_CONTROL_ICONS.fullscreen],
+    ].map(([action, label, icon]) =>
+      createPlayerControlButton(action, label, icon)
+    );
   }
 
   function fallbackIsHidden() {
@@ -491,6 +546,7 @@
 
   function markVideoInline(video) {
     if (!video || String(video.tagName).toLowerCase() !== 'video') return;
+    video.setAttribute('data-fyp-inline-playback', 'true');
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.setAttribute('x-webkit-airplay', 'allow');
@@ -521,8 +577,15 @@
       fallbackPlaybackState.video.isConnected
         ? fallbackPlaybackState.video
         : null;
+    const watchVideo = document.querySelector(
+      '#movie_player video.html5-main-video:not([data-no-fullscreen]), ' +
+        '#player-container video.html5-main-video:not([data-no-fullscreen]), ' +
+        'ytd-player#ytd-player video.html5-main-video:not([data-no-fullscreen])'
+    );
     const video =
-      stateVideo || document.querySelector('video.html5-main-video, video');
+      stateVideo ||
+      watchVideo ||
+      document.querySelector('video.html5-main-video, video');
     if (!(video instanceof HTMLVideoElement)) return null;
     if (shouldAttach) attachFallbackVideo(video);
     return video;
@@ -541,9 +604,10 @@
       const playbackState = paused ? 'paused' : 'playing';
       if (playButton.dataset.fypPlaybackState !== playbackState) {
         playButton.dataset.fypPlaybackState = playbackState;
-        playButton.innerHTML = paused
-          ? PLAYER_CONTROL_ICONS.play
-          : PLAYER_CONTROL_ICONS.pause;
+        replaceIconContents(
+          playButton,
+          paused ? PLAYER_CONTROL_ICONS.play : PLAYER_CONTROL_ICONS.pause
+        );
       }
       playButton.setAttribute('aria-label', label);
       playButton.title = label;
@@ -619,7 +683,7 @@
     button.dataset.fypPlayerOption = 'menu-collapse';
     button.setAttribute('aria-label', 'Collapse menu');
     button.title = 'Collapse menu';
-    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse);
     menu.appendChild(button);
     return button;
   }
@@ -1615,7 +1679,7 @@
       toolbar.dataset.fypControlsLayout = PLAYER_CONTROLS_LAYOUT_VERSION;
       toolbar.setAttribute('role', 'toolbar');
       toolbar.setAttribute('aria-label', 'Video player controls');
-      toolbar.innerHTML = playerControlsMarkup();
+      toolbar.replaceChildren(...createPlayerControlButtons());
     }
     if (
       !fallbackToolbarIsCorrectlyPlaced(

@@ -8,6 +8,8 @@ This is a small local Chromium MV3 extension for investigating YouTube behavior.
 - `window` errors and unhandled promise rejections.
 - SPA history and YouTube navigation events.
 - A structured DOM snapshot at startup, after navigation, and when **Capture DOM + code** is pressed. This includes element tags, IDs, classes, ARIA data, selected attributes, layout rectangles, visibility, and selector matches. The button also downloads the current `document.documentElement.outerHTML` as a separate `.html` source file instead of duplicating huge HTML fragments throughout the JSONL log.
+- Media lifecycle records for every YouTube `<video>`/`<audio>` element (`loadstart`, metadata/readiness, play/pause, waiting/stalled, seeking, ended, and time updates) with `currentSrc`, ready/network state, timing, errors, and inline playback properties.
+- WebKit/Safari runtime records for `visibilitychange`, `webkitvisibilitychange`, fullscreen transitions, `playsInline`, `webkitPlaysInline`, `webkitPresentationMode`, `webkitDisplayingFullscreen`, AirPlay target state, and `navigator.audioSession.type`. The DOM snapshot also reports whether Fyoutube attached the video and enabled its inline-playback path.
 - Aggregated DOM mutations and interaction targets for clicks, changes, and inputs. Text/search input values are recorded to make reproduction easier; password fields and keystrokes are omitted.
 
 The popup stores records per tab and downloads them as newline-delimited JSON (`.jsonl`).
@@ -24,6 +26,8 @@ The popup stores records per tab and downloads them as newline-delimited JSON (`
 8. Press **Capture DOM + code** when you want both the element map and current HTML source, then press **Download JSONL** for the event log.
 
 The downloaded `.jsonl` file can be uploaded here for analysis. I cannot automatically read files from your Chromium profile through this chat; you need to download and attach the log.
+
+The workbench package is a Chromium MV3 diagnostic helper. For Safari/Orion, use Web Inspector’s Console and Network tabs alongside the Fyoutube package, or attach the resulting Safari HTML/console export here. The logger’s WebKit field names mirror the properties that matter on iOS, but Safari does not load this Chromium folder as a native Safari App Extension.
 
 ## Practical limits
 
