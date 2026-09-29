@@ -31,6 +31,12 @@ This extension blocks YouTube ads in the page. You do not need uBlock Origin for
 
 This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
 
+## Internal Chromium diagnostics workbench
+
+This branch includes a maintainer-only Chromium extension at [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics) for investigating YouTube regressions. It is not included in the Fyoutube Orion release packages.
+
+To use it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the workbench folder. Reload YouTube after installation. The popup can pause capture, save a structured DOM/element log as JSONL, and download the current HTML source separately. The current diagnostic artifacts are stored in [`workbench/logs`](./workbench/logs).
+
 
 
 ## iPhone only — Orion Browser

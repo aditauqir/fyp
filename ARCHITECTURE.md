@@ -18,6 +18,19 @@ The extension is intentionally a hybrid:
 
 This is not a replacement YouTube client, proxy, scraper, or embedded player. No separate application backend is hosted by this project.
 
+## Internal Chromium diagnostics workbench
+
+The branch also contains a maintainer-only Chromium MV3 diagnostics tool under [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics). It is separate from the shipped Fyoutube runtime and is not part of the Orion release packages.
+
+The workbench captures page-world console calls, page errors, unhandled rejections, SPA navigation, interaction targets, DOM mutation summaries, and structured element snapshots. **Capture DOM + code** saves the element map into the JSONL session log and downloads the current `document.documentElement.outerHTML` as a separate HTML source artifact. **Pause capture** must be used before opening DevTools or reproducing a crash when the page is unstable; pausing stops new DOM snapshots, mutation accumulation, and page-world diagnostic emission.
+
+The current investigation artifacts are kept in [`workbench/logs`](./workbench/logs):
+
+- `youtube-diagnostics-2026-09-29T04-48-33-682Z.jsonl` — console, error, navigation, mutation, and element records.
+- `youtube-dom-2026-09-29T04-48-31-117Z.html` — captured YouTube DOM/source snapshot.
+
+These files are diagnostic evidence, not source-of-truth product code. The workbench uses Chromium APIs only, starts a clean storage buffer when its storage schema changes, and must never be wired into `youtube-mobile-background.user.js` or generated `page.js`.
+
 ```mermaid
 flowchart TD
     U["User in Orion iOS"] --> O["www.youtube.com desktop mode"]

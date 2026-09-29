@@ -88,6 +88,14 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 └── 3.1.1_release.zip                   ← recommended Orion installer (gitignored artifact)
 ```
 
+### Internal Chromium diagnostics workbench
+
+For debugging YouTube behavior on Chromium desktop, use [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics). Load that folder unpacked from `chrome://extensions`; it is a maintainer tool and is not part of the production Fyoutube packages. Reload the YouTube tab after installing it so the page-world console hook starts at `document_start`.
+
+The popup provides **Pause capture**, **Capture DOM + code**, **Download JSONL**, and **Clear logs**. Pause capture before opening DevTools if the page is becoming unstable. DOM + code produces a structured element/event log plus a separate HTML source file. The captured investigation files currently live under [`workbench/logs`](./workbench/logs).
+
+Do not hand-edit or merge this workbench into `youtube-mobile-background.user.js`, `chrome-extension/page.js`, or `firefox-extension/page.js`. It is a separate Chromium-only observability tool.
+
 **Install tip:** On Orion iOS, try the **Chrome** zip first if Firefox install fails. See `INSTALL-ORION.md`.
 
 **Edit flow (mandatory):**
