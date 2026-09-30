@@ -66,5 +66,20 @@ assert.match(
   source,
   /ytd-commentbox #contenteditable-root,[\s\S]*font-size: 16px !important;/
 );
+assert.match(source, /comment\.querySelector\('#main'\)/);
+assert.match(source, /nativeEngagement\.insertAdjacentElement\('afterend', actions\)/);
+assert.match(source, /vm-yt-comment-action-label/);
+assert.match(source, /fill: 'currentColor'/);
+assert.match(source, /height: '44px'/);
+assert.match(source, /order: 4 !important/);
+assert.doesNotMatch(
+  source,
+  /ytd-comment-view-model\[data-vm-comment-enhanced='true'\][\s\S]*?padding:/
+);
+assert.doesNotMatch(
+  source,
+  /comment\.dataset\.vmCommentEnhanced = 'true';\s*setImportantStyles\(comment/
+);
+assert.doesNotMatch(source, /vm-yt-comment-action[\s\S]{0,900}flex: '1 1 50%'/);
 
 console.log('recommendations precede native comments without focus zoom: ok');

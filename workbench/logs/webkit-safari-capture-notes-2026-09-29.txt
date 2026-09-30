@@ -1,0 +1,75 @@
+Inspected the two newer uploads as authoritative:
+- Home: /Users/aditauqir/.codex/attachments/9a6f7643-1fed-41f1-8cec-83c23e63a238/Pasted text.txt
+- Player/watch: /Users/aditauqir/.codex/attachments/8dbeb475-678d-4037-b269-7bd8384e4232/Pasted text.txt
+Important evidence caveat: these are repeated serialized HTML/DOM snapshots, not a live event trace. The earlier referenced-conversation previews were byte-identical duplicates. The snapshots report DEVICE=cbr=Safari, ceng=WebKit, cengver=605.1.15, cos=Macintosh, cplatform=DESKTOP, browser version 27.0, client version 2.20260925.08.00. They therefore show Safari/WebKit desktop behavior plus YouTube’s iOS/mweb feature flags; they do not prove actual iPhone/iPad runtime behavior. Orion on iOS should be capability-tested at runtime rather than identified only from this UA/config.
+HOME PAGE
+Route/root evidence:
+- Canonical URL is https://www.youtube.com/; server contract is window['ytPageType']="browse", ytUrl='/'.
+- Main route is ytd-app > ytd-page-manager#page-manager > ytd-browse[page-subtype="home"].
+- Home feed root: ytd-two-column-browse-results-renderer[page-subtype="home"], ytd-rich-grid-renderer, ytd-rich-section-renderer, ytd-rich-shelf-renderer, ytd-rich-item-renderer.
+- Header/navigation: ytd-masthead#masthead, ytd-guide-renderer#guide-renderer, yt-guide-manager#guide-service, ytd-guide-entry-renderer, ytd-mini-guide-renderer, yt-searchbox, ytd-feed-filter-chip-bar-renderer.
+- Useful Home selectors: ytd-browse[page-subtype="home"], ytd-rich-grid-renderer, ytd-rich-item-renderer, ytd-video-preview, ytd-player#inline-player, ytd-app, ytd-page-manager#page-manager, yt-page-navigation-progress.
+- The Home snapshot also contains a hidden ytd-watch-flexy watch scaffold with ytd-player#ytd-player and #movie_player, plus inline preview players. Do not treat the existence of #movie_player as proof that a watch page is active; scope to ytd-browse[page-subtype="home"] or require a visible/non-hidden watch root.
+- Home feed item metadata is composed from yt-lockup-view-model, yt-lockup-metadata-view-model, yt-content-metadata-view-model, yt-thumbnail-view-model, yt-img-shadow, yt-formatted-string, yt-button-shape, yt-interaction and related view-model elements. These are more stable as component boundaries than generated class names, but internal view-model markup can still change.
+Home media/preview:
+- Each preview uses ytd-video-preview > ytd-player#inline-player[context="WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_INLINE_PREVIEW"].
+- Preview media is video.video-stream.html5-main-video[data-no-fullscreen="true"]; the main watch video is not this element.
+- The hidden watch template uses ytd-player#ytd-player[context="WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH"] > #container > .html5-video-player#movie_player.
+- A safe Home hook is delegated handling under ytd-rich-grid-renderer/ytd-rich-item-renderer, then resolve the preview/player after insertion. Use anchor hrefs or data associated with the item rather than generated view-model IDs.
+Home scripts/polyfills:
+- /s/player/fb50cd46/player_es6.vflset/en_US/base.js
+- miniplayer.js, offline.js, remote.js
+- custom-elements-es5-adapter.js, webcomponents-sd.js, intersection-observer.min.js, scheduler.js, spf.js, network.js, www-i18n-constants.js
+- window.ShadyDOM={force:true,preferPerformance:true,noPatch:true}; ShadyCSS.disableRuntime=true; DOM is Polymer/ShadyDOM-style with style-scope attributes and css-build markers.
+- webkit-masked-url://hidden/ with data-youtube-diagnostics-page-hook="true" is a YouTube/WebKit diagnostics hook; do not depend on it as an extension API.
+Navigation/lifecycle evidence:
+- ytd-page-manager retains route components and marks inactive roots hidden; yt-page-navigation-progress exists even when hidden.
+- The bootstrap repeatedly defines ytInitialData/ytInitialPlayerResponse and a getInitialData wrapper that passes page, endpoint, response, playerResponse, reel response, previous CSN and ytUrl to loadInitialData.
+- Observed lifecycle code listens for script-load-dpj and calls onPolymerReady; observed visibility fallback chooses webkitvisibilitychange when visibilityState is unavailable.
+- The dump contains PopState and MutationObserver references, but not a complete runtime event log. For a userscript/extension, use a narrow MutationObserver on ytd-app or #page-manager (and the rich grid for feed additions), debounce it, and also watch popstate plus a guarded history.pushState/replaceState wrapper if route detection is needed.
+- Runtime YouTube custom navigation events such as yt-navigate-start/yt-navigate-finish/yt-page-data-fetched are useful if present, but they were not captured here; feature-detect them rather than assuming their presence.
+MEDIA PLAYER / WATCH PAGE
+Watch route/root:
+- ytd-app[is-watch-page] > ytd-page-manager#page-manager.
+- The active root is visible ytd-watch-flexy[video-id="giWqm8cIWz0"] in the captured state, with view-transition-enabled, rounded-player, response-has-comments, cinematic-light-theme/cinematics-active and flexy-small-window_ attributes. The title snapshot is “I Finally Understand Why People Buy MacBooks - YouTube”; other repeated snapshots include the search route and preserved watch DOM.
+- Main player: ytd-player#ytd-player[context="WEB_PLAYER_CONTEXT_CONFIG_ID_KEVLAR_WATCH"] > #container > .html5-video-player#movie_player[aria-label="YouTube Video Player"][data-version="/s/player/fb50cd46/player_es6.vflset/en_US/base.js"].
+- Main media: #movie_player .html5-video-container > video.video-stream.html5-main-video[controlslist="nodownload"]. The src is a blob:https://www.youtube.com/... URL and is disposable; do not use the blob URL as an identity.
+- Inline preview remains present under ytd-player#inline-player with video[data-no-fullscreen="true"], separate from the watch video.
+- Other useful watch selectors/components: #full-bleed-container, #player-container, #player-full-bleed-container, #player-container-inner, #player-container-outer, #player-ads, #player-controls, ytd-player-legacy-desktop-watch-ads-renderer, ytd-watch-metadata[video-id], ytd-video-primary-info-renderer, ytd-video-owner-renderer, ytd-comments#comments, ytd-watch-next-secondary-results-renderer, ytd-playlist-panel-renderer#playlist, ytd-miniplayer, yt-player-quick-action-buttons, yt-player-overlay-video-details-renderer, engagement-panel-* roots.
+- Engagement panels include searchable transcript, comments, structured description, macro markers/chapters, ads, and modern transcript targets. They are ytd-engagement-panel-section-list-renderer elements with target-id values such as engagement-panel-comments-section, engagement-panel-searchable-transcript, engagement-panel-structured-description, engagement-panel-macro-markers-description-chapters and PAmodern_transcript_view.
+Controls/selectors observed:
+- .ytp-play-button, .ytp-mute-button/.ytp-volume-panel/.ytp-volume-slider, .ytp-progress-bar[role="slider"][aria-label="Seek slider"], .ytp-scrubber-container, .ytp-play-progress, .ytp-load-progress, .ytp-hover-progress, .ytp-chrome-bottom
+- .ytp-subtitles-button, #ytp-caption-window-container, .caption-window
+- .ytp-settings-button, .ytp-size-button (Theater mode), .ytp-fullscreen-button, .ytp-pip-button, .ytp-airplay-button, .ytp-remote-button (Play on TV)
+- .ytp-autonav-toggle/.ytp-autonav-toggle-button, .ytp-next-button, .ytp-prev-button, .ytp-playlist-menu-button, .ytp-miniplayer-ui, .ytp-overflow-button
+- Fullscreen/overlay UI: .ytp-fullscreen-grid, .ytp-fullscreen-quick-actions, .ytp-overlays-container, .ytp-autonav-endscreen-*, .ytp-cued-thumbnail-overlay, .ytp-hide-controls, .ytp-autohide, paused-mode, ytp-fit-cover-video.
+- Concrete control attributes: .ytp-progress-bar is draggable with touch-action:none; .ytp-play-button has aria-keyshortcuts="k"; mute uses aria-keyshortcuts="m"; captions uses aria-keyshortcuts="c"; fullscreen uses aria-keyshortcuts="f"; theater uses aria-keyshortcuts="t". Controls expose aria-label/data-tooltip-title values including Play, Mute, Settings, Theater mode, Picture-in-picture, AirPlay, Play on TV, Full screen, Subtitles/closed captions, Seek slider and Autoplay is on.
+- In the capture, .ytp-pip-button has style="display:none" even though it exists, .ytp-remote-button is often display:none, and the AirPlay/fullscreen buttons are present. Treat presence and visibility separately.
+Player APIs/state:
+- Bootstrap/page objects visible in the snapshots: window.ytInitialData, window.ytInitialPlayerResponse, ytPageType, ytUrl, playerResponse, playabilityStatus, videoDetails, html5PlaybackOnesieConfig, inlinePlayerData and player_vars.
+- The page code/config contains references to getPlayerState, getPlayerResponse, loadVideoById, seekTo, getPlaylist and addEventListener/removeEventListener. These are page-context/player-object hooks, not guaranteed public DOM APIs in an isolated WebKit content-script world.
+- Prefer feature-detecting methods on the resolved #movie_player object (typeof player[method] === "function") and use the native video element for basic playback/time/rate/volume state. If a WebKit extension content script cannot see page-owned properties, inject a page-context bridge and communicate with postMessage/custom events; do not assume isolated-world access to YouTube’s player object.
+- The getInitialData/loadInitialData path is a useful data-arrival hook, but ytInitialPlayerResponse can be replaced during SPA navigation. Re-read it after a route/video-id change.
+- Bind native media events to the current video element: loadedmetadata, durationchange, canplay/canplaythrough, play, playing, pause, timeupdate, seeking, seeked, waiting, progress, stalled, ended, ratechange, volumechange, error, visibilitychange/fullscreenchange as applicable. The dump contains many of these names but does not record their runtime order.
+- Re-resolve/rebind after ytd-player/#movie_player replacement, source changes, ads, fullscreen/PiP transitions and navigation. #player-ads and ytd-player-legacy-desktop-watch-ads-renderer show that ad/player state can coexist with the content player.
+WebKit/iOS/Safari behavior visible in config:
+- The page contains the iPadOS desktop-mode detection: navigator.platform==="MacIntel" && navigator.maxTouchPoints>0 && "standalone" in navigator, then redirect to m.youtube.com with app=no_hover&persist_app=1. This is a strong iPadOS/PWA compatibility clue, but it did not fire in the captured desktop Safari state.
+- Flags are enabled in the snapshot for mweb_force_ios_fallback_to_native_control, mweb_native_control_in_faux_fullscreen_shared, mweb_fullscreen_watch_system, mweb_fullscreen_controls, mweb_fullscreen_controls_action_buttons, mweb_enable_overlay_touch_manager, mweb_enable_optional_fullscreen_landscape_locking, mweb_enable_portrait_fullscreen_actions, mweb_fp_auto_fullscreen, mweb_enable_click_to_play_pause, player_doubletap_to_seek and kevlar_passive_event_listeners.
+- iOS timing/config values: mweb_ios_fullscreen_playback_transition_delay_ms=500; mweb_ios_fullscreen_system_pause_epilson_ms=0; speedmaster_touch_activation_ms=500; web_player_touch_idle_wait_time_ms=4000; web_player_mouse_idle_wait_time_ms=3000.
+- Fullscreen flags include external_fullscreen=true, html5_media_fullscreen=true, web_player_invisible_fullscreen_button=true, and web_player_pip_logging_fix=true. Rebind on fullscreenchange and WebKit-specific presentation/visibility changes; native/system fullscreen may hide or replace the normal DOM control surface.
+- AirPlay/PiP flags include html5_move_disable_airplay=true, html5_disable_airplay_button_for_mweb=true, html5_block_pip_non_mse=true, html5_block_pip_safari_delay=100 and enable_web_media_session_metadata_fix=true. The DOM still contains .ytp-airplay-button while PiP may be hidden, so feature-detect:
+  - video.webkitShowPlaybackTargetPicker for AirPlay where available
+  - document.pictureInPictureEnabled, video.requestPictureInPicture and video.disablePictureInPicture for PiP
+  - video.webkitPresentationMode / video.webkitSetPresentationMode where exposed by the WebKit runtime
+  - document.fullscreenEnabled plus fullscreenElement; also check WebKit-prefixed fullscreen/presentation hooks where available
+  - navigator.mediaSession/metadata/action handlers, but the snapshot only shows the YouTube flag; it does not show direct mediaSession assignments.
+- setPassiveTouchGestures=true, kevlar_passive_event_listeners=true and style touch-action:none on the progress slider/caption window indicate aggressive gesture handling. Use passive listeners unless preventDefault is necessary and event.cancelable is true; avoid capturing the entire player surface or stealing double-tap/long-press gestures.
+Fragility/implementation priorities for Orion primary, Safari fallback:
+1. Detect route from visible DOM plus location, not only UA: Home = ytd-browse[page-subtype="home"]; watch = ytd-app[is-watch-page] plus visible ytd-watch-flexy[video-id]. Hidden route roots and player templates are normal.
+2. Resolve the main player as visible ytd-watch-flexy #movie_player and its video.video-stream.html5-main-video:not([data-no-fullscreen]); exclude ytd-player#inline-player video[data-no-fullscreen="true"] and miniplayer/preview nodes unless intentionally targeting them.
+3. Use MutationObserver on ytd-app/#page-manager and narrow observers on #movie_player/ytd-player; debounce and deduplicate with WeakSet/element identity. Rebind on video-id changes, new video node, ad transitions and fullscreen/PiP/presentation changes.
+4. Prefer semantic custom-element roots and aria/data-tooltip attributes over volatile generated classes/IDs. The stable-ish .ytp-* control classes are useful for current builds but are internal and version-fragile; build id fb50cd46 and desktop bundle 385d253e can change.
+5. Use page-context bridging for player methods and data objects when running as an iOS WebKit extension; use native HTMLMediaElement state/events for the fallback path.
+6. Treat disableFullscreen=true/disableSeek=true strings in bootstrap/player config as per-player/config-state data, not global truth: the same snapshots expose a fullscreen button and seek slider. Check actual visible control state and native capability.
+7. Validate separately on Orion iOS and Safari iOS, especially native fullscreen handoff, PiP visibility, AirPlay availability, touch gesture arbitration, Media Session behavior, background/lock-screen pause, and the MacIntel+maxTouchPoints iPadOS mode.
+No project code was modified.

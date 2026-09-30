@@ -11,12 +11,12 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '3\.1\.[1-9](\.g)?'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '\d+\.\d+\.\d+(\.g)?'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '3\.1\.[1-9](\.g)?'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '\d+\.\d+\.\d+(\.g)?'\)/);
 assert.match(content, /ytd-rich-shelf-renderer:has\(a\[href\*="\/playables"\]\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
@@ -51,8 +51,11 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch'/
 );
+assert.match(content, /function isFallbackVisibleWatchRoot\(/);
+assert.match(content, /function findFallbackVisibleWatchRoot\(/);
+assert.match(content, /function findFallbackActivePlayer\(/);
 assert.match(content, /function findFallbackWatchBelowHost\(/);
 assert.match(content, /function findFallbackVisibleWatchPlayerHost\(/);
 assert.match(content, /function scheduleFallbackPlayerControlsToolbar\(/);

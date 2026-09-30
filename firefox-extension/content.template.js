@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.1.5.g';
+  const EXPECTED_PAGE_VERSION = '3.2.0';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -51,6 +51,55 @@
     'small',
     'tiny',
   ]);
+  const FALLBACK_SHORTS_REMOVAL_SELECTOR = [
+    'a[href^="/shorts"]',
+    'a[href*="/shorts/"]',
+    'a[href*="youtube.com/shorts/"]',
+    'a[href^="/playables"]',
+    'a[href*="/playables/"]',
+    'a[href*="youtube.com/playables"]',
+    'button[aria-label="Shorts"]',
+    'button[title="Shorts"]',
+    '[aria-label="Shorts"]',
+    '[title="Shorts"]',
+    '[aria-label*="Playables" i]',
+    '[title*="Playables" i]',
+    '[is-shorts]',
+    '[is-playables]',
+    '[is-playable]',
+    'ytd-reel-shelf-renderer',
+    'ytm-reel-shelf-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'yt-playable-game-renderer',
+    'ytd-game-card-renderer',
+    'ytd-playable-renderer',
+    'ytd-playables-shelf-renderer',
+    'yt-playables-shelf-renderer',
+  ].join(',');
+  const FALLBACK_SHORTS_CONTAINER_SELECTOR = [
+    'ytm-pivot-bar-item-renderer',
+    'ytd-guide-entry-renderer',
+    'ytd-mini-guide-entry-renderer',
+    'yt-tab-shape',
+    '[role="tab"]',
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-rich-shelf-renderer',
+    'ytd-rich-section-renderer',
+    'ytd-reel-shelf-renderer',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'yt-lockup-view-model',
+    'tp-yt-paper-item',
+    'grid-shelf-view-model',
+  ].join(',');
+  let fallbackShortsObserver = null;
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
   let fallbackMediaSessionHandlersInstalled = false;
@@ -577,15 +626,24 @@
       fallbackPlaybackState.video.isConnected
         ? fallbackPlaybackState.video
         : null;
-    const watchVideo = document.querySelector(
+    const activeWatch = findFallbackVisibleWatchRoot();
+    const watchVideo = activeWatch?.querySelector(
       '#movie_player video.html5-main-video:not([data-no-fullscreen]), ' +
         '#player-container video.html5-main-video:not([data-no-fullscreen]), ' +
         'ytd-player#ytd-player video.html5-main-video:not([data-no-fullscreen])'
     );
+    const routedVideos = activeWatch
+      ? [...activeWatch.querySelectorAll('video')]
+      : [...document.querySelectorAll('video')].filter(
+          (video) => !video.closest('ytd-watch-flexy')
+        );
     const video =
       stateVideo ||
       watchVideo ||
-      document.querySelector('video.html5-main-video, video');
+      routedVideos.find((candidate) =>
+        candidate.classList.contains('html5-main-video')
+      ) ||
+      routedVideos[0];
     if (!(video instanceof HTMLVideoElement)) return null;
     if (shouldAttach) attachFallbackVideo(video);
     return video;
@@ -750,7 +808,7 @@
   }
 
   function fallbackYouTubeCaptionTrackList() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.getOption !== 'function') return [];
     try {
       const tracks = player.getOption('captions', 'tracklist');
@@ -761,7 +819,7 @@
   }
 
   function selectFallbackYouTubeCaptionTrack(selectedTrack) {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.setOption !== 'function') return false;
     try {
       player.loadModule?.('captions');
@@ -817,7 +875,7 @@
   }
 
   function currentFallbackYouTubeCaptionTrack() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.getOption !== 'function') return null;
     try {
       const track = player.getOption('captions', 'track');
@@ -852,7 +910,7 @@
   }
 
   function fallbackYouTubeQualityOptions() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player) {
       return FALLBACK_QUALITY_LEVELS.map((quality) => ({
         quality,
@@ -916,7 +974,7 @@
     if (video && fallbackSelectedQualityByVideo.has(video)) {
       return fallbackSelectedQualityByVideo.get(video);
     }
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     try {
       return (
         player?.getPlaybackQuality?.() ||
@@ -929,7 +987,7 @@
   }
 
   function applyFallbackYouTubeQuality(quality) {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || !quality) return;
     try {
       player.setPlaybackQualityRange?.(quality, quality);
@@ -1003,7 +1061,7 @@
     } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          const player = document.querySelector('#movie_player');
+          const player = findFallbackActivePlayer();
           player?.loadModule?.('captions');
           player?.setOption?.('captions', 'track', {});
         } catch {}
@@ -1054,7 +1112,7 @@
         const applyPlaybackRate = () => {
           video.playbackRate = speed;
           try {
-            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+            findFallbackActivePlayer()?.setPlaybackRate?.(speed);
           } catch {}
         };
         applyPlaybackRate();
@@ -1478,14 +1536,16 @@
   }
 
   function findFallbackWatchTitleAnchor() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
       'ytd-watch-metadata #title',
       'ytd-video-primary-info-renderer #title',
-      'ytd-watch-flexy ytd-watch-metadata h1',
-      'ytd-watch-flexy #below h1',
+      'ytd-watch-metadata h1',
+      '#below h1',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (!isFallbackUsableWatchMount(candidate)) continue;
         return candidate.closest('#title') || candidate;
       }
@@ -1494,12 +1554,14 @@
   }
 
   function findFallbackWatchMetadataHost() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy ytd-watch-metadata',
-      'ytd-watch-flexy ytd-video-primary-info-renderer',
+      'ytd-watch-metadata',
+      'ytd-video-primary-info-renderer',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (isFallbackUsableWatchMount(candidate)) return candidate;
       }
     }
@@ -1520,47 +1582,79 @@
   function isFallbackUsableWatchMount(node) {
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
+    const watch = node.closest('ytd-watch-flexy');
+    if (watch && !isFallbackVisibleWatchRoot(watch)) return false;
     if (node.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
     const style = getComputedStyle(node);
-    if (style.display === 'none') return false;
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
     return true;
   }
 
+  function isFallbackVisibleWatchRoot(watch) {
+    if (!(watch instanceof Element) || !watch.isConnected) return false;
+    for (let node = watch; node instanceof Element; node = node.parentElement) {
+      if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true') {
+        return false;
+      }
+      const style = getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+    }
+    return true;
+  }
+
+  function findFallbackVisibleWatchRoot() {
+    const candidates = [
+      ...document.querySelectorAll(
+        'ytd-app[is-watch-page] ytd-watch-flexy, ytd-watch-flexy[video-id], ytd-watch-flexy'
+      ),
+    ];
+    return candidates.find(isFallbackVisibleWatchRoot) || null;
+  }
+
+  function findFallbackActivePlayer() {
+    const watch = findFallbackVisibleWatchRoot();
+    const player = watch?.querySelector('#movie_player, .html5-video-player');
+    return player instanceof HTMLElement ? player : null;
+  }
+
   function findFallbackWatchBelowHost() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy #below',
-      'ytd-watch-flexy #primary-inner',
+      '#below',
+      '#primary-inner',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (isFallbackUsableWatchMount(candidate)) return candidate;
     }
     return null;
   }
 
   function findFallbackVisibleWatchPlayerHost() {
-    const watch = document.querySelector('ytd-watch-flexy');
-    if (!(watch instanceof Element)) return null;
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const fullBleed =
       watch.hasAttribute('full-bleed-player') ||
       watch.hasAttribute('theater');
     const selectors = fullBleed
       ? [
-          'ytd-watch-flexy #player-full-bleed-container',
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
+          '#player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
         ]
       : [
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
-          'ytd-watch-flexy #player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
+          '#player-full-bleed-container',
         ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (!(candidate instanceof Element) || !candidate.isConnected) continue;
       if (candidate.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
       if (candidate.closest('[hidden]')) continue;
-      if (getComputedStyle(candidate).display === 'none') continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
       return candidate;
     }
     return null;
@@ -1655,17 +1749,21 @@
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
       return;
     }
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) {
+      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
+      return;
+    }
     const title = findFallbackWatchTitleAnchor();
     const metadata = findFallbackWatchMetadataHost();
     const below = findFallbackWatchBelowHost();
     const playerHost = findFallbackVisibleWatchPlayerHost();
-    const watch = document.querySelector('ytd-watch-flexy');
     const watchChromeExists =
       title instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
-      watch instanceof Element;
+      isFallbackVisibleWatchRoot(watch);
     if (!watchChromeExists) return;
 
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
@@ -1789,9 +1887,140 @@
     }
   }
 
+  function isFallbackShortsOrPlayablesHref(href) {
+    return /(?:^|\/)(?:shorts|playables)(?:\/|$|\?)/i.test(String(href || ''));
+  }
+
+  function concealFallbackShortsElement(element) {
+    if (!(element instanceof Element)) return;
+    if (element.dataset.fypShortsHidden === 'true') return;
+    for (const [property, value] of Object.entries({
+      display: 'none',
+      visibility: 'hidden',
+      'pointer-events': 'none',
+      height: '0',
+      margin: '0',
+      padding: '0',
+      overflow: 'hidden',
+    })) {
+      element.style.setProperty(property, value, 'important');
+    }
+    element.setAttribute('aria-hidden', 'true');
+    element.hidden = true;
+    element.dataset.fypShortsHidden = 'true';
+  }
+
+  function removeFallbackShorts(root = document) {
+    const candidates = new Set();
+    const collect = (node) => {
+      if (!(node instanceof Element)) return;
+      if (node.matches(FALLBACK_SHORTS_REMOVAL_SELECTOR)) candidates.add(node);
+      node.querySelectorAll?.(FALLBACK_SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+        candidates.add(element);
+      });
+
+      const entrySelector =
+        'ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer, ' +
+        'ytm-pivot-bar-item-renderer, tp-yt-paper-item, yt-list-item-view-model';
+      const entries = [];
+      if (node.matches(entrySelector)) entries.push(node);
+      entries.push(...(node.querySelectorAll?.(entrySelector) || []));
+      for (const entry of entries) {
+        const href = [...(entry.querySelectorAll?.('a[href]') || [])]
+          .map((link) => link.getAttribute('href') || link.href)
+          .join(' ');
+        const label = [
+          entry.getAttribute('title'),
+          entry.getAttribute('aria-label'),
+          entry.textContent,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (
+          isFallbackShortsOrPlayablesHref(href) ||
+          /^(shorts|playables)\b/i.test(label) ||
+          (/mini[\s-]?games/i.test(label) && label.length < 48)
+        ) {
+          candidates.add(entry);
+        }
+      }
+
+      node.querySelectorAll?.(
+        'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+      ).forEach((shelf) => {
+        const heading = (
+          shelf.querySelector?.(
+            '#title, #title-text, .title, yt-formatted-string, h2, [id*="title"]'
+          )?.textContent || ''
+        ).trim();
+        const ariaLabel = shelf.getAttribute?.('aria-label') || '';
+        const hasShortsHref = [...(shelf.querySelectorAll?.('a[href]') || [])].some(
+          (link) => isFallbackShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+        );
+        if (
+          hasShortsHref ||
+          /shorts|playables|mini[\s-]?games/i.test(heading) ||
+          /shorts|playables|mini[\s-]?games/i.test(ariaLabel)
+        ) {
+          candidates.add(shelf);
+        }
+      });
+    };
+
+    if (root instanceof Element) collect(root);
+    root.querySelectorAll?.(FALLBACK_SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+      candidates.add(element);
+    });
+    root.querySelectorAll?.(
+      'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+    ).forEach((shelf) => collect(shelf));
+
+    for (const candidate of candidates) {
+      const item =
+        candidate.closest(FALLBACK_SHORTS_CONTAINER_SELECTOR) || candidate;
+      concealFallbackShortsElement(item);
+    }
+  }
+
+  function blockFallbackShortsNavigation(event) {
+    const link = event.target?.closest?.('a[href]');
+    if (!link || !isFallbackShortsOrPlayablesHref(link.getAttribute('href') || link.href)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign('https://www.youtube.com/?app=desktop&persist_app=1');
+  }
+
+  function installFallbackShortsObserver() {
+    if (fallbackShortsObserver) return;
+    removeFallbackShorts(document);
+    fallbackShortsObserver = new MutationObserver((mutations) => {
+      const roots = new Set();
+      for (const mutation of mutations) {
+        if (mutation.target instanceof Element) roots.add(mutation.target);
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) roots.add(node);
+        }
+      }
+      for (const root of roots) removeFallbackShorts(root);
+    });
+    fallbackShortsObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+    document.addEventListener('yt-navigate-start', () => removeFallbackShorts(document), true);
+    document.addEventListener('yt-navigate-finish', () => removeFallbackShorts(document), true);
+    window.addEventListener('popstate', () => removeFallbackShorts(document), true);
+    window.addEventListener('pageshow', () => removeFallbackShorts(document), true);
+  }
+
   function installDomFallbacks() {
     if (redirectChannelRootToVideos()) return;
     redirectShorts();
+    installFallbackShortsObserver();
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
     scheduleFallbackPlayerControlsToolbar();
@@ -1940,19 +2169,15 @@
       true
     );
 
-    document.addEventListener(
-      'click',
-      (event) => {
-        const link = event.target?.closest?.(
-          'a[href*="/shorts"], a[href*="/playables"]'
-        );
-        if (!link) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        location.assign('https://www.youtube.com/?app=desktop&persist_app=1');
-      },
-      true
-    );
+    document.addEventListener('click', blockFallbackShortsNavigation, true);
+    document.addEventListener('pointerdown', blockFallbackShortsNavigation, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener('touchstart', blockFallbackShortsNavigation, {
+      capture: true,
+      passive: false,
+    });
     document.addEventListener('click', redirectChannelLinkToVideos, true);
 
     const installFallbackStyle = () => {
@@ -2290,14 +2515,17 @@
         #${PLAYER_CONTROLS_TOOLBAR_ID} {
           box-sizing: border-box !important;
           position: relative !important;
-          z-index: 5 !important;
+          z-index: 100 !important;
           display: flex !important;
           visibility: visible !important;
           opacity: 1 !important;
+          pointer-events: auto !important;
+          isolation: isolate !important;
           flex-wrap: wrap !important;
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          min-height: 4rem !important;
           margin: clamp(.5rem, 2.4vw, .8rem) auto !important;
           padding: clamp(.45rem, 2vw, .7rem) !important;
           gap: clamp(.35rem, 1.8vw, .65rem) !important;

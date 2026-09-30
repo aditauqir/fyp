@@ -1,6 +1,6 @@
-# YouTube Diagnostics Workbench
+# YouTube Diagnostics Safari Workbench
 
-This is a small local Chromium MV3 extension for investigating YouTube behavior. It is intentionally isolated under `workbench/` and is tracked with the branch as an internal tool. It uses Chromium APIs only.
+This is the Safari Web Extension payload for the local YouTube diagnostics workbench. It is embedded in the macOS host app and is intentionally isolated under `workbench/`; it is not part of the Fyoutube production packages. The JavaScript uses the `globalThis.browser || globalThis.chrome` compatibility shim because Safari and Chromium expose the WebExtension API under different globals.
 
 ## What it captures
 
@@ -14,20 +14,18 @@ This is a small local Chromium MV3 extension for investigating YouTube behavior.
 
 The popup stores records per tab and downloads them as newline-delimited JSON (`.jsonl`) or HTML into the browser's normal Downloads folder. Safari uses its downloads API when available and avoids navigating to a `blob:` URL.
 
-## Install in Chromium
+## Run in Safari
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose this folder: `workbench/youtube-diagnostics`.
-5. Reload any YouTube tabs so the hook starts at `document_start`.
-6. Open the extension popup while on YouTube.
-7. Reproduce the issue. If the page becomes unstable, press **Pause capture** before opening DevTools/Inspect.
-8. Press **Capture DOM + code** when you want both the element map and current HTML source, then press **Download JSONL** for the event log.
+1. Open the `YouTube Diagnostics Safari.xcodeproj` host project in Xcode and run the **YouTube Diagnostics Safari** scheme with a development team selected.
+2. Enable **YouTube Diagnostics Safari** in Safari → Settings → Extensions and allow access to YouTube.
+3. Reload any YouTube tabs so the hook starts at `document_start`.
+4. Open the extension popup while on YouTube.
+5. Reproduce the issue. If the page becomes unstable, press **Pause capture** before opening Web Inspector.
+6. Press **Capture DOM + code** when you want both the element map and current HTML source, then press **Download JSONL** for the event log.
 
 The downloaded `.jsonl` file can be uploaded here for analysis. I cannot automatically read files from your Chromium profile through this chat; you need to download and attach the log.
 
-The workbench package is a Chromium MV3 diagnostic helper. For Safari/Orion, use Web Inspector’s Console and Network tabs alongside the Fyoutube package, or attach the resulting Safari HTML/console export here. The logger’s WebKit field names mirror the properties that matter on iOS, but Safari does not load this Chromium folder as a native Safari App Extension.
+The sibling `workbench/youtube-diagnostics` folder remains the Chromium MV3 diagnostic helper. This Safari project is the native macOS host needed to install the same diagnostics payload into Safari.
 
 ## Practical limits
 

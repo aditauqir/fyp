@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube Diagnostics</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>YouTube Diagnostics</h1>
+      <p id="status" class="status">Checking active tab…</p>
+      <dl class="stats">
+        <div><dt>Stored records</dt><dd id="record-count">—</dd></div>
+        <div><dt>Capture</dt><dd id="capture-state">—</dd></div>
+      </dl>
+      <div class="actions">
+        <button id="capture-dom" type="button">Capture DOM + code</button>
+        <button id="download" type="button">Download JSONL</button>
+        <button id="toggle" type="button">Pause capture</button>
+        <button id="clear" class="danger" type="button">Clear logs</button>
+      </div>
+      <p class="hint">Capture DOM + code downloads the current HTML source separately. Pause capture before inspecting or reproducing a crash.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

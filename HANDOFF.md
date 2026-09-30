@@ -1,7 +1,7 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current public ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`). The active bug-fix branch currently carries `3.1.5.g` WebKit playback and diagnostics work.
+> **Current public ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`). The active bug-fix branch currently carries a `3.2.0` test build based on the `3.1.5.g` WebKit playback and diagnostics work.
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -146,7 +146,8 @@ In `youtube-mobile-background.user.js`:
 - Reasserted `playsinline`, `webkit-playsinline`, AirPlay, and FYP attachment state on WebKit media lifecycle events, including readiness, fullscreen, presentation-mode, and wireless playback transitions.
 - Replaced FYP-owned toolbar/menu icon `innerHTML` construction with DOM-node construction so Trusted Types enforcement cannot abort the scan before video attachment and control placement.
 - Extended the diagnostics workbench with media lifecycle records and WebKit/Safari visibility, fullscreen, presentation, AirPlay, audio-session, and Fyoutube marker fields.
-- Rebuilt packages with the synchronized `3.1.5.g` version.
+- Added a native macOS Safari Web Extension project under `workbench/youtube-diagnostics-safari`, including the browser/chrome API compatibility shim, WebKit diagnostics resources, host-app bundle identifier wiring, and Xcode packaging script.
+- Rebuilt packages with the synchronized `3.2.0` test version.
 
 ### 3.1.4.g — branch `bug-fixes-pr` (separate search overlay)
 - Replaced the native masthead takeover with a direct `#fyp-search-overlay` layer owned by Fyoutube. This prevents YouTube's changing searchbox internals from controlling the overlay layout.

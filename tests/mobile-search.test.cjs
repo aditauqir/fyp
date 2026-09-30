@@ -12,11 +12,13 @@ const template = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /\/\/ @version\s+3\.1\.[1-9](\.g)?/);
-assert.match(source, /data-fyp-page-ready', '3\.1\.[1-9](\.g)?'/);
+assert.match(source, /\/\/ @version\s+\d+\.\d+\.\d+(\.g)?/);
+assert.match(source, /data-fyp-page-ready', '\d+\.\d+\.\d+(\.g)?'/);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);
+assert.match(source, /function restoreSearchHiddenElements\(\)/);
+assert.match(source, /data-fyp-search-inline-hidden/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
 assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v314-search-overlay'/);
 assert.match(source, /injectCriticalAskHideStyle/);
@@ -118,6 +120,9 @@ assert.match(source, /input\.setAttribute\('enterkeyhint', 'search'\)/);
 assert.match(source, /textarea\[name="search_query"\]/);
 assert.match(source, /HTMLTextAreaElement/);
 assert.match(source, /location\.assign\(buildYouTubeSearchUrl\(query\)\)/);
+assert.match(source, /const SEARCH_BUTTON_ICON_MARKUP =/);
+assert.match(source, /submit\.className = 'fyp-search-submit'/);
+assert.match(source, /replaceIconContents\(submit, SEARCH_BUTTON_ICON_MARKUP\)/);
 assert.match(source, /body\[data-fyp-search-active='true'\] #guide-button/);
 assert.match(source, /input\.blur\(\)/);
 assert.match(source, /Ask YouTube/);
@@ -144,7 +149,7 @@ assert.doesNotMatch(
 
 assert.match(source, /html\[data-fyp-search-active='true'\] ytd-masthead #center/);
 
-assert.match(template, /EXPECTED_PAGE_VERSION = '3\.1\.[1-9](\.g)?'/);
+assert.match(template, /EXPECTED_PAGE_VERSION = '\d+\.\d+\.\d+(\.g)?'/);
 assert.match(template, /Ask YouTube/);
 assert.match(template, /#voice-search-button/);
 assert.doesNotMatch(

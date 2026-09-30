@@ -30,10 +30,13 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function isUsableWatchMount\(/);
+assert.match(source, /function isVisibleWatchRoot\(/);
+assert.match(source, /function findVisibleWatchRoot\(/);
+assert.match(source, /function findActivePlayerElement\(/);
 assert.match(source, /function findWatchBelowHost\(/);
 assert.match(source, /function findVisibleWatchPlayerHost\(/);
 assert.match(source, /function schedulePlayerControlsToolbar\(/);

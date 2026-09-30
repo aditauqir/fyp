@@ -63,7 +63,7 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `3.1.5.g_release.zip`) | Recommended install for Orion |
+| `*_release.zip` (example: `3.2.0_release.zip`) | Recommended install for Orion |
 | `fyoutube-chrome-*.zip` | Chrome Manifest V3 fallback |
 | `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
 | `fyoutube-orion-*.xpi` | XPI fallback |

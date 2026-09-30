@@ -7,8 +7,8 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-assert.match(source, /@version\s+3\.1\.[1-9](\.g)?/);
-assert.match(source, /@release-label\s+3\.1\.[1-9](\.g)?/);
+assert.match(source, /@version\s+\d+\.\d+\.\d+(\.g)?/);
+assert.match(source, /@release-label\s+\d+\.\d+\.\d+(\.g)?/);
 assert.match(source, /ytd-rich-shelf-renderer:has\(a\[href\*='\/playables'\]\)/);
 assert.match(source, /tp-yt-app-drawer#guide[\s\S]*touch-action:\s*pan-y/);
 assert.match(source, /overscroll-behavior:\s*contain/);

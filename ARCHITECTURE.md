@@ -31,6 +31,12 @@ The current investigation artifacts are kept in [`workbench/logs`](./workbench/l
 
 These files are diagnostic evidence, not source-of-truth product code. The workbench uses Chromium APIs only, starts a clean storage buffer when its storage schema changes, and must never be wired into `youtube-mobile-background.user.js` or generated `page.js`.
 
+## Internal Safari diagnostics workbench
+
+The native macOS Safari companion lives under [`workbench/youtube-diagnostics-safari`](./workbench/youtube-diagnostics-safari). It embeds the same page-world hook, WebKit media lifecycle records, Fyoutube marker checks, and DOM capture UI in a Safari Web Extension host project. Its extension resources use `globalThis.browser || globalThis.chrome` so the same WebExtension logic remains compatible with Safari and Chromium API globals.
+
+Run `workbench/youtube-diagnostics-safari/package-safari.sh` to perform an unsigned Debug build and create a source project archive for local Xcode testing. Safari requires the host app to be signed by Xcode with the user's development team; the unsigned command-line build is a structural verification only.
+
 ```mermaid
 flowchart TD
     U["User in Orion iOS"] --> O["www.youtube.com desktop mode"]
