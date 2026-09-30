@@ -1,7 +1,9 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current public ship version: `3.1.1` SHIPPED** (GitHub Release `v3.1.1`, title `Fyoutube 3.1.1`; branches `main` and `features`). The active bug-fix branch currently carries a `3.2.3` test build based on the `3.1.5.g` WebKit playback and diagnostics work.
+> **Current public ship version: `3.2.15` SHIPPED** (GitHub Release `v3.2.15`, title `Fyoutube 3.2.15`; branch `main`). Issue work still happens on `bug-fixes-pr`.
+>
+> **Watch-strip icons:** if the buttons are blank, white squares, stacked play/pause, or hidden under the title, follow **Watch-strip icons** below before editing.
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
@@ -85,7 +87,7 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.1.1_release.zip                   ← recommended Orion installer (gitignored artifact)
+└── 3.2.15_release.zip                  ← recommended Orion installer (gitignored artifact)
 ```
 
 ### Internal Chromium diagnostics workbench
@@ -139,6 +141,64 @@ In `youtube-mobile-background.user.js`:
 
 ---
 
+## Watch-strip icons — if they vanish, turn into white boxes, or stack
+
+Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled this is **3.2.13** (`icon-strip-v3213-restore`). Public ship is 3.2.15. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
+
+The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-controls-toolbar`. Fallback id: `yt-mobile-orion-ext-controls-toolbar`. Source of truth is `youtube-mobile-background.user.js`. Mirror the same paint and layout in `firefox-extension/content.template.js`. Do not hand-edit generated `page.js` or `content.js`.
+
+### What the user sees, and the one cause to fix
+
+| What they report | Cause | Do this |
+|---|---|---|
+| SVG nodes are in the DOM, glyphs are blank | YouTube paints `path { fill: var(--yt-spec-text-primary) }`. On the dark `#111` strip that color is nearly black. | Paint the real glyph with inline `fill` or `stroke` `#fff` and `!important` in `paintPlayerControlIcon`. |
+| Only the play triangle shows; the other buttons look gone | Those glyphs were still dark, or the buttons were allowed to shrink to zero width (`flex: 1 1 0` and `min-width: 0`). Play was the only icon forced white, so it was the only one you could see. | One row, six buttons, each `flex: 0 0 3.25rem`, `width` / `min-width` / `height: 3.25rem`. Paint every icon, not only play. |
+| Every control is a white square | Each icon SVG includes a full-canvas rectangle, `M0 0h…v…H0z` with `fill="none"`. A check that still expected the space in `M0 0` missed it after spaces were removed (`M00…`). Paint then filled that rectangle white and covered the glyph. | Detect the rectangle only after removing spaces and lowercasing: `/^m00h\d+v\d+h0z$/`. Then `shape.remove()`. Do not restyle it. |
+| Play and pause are both visible, stacked | Two failures did this. Two `<svg>` nodes plus CSS `display` / `visibility` `!important` beat the `hidden` attribute. Or `setPlaybackGlyph` wrote the new path onto the rectangle (now `fill` was not `none`) and left the old glyph path in place. | One `<svg>`. Delete every viewBox rectangle first. Swap `d` on the single remaining glyph path. Delete any extra `<svg>`. |
+| The row is under the title or another page layer | A later sibling paints over a `position: relative` bar, and `z-index` on a static parent does nothing. | `raisePlayerControlsStack`: toolbar `position: relative`, `z-index: 2147483646`, `overflow: visible`. Immediate parent `z-index: 2147483645` and `overflow: visible`. |
+
+### Rules that must stay true
+
+1. Order on one line, `flex-wrap: nowrap`: rewind, play-pause, forward, pip, airplay, fullscreen. Do not put play on a second row.
+2. Build icons with `createElementNS` (`SVG_NS`) from a `DOMParser` clone. Do not assign these icons through `innerHTML`. Trusted Types will reject that and can abort the page scan before the video attaches.
+3. `setPlaybackGlyph` owns play/pause. It keeps one path and sets `d` to the play triangle or the pause bars. Both shapes are the 16×16 paths already in `PLAYBACK_GLYPH_PATHS`.
+4. Call `paintPlayerControlIcon` after the icon is inserted, and again from the sync function, so a later YouTube style cannot fade the glyph.
+5. Inline `!important` on the glyph beats YouTube. Do not set `fill` on the `<svg>` element. A `fill` there is inherited and wipes the children. Do not put `fill:` inside the `.fyp-player-control svg { }` rule. Tests reject that. Do not set `fill: none` on the `<svg>` itself.
+6. Stroke icons (fullscreen, the AirPlay screen) get `stroke: #fff` and `fill: none` on the shape. Filled icons (rewind, forward, the PiP frame, the AirPlay triangle, play, pause) get `fill: #fff` and `stroke: none`.
+7. Buttons stay tappable. Current size is `3.25rem` with a `2rem` icon. Do not go back to a zero basis.
+8. When the strip DOM or CSS must replace an already mounted bar, bump `PLAYER_CONTROLS_LAYOUT_VERSION`. `ensurePlayerControlsToolbar` deletes the old toolbar when `dataset.fypControlsLayout` does not match.
+9. Bump `@version`, `@release-label`, `data-fyp-page-ready`, and `firefox-extension/content.template.js` `EXPECTED_PAGE_VERSION` together. Update tests that hardcode the version, the layout id, the button size, and the README zip name. Then `./rebuild-extension.sh` and `node --test tests/*.cjs`.
+10. Leave search results-URL behavior alone. The overlay submit icon is one filled magnifying-glass path (`M18 10c0-4.41…`) with `fill: #fff` and no `M0 0h24v24H0z` rectangle. Do not set `fill` on the `<svg>` element. The header search control stays a fixed 40px target. A tap opens the overlay visibly first, then focuses the field from the click. Do not call `preventDefault` on `touchstart`; that cancels the click iOS needs to show the keyboard. The dialog moves with `cubic-bezier(0.23, 1, 0.32, 1)`.
+
+### Do not repeat these attempts
+
+- Mounting play and pause as two SVGs and hiding one with the `hidden` attribute.
+- A stylesheet that forces every `.fyp-player-control svg` to `display` / `visibility` / `opacity` visible. That paints the spare icon over the neighbors.
+- `path[fill='none'] { stroke: none }` applied broadly enough to erase fullscreen and AirPlay strokes.
+- `flex: 1 1 0` or `min-width: 0` on `.fyp-player-control`.
+- Filling every path white, including the viewBox rectangle.
+- A second row for play/pause. The other icons stayed missing, and the user wants one line.
+
+### Code to keep
+
+```javascript
+function isViewBoxRect(shape) {
+  const d = String(shape.getAttribute('d') || '').replace(/\s+/g, '').toLowerCase();
+  return /^m00h\d+v\d+h0z$/.test(d);
+}
+
+// Before choosing the play/pause path:
+for (const shape of [...svg.querySelectorAll('path')]) {
+  if (isViewBoxRect(shape)) shape.remove();
+}
+
+// On every real glyph, not on the removed rectangle:
+shape.style.setProperty('fill', '#fff', 'important'); // filled icons
+shape.style.setProperty('stroke', '#fff', 'important'); // stroked icons
+```
+
+---
+
 ## Latest changes (through 3.1.5.g)
 
 ### 3.1.5.g — branch `bug-fixes-pr` (WebKit playback ownership and diagnostics)
@@ -148,6 +208,18 @@ In `youtube-mobile-background.user.js`:
 - Extended the diagnostics workbench with media lifecycle records and WebKit/Safari visibility, fullscreen, presentation, AirPlay, audio-session, and Fyoutube marker fields.
 - Added a native macOS Safari Web Extension project under `workbench/youtube-diagnostics-safari`, including the browser/chrome API compatibility shim, WebKit diagnostics resources, host-app bundle identifier wiring, and Xcode packaging script.
 - Rebuilt packages with the synchronized `3.2.3` test version.
+
+### 3.2.12 — branch `bug-fixes-pr` (search icon paint and keyboard)
+- The search glyph is one filled path with no canvas rectangle, painted `#fff` on the dark submit button. The header search control is a fixed 40px target. The overlay is shown before focus, and `touchstart` no longer calls `preventDefault`, so the following click can open the iOS keyboard with the box.
+
+### 3.2.11 — branch `bug-fixes-pr` (search popup ease and filled icon)
+- The search overlay fades and slides with `cubic-bezier(0.23, 1, 0.32, 1)`. The submit control uses the filled magnifying-glass path, painted `#fff`, with the full-canvas rectangle removed so it cannot cover the glyph.
+
+### 3.2.10 — branch `bug-fixes-pr` (strip glyphs, not white boxes)
+- Removed the full-canvas `M0 0h…v…H0z` rectangle before paint so it cannot become a white square or a second play/pause shape. One row, `3.25rem` buttons, toolbar stacked at `z-index: 2147483646`. The precise agent procedure is **Watch-strip icons** above. 3.2.4 through 3.2.9 were the failed steps that led here: dark glyphs, two stacked SVGs, a second play row, and buttons that could shrink to zero.
+
+### 3.2.4 — branch `bug-fixes-pr` (player-strip icon paint)
+- Forced the custom rewind, play, forward, PiP, AirPlay, and fullscreen glyphs to white with inline `!important` paint, and rebuilt each SVG in the page document so WebKit draws the shapes instead of leaving an empty `<svg>` on the dark strip.
 
 ### 3.1.4.g — branch `bug-fixes-pr` (separate search overlay)
 - Replaced the native masthead takeover with a direct `#fyp-search-overlay` layer owned by Fyoutube. This prevents YouTube's changing searchbox internals from controlling the overlay layout.
@@ -191,6 +263,24 @@ In `youtube-mobile-background.user.js`:
   - **Touch backdrop dismissal:** Injected `#fyp-search-backdrop` with subtle blur to dismiss the search overlay when tapping outside, preventing accidental click-through to videos below.
   - **Suggestions dropdown unclipped:** Configured `#center` to `overflow: visible !important` so `.ytSearchboxComponentSuggestionsContainer` / `.sbsb_a` drops down cleanly without getting clipped.
   - **Preserved controls:** Form submit button (`[🔍]`) and clear button (`[✕]`) properly styled and positioned on screen.
+
+### 3.2.15 — public ship (`Fyoutube 3.2.15`)
+- GitHub Release tag `v3.2.15`. Title is `Fyoutube 3.2.15`.
+- Recommended installer: `3.2.15_release.zip` (Chrome MV3).
+- Watch buttons stay on one row when you open another video or refresh.
+- Rewind, play, forward, miniplayer, AirPlay, and fullscreen stay visible and tappable.
+- Search opens one field with a Search button, and the keyboard comes up with the box.
+- Home no longer shows Playables mini-games. Scrolling the sidebar no longer closes it early.
+
+Direct assets:
+
+- `https://github.com/aditauqir/fyp/releases/download/v3.2.15/3.2.15_release.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.2.15/fyoutube-chrome-3.2.15.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.2.15/fyoutube-firefox-3.2.15.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.2.15/fyoutube-orion-3.2.15.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.2.15/fyoutube-orion-3.2.15.xpi`
+
+Older `v3.1.1` download URLs stay available.
 
 ### 3.1.1 — public ship (`Fyoutube 3.1.1`)
 - GitHub Release tag `v3.1.1`. Title is `Fyoutube 3.1.1`.
@@ -466,7 +556,7 @@ After reinstall + hard refresh on Orion:
 1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
 2. Run `node scripts/check-issue-ledger.cjs`.
 3. Report every issue, live GitHub state, and branch state to the user.
-4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.1.1`, tag `v3.1.1`.
+4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.2.15`, tag `v3.2.15`.
 5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
 6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
 7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.

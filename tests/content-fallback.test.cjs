@@ -51,7 +51,7 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore'/
 );
 assert.match(content, /function isFallbackVisibleWatchRoot\(/);
 assert.match(content, /function findFallbackVisibleWatchRoot\(/);
@@ -99,7 +99,17 @@ assert.match(content, /action: 'playback-quality'/);
 assert.match(content, /function applyFallbackYouTubeQuality\(/);
 assert.match(content, /function fallbackYouTubeQualityOptions\(/);
 assert.doesNotMatch(content, /lucide lucide-settings/);
-assert.match(content, /lucide lucide-airplay/);
+assert.match(content, /M4\.1043 15\.8632/);
+assert.match(content, /z-index: 2147483646 !important/);
+assert.match(content, /color: #fff !important/);
+assert.match(content, /background: transparent !important/);
+assert.match(content, /background: #111 !important/);
+assert.match(content, /function solidifyPlayerIcon\(/);
+assert.match(
+  content,
+  /svg path\[fill='currentColor'\][\s\S]*fill: #fff !important/
+);
+assert.match(content, /width: 2rem !important/);
 assert.match(content, /webkitShowPlaybackTargetPicker/);
 assert.match(content, /x-webkit-airplay', 'allow'/);
 assert.match(content, /ignoreFallbackPlayerControlActionsUntil = Date\.now\(\) \+ 500/);

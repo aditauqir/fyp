@@ -20,7 +20,7 @@ assert.match(source, /function closeMobileSearch\(\)/);
 assert.match(source, /function restoreSearchHiddenElements\(\)/);
 assert.match(source, /data-fyp-search-inline-hidden/);
 assert.match(source, /function handleMobileSearchClick\(event\)/);
-assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v314-search-overlay'/);
+assert.match(source, /const NAV_LAYOUT_VERSION = 'ext-v3212-search-icon'/);
 assert.match(source, /injectCriticalAskHideStyle/);
 
 // Search cards stay under ytd-search. Screenshot stack. Home is untouched.
@@ -120,9 +120,17 @@ assert.match(source, /input\.setAttribute\('enterkeyhint', 'search'\)/);
 assert.match(source, /textarea\[name="search_query"\]/);
 assert.match(source, /HTMLTextAreaElement/);
 assert.match(source, /location\.assign\(buildYouTubeSearchUrl\(query\)\)/);
-assert.match(source, /const SEARCH_BUTTON_ICON_MARKUP =/);
 assert.match(source, /submit\.className = 'fyp-search-submit'/);
-assert.match(source, /replaceIconContents\(submit, SEARCH_BUTTON_ICON_MARKUP\)/);
+assert.match(source, /submit\.textContent = 'Search'/);
+assert.match(source, /min-width: 76px !important/);
+assert.doesNotMatch(source, /replaceIconContents\(submit, SEARCH_BUTTON_ICON_MARKUP\)/);
+assert.match(source, /function paintMastheadSearchIcons\(\)/);
+assert.match(source, /event\.type === 'touchstart'/);
+assert.match(source, /input\.focus\(\)/);
+assert.match(
+  source,
+  /transition-timing-function: cubic-bezier\(0\.23, 1, 0\.32, 1\)/
+);
 assert.match(source, /body\[data-fyp-search-active='true'\] #guide-button/);
 assert.match(source, /input\.blur\(\)/);
 assert.match(source, /Ask YouTube/);

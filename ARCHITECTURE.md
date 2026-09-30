@@ -2,8 +2,8 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `3.1.1` (`3.1.1_release.zip`)
-**GitHub Release:** `Fyoutube 3.1.1` (`v3.1.1`)
+**Current shipped version:** `3.2.15` (`3.2.15_release.zip`)
+**GitHub Release:** `Fyoutube 3.2.15` (`v3.2.15`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -218,6 +218,10 @@ flowchart LR
     C -->|"matching page version"| X["Stop fallback observers and polling"]
 ```
 
+### Watch strip icons
+
+The custom watch row is one line of six buttons: rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. Play/pause is one SVG and one glyph path. Icon files include a full-canvas rectangle that must be removed before paint, or the button becomes a white square and play/pause stack. Glyphs stay white with inline `!important`. The strip stays above later page layers. The symptom table and the repair steps are **Watch-strip icons** in [`HANDOFF.md`](./HANDOFF.md).
+
 ## Mobile shell architecture
 
 The desktop site is already responsive, but its narrow watch layout has desktop minimum widths. At a 390px viewport, YouTube applied a roughly 426.7px minimum to `#primary`, centering the column and clipping about 18px from the left.
@@ -331,15 +335,15 @@ Required edit flow:
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
-Shipped package names (GitHub `v3.1.1`):
+Shipped package names (GitHub `v3.2.15`):
 
-- `3.1.1_release.zip` (recommended Orion Chrome MV3 installer)
-- `fyoutube-chrome-3.1.1.zip`
-- `fyoutube-firefox-3.1.1.zip`
-- `fyoutube-orion-3.1.1.zip`
-- `fyoutube-orion-3.1.1.xpi`
+- `3.2.15_release.zip` (recommended Orion Chrome MV3 installer)
+- `fyoutube-chrome-3.2.15.zip`
+- `fyoutube-firefox-3.2.15.zip`
+- `fyoutube-orion-3.2.15.zip`
+- `fyoutube-orion-3.2.15.xpi`
 
-Older `v3.0.4` download URLs stay available.
+Older `v3.1.1` download URLs stay available.
 
 ## Verification contract
 

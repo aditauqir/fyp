@@ -7,7 +7,7 @@
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version is **`3.1.1`**. GitHub Release title is `Fyoutube 3.1.1`, tag `v3.1.1`.
+> Shipped public version is **`3.2.15`**. GitHub Release title is `Fyoutube 3.2.15`, tag `v3.2.15`.
 
 ---
 
@@ -18,6 +18,7 @@
 3. After finishing a change: rebuild, update the ledger below, and **ask the user** whether to continue on this branch, ship, or stop.
 4. Do **not** revive `FIX-BRANCH.md` search experiments (S1–S5) without explicit user approval.
 5. Do **not** fight native Play, drawer Polymer `opened` / `peeking` / swipe, or the 10000 ms player-control hold.
+6. If the watch-strip icons are blank, white squares, stacked play/pause, or missing under the title, follow **Watch-strip icons** in [`HANDOFF.md`](./HANDOFF.md) before editing. Do not add a second play SVG, do not fill the `M0 0h…v…H0z` rectangle, and do not let `.fyp-player-control` shrink with `min-width: 0`.
 
 ### Phrases that mean “read the handoffs first”
 

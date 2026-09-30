@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.3');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.15');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -24,12 +24,12 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v314-search-overlay';
+  const NAV_LAYOUT_VERSION = 'ext-v3212-search-icon';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
   const CPU_TAMER_ENABLED_BY_DEFAULT = false;
@@ -47,8 +47,10 @@
   const SEARCH_OVERLAY_ID = 'fyp-search-overlay';
   const SEARCH_OVERLAY_FORM_ID = 'fyp-search-overlay-form';
   const SEARCH_OVERLAY_INPUT_ID = 'fyp-search-overlay-input';
+  const SEARCH_GLYPH_D =
+    'M18 10c0-4.41-3.59-8-8-8s-8 3.59-8 8s3.59 8 8 8c1.85 0 3.54-.63 4.9-1.69l5.1 5.1L21.41 20l-5.1-5.1A8 8 0 0 0 18 10M4 10c0-3.31 2.69-6 6-6s6 2.69 6 6s-2.69 6-6 6s-6-2.69-6-6';
   const SEARCH_BUTTON_ICON_MARKUP =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-search" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path><path d="M21 21l-6 -6"></path></svg>';
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" fill-rule="evenodd" d="${SEARCH_GLYPH_D}"/></svg>`;
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
@@ -142,6 +144,14 @@
    * changing masthead input implementation.
    */
   const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
+  /*
+   * WHAT: Hides voice-search and Ask controls before the rest of the page settles.
+   * IDEALOGY: Search belongs to the FYP overlay, so those masthead buttons are cleared once at startup instead of being patched inside YouTube's changing header.
+   * FLOW:
+   *   script start --> style missing --> append hide rules --> voice and Ask stay invisible
+   * HOW: Creates one style element with display, visibility, and pointer-events rules for the voice-search and Ask selectors, then appends it. A later call returns when that style id is already in the document.
+   * EVENT LOG: Called directly once the function is defined, before the later page scan.
+   */
   function injectCriticalAskHideStyle() {
     if (document.getElementById(CRITICAL_STYLE_ID)) return;
     const style = document.createElement('style');
@@ -182,11 +192,23 @@
         background: rgba(0, 0, 0, .38) !important;
         backdrop-filter: blur(4px) !important;
         -webkit-backdrop-filter: blur(4px) !important;
-        pointer-events: auto !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition-property: opacity, visibility !important;
+        transition-duration: .32s !important;
+        transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
+      }
+
+      #${SEARCH_OVERLAY_ID}[hidden] {
+        display: none !important;
       }
 
       #${SEARCH_OVERLAY_ID}[data-open='true'] {
         display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
       }
 
       #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog] {
@@ -237,28 +259,17 @@
       #${SEARCH_OVERLAY_ID} button[type='submit'] {
         box-sizing: border-box !important;
         flex: 0 0 auto !important;
-        width: 44px !important;
-        min-width: 44px !important;
-        height: 44px !important;
+        min-width: 76px !important;
+        height: 38px !important;
         margin: 0 !important;
-        padding: 9px !important;
+        padding: 0 16px !important;
         color: #fff !important;
         background: #0f0f0f !important;
         border: 0 !important;
-        border-radius: 50% !important;
+        border-radius: 20px !important;
         cursor: pointer !important;
+        font: 600 14px/38px Roboto, Arial, sans-serif !important;
         touch-action: manipulation !important;
-      }
-
-      #${SEARCH_OVERLAY_ID} button[type='submit'] svg {
-        display: block !important;
-        width: 24px !important;
-        height: 24px !important;
-        fill: none !important;
-        stroke: currentColor !important;
-        stroke-width: 2 !important;
-        stroke-linecap: round !important;
-        stroke-linejoin: round !important;
       }
 
       html[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
@@ -1160,6 +1171,14 @@
     );
   }
 
+  /*
+   * WHAT: Makes this tab the one lock-screen controls talk to.
+   * IDEALOGY: Several tabs can hold a watch page, so one localStorage lease decides the owner. A hidden tab does not take that lease from a tab that still holds it.
+   * FLOW:
+   *   watch video not ended --> no live foreign owner while hidden --> write the lease --> this tab owns the session
+   * HOW: Returns false off a watch page, without a video, or when the video has ended. It also returns false when another tab's lease is still valid and this document is hidden. Otherwise it stores this tab id, the video id, and an expiry, or keeps a local owner flag if storage throws.
+   * EVENT LOG: Called from play, attachVideo, visibilitychange, and prepareForBackground. Uses localStorage.
+   */
   function claimMediaSessionOwnership(video = state.video) {
     if (
       location.pathname !== '/watch' ||
@@ -1493,6 +1512,14 @@
     }
   }
 
+  /*
+   * WHAT: Restarts a video the user still wants after the page hides or the browser pauses it.
+   * IDEALOGY: Recovery follows this tab's playback flag, so a hidden-page pause is not treated as a permanent stop and a user pause is not undone.
+   * FLOW:
+   *   playback still wanted --> play once --> retry while hidden --> video keeps playing
+   * HOW: Calls play immediately, clears older retry timers, and schedules more play attempts at 80, 250, 750, and 1500 milliseconds. Each retry runs only while playback is still wanted and the document is really hidden.
+   * EVENT LOG: Called from the hidden-page pause path and from prepareForBackground. Uses HTMLMediaElement.play.
+   */
   function recoverPlayback(video = state.video) {
     if (!video || !state.wantsPlayback || video.ended) return;
     safePlay(video);
@@ -1582,9 +1609,9 @@
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
     pause:
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" d="M11 7H8v10h3zm2 10h3V7h-3z"/></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="#fff" d="M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>',
     play:
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="currentColor" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"/></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="#fff" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"/></svg>',
     rewind:
       '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M455.979 424.271A24.053 24.053 0 0 0 480 400.251V112.015a24 24 0 0 0-38.285-19.286L264 224.369V112.015a24 24 0 0 0-38.285-19.286L31.155 236.847a24 24 0 0 0 0 38.57l194.56 144.119A24 24 0 0 0 264 400.251V287.9l177.715 131.637a23.92 23.92 0 0 0 14.264 4.734M232 384.37L58.88 256.132L232 127.9ZM448 127.9v256.47L274.88 256.132Z"/></svg>',
     forward:
@@ -1606,6 +1633,87 @@
    * controls through DOM nodes so one rejected icon cannot abort scanPage()
    * before the video is attached to the playback state.
    */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function cloneSvgNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      if (!text || !text.trim()) return null;
+      return document.createTextNode(text);
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const clone = document.createElementNS(SVG_NS, node.localName);
+    for (const attr of node.attributes) {
+      clone.setAttribute(attr.name, attr.value);
+    }
+    for (const child of node.childNodes) {
+      const copied = cloneSvgNode(child);
+      if (copied) clone.appendChild(copied);
+    }
+    return clone;
+  }
+
+  function isCurrentColorPaint(value) {
+    return /^currentcolor$/i.test(String(value || '').trim());
+  }
+
+  function isWhitePaint(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === '#fff' || text === '#ffffff';
+  }
+
+  /*
+   * WHAT: Forces player-button icons to stay white on the dark control strip.
+   * IDEALOGY: YouTube's path fill can paint custom icons nearly black, so the paint is set on the SVG itself instead of inheriting YouTube's CSS variables.
+   * FLOW:
+   *   icon built --> walk fill and stroke --> force white paint --> glyph stays visible
+   * HOW: Walks the SVG and its descendants. A currentColor or white fill becomes #fff with an important inline fill, and a none fill stays none. Matching strokes become white. The SVG then gets an important white color plus visible display, overflow, opacity, and visibility.
+   * EVENT LOG: Called from replaceIconContents when the icon is flagged as a player icon.
+   */
+  function solidifyPlayerIcon(svg) {
+    const nodes = [svg, ...svg.querySelectorAll('*')];
+    for (const node of nodes) {
+      const fill = node.getAttribute('fill');
+      const stroke = node.getAttribute('stroke');
+      if (isCurrentColorPaint(fill) || isWhitePaint(fill)) {
+        node.setAttribute('fill', '#fff');
+        node.style.setProperty('fill', '#fff', 'important');
+        if (!stroke || stroke === 'none') {
+          node.style.setProperty('stroke', 'none', 'important');
+        }
+      } else if (fill === 'none') {
+        node.style.setProperty('fill', 'none', 'important');
+      }
+      if (isCurrentColorPaint(stroke) || isWhitePaint(stroke)) {
+        node.setAttribute('stroke', '#fff');
+        node.style.setProperty('stroke', '#fff', 'important');
+        if (!isWhitePaint(node.getAttribute('fill'))) {
+          node.style.setProperty('fill', 'none', 'important');
+        }
+      }
+    }
+
+    const strokeHosts = [svg, ...svg.querySelectorAll('[stroke="#fff"]')];
+    for (const host of strokeHosts) {
+      if (host.getAttribute('stroke') !== '#fff') continue;
+      for (const shape of host.querySelectorAll(
+        'path, polyline, circle, line, polygon'
+      )) {
+        if (isWhitePaint(shape.getAttribute('fill'))) continue;
+        if (shape.getAttribute('stroke') === 'none') continue;
+        shape.setAttribute('stroke', '#fff');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+      }
+    }
+
+    svg.style.setProperty('color', '#fff', 'important');
+    svg.style.setProperty('display', 'block', 'important');
+    svg.style.setProperty('overflow', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+  }
+
   function svgElementFromMarkup(markup) {
     try {
       const text = String(markup || '').trim();
@@ -1615,17 +1723,73 @@
       const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
       const svg = parsed?.documentElement;
       if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
-      return document.importNode(svg, true);
+      return cloneSvgNode(svg);
     } catch {
       return null;
     }
   }
 
-  function replaceIconContents(element, markup) {
+  function replaceIconContents(element, markup, options = {}) {
     if (!(element instanceof Element)) return;
     const svg = svgElementFromMarkup(markup);
+    if (svg && options.playerIcon) solidifyPlayerIcon(svg);
     if (svg) element.replaceChildren(svg);
     else element.replaceChildren();
+  }
+
+  function paintSearchSubmitIcon(button) {
+    if (!(button instanceof Element)) return;
+    button.style.setProperty('background-color', '#0f0f0f', 'important');
+    button.style.setProperty('color', '#fff', 'important');
+    let svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) {
+      replaceIconContents(button, SEARCH_BUTTON_ICON_MARKUP);
+      svg = button.querySelector('svg');
+    }
+    if (!(svg instanceof Element)) return;
+    svg.style.setProperty('display', 'block', 'important');
+    svg.style.setProperty('width', '24px', 'important');
+    svg.style.setProperty('height', '24px', 'important');
+    svg.style.setProperty('overflow', 'visible', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    for (const shape of [...svg.querySelectorAll('path')]) {
+      if (isViewBoxRect(shape)) {
+        shape.remove();
+        continue;
+      }
+      shape.setAttribute('fill', '#fff');
+      shape.setAttribute('fill-rule', 'evenodd');
+      shape.style.setProperty('fill', '#fff', 'important');
+      shape.style.setProperty('stroke', 'none', 'important');
+    }
+  }
+
+  function paintMastheadSearchIcons() {
+    const paint = isDarkTheme() ? '#fff' : '#0f0f0f';
+    const icons = document.querySelectorAll(
+      [
+        'ytd-masthead #search-button yt-icon',
+        'ytd-masthead #search-button svg',
+        'ytd-masthead #search-button-narrow yt-icon',
+        'ytd-masthead #search-button-narrow svg',
+        'ytd-masthead yt-icon-button[aria-label="Search"] yt-icon',
+        'ytd-masthead yt-icon-button[aria-label="Search"] svg',
+      ].join(',')
+    );
+    for (const icon of icons) {
+      if (!(icon instanceof Element)) continue;
+      if (icon.closest(`#${SEARCH_OVERLAY_ID}, #${PLAYER_CONTROLS_TOOLBAR_ID}, .fyp-player-control`)) {
+        continue;
+      }
+      icon.style.setProperty('color', paint, 'important');
+      const root = icon.shadowRoot || icon;
+      for (const shape of root.querySelectorAll('path')) {
+        if (isViewBoxRect(shape)) continue;
+        if (shape.getAttribute('fill') === 'none') continue;
+        shape.style.setProperty('fill', paint, 'important');
+      }
+    }
   }
 
   function playerControlButtonMarkup(action, label, icon, extraClass = '') {
@@ -1678,6 +1842,202 @@
     ].join('');
   }
 
+  const PLAYBACK_GLYPH_PATHS = Object.freeze({
+    play: 'M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z',
+    pause:
+      'M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z',
+  });
+
+  function isViewBoxRect(shape) {
+    const d = String(shape.getAttribute('d') || '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    return /^m00h\d+v\d+h0z$/.test(d);
+  }
+
+  function playbackGlyphPath(svg) {
+    if (!(svg instanceof Element)) return null;
+    for (const shape of [...svg.querySelectorAll('path')]) {
+      if (isViewBoxRect(shape)) shape.remove();
+    }
+    const paths = [...svg.querySelectorAll('path')];
+    return (
+      paths.find((path) => path.getAttribute('fill') !== 'none') ||
+      paths[paths.length - 1] ||
+      null
+    );
+  }
+
+  function shapeWantsStroke(shape) {
+    if (isViewBoxRect(shape)) return false;
+    const fill = String(shape.getAttribute('fill') || '').trim();
+    if (isCurrentColorPaint(fill) || isWhitePaint(fill)) return false;
+    if (fill && fill !== 'none') return false;
+    let node = shape;
+    while (node) {
+      const stroke = node.getAttribute && node.getAttribute('stroke');
+      if (stroke && stroke !== 'none') return true;
+      if (node.getAttribute && node.getAttribute('stroke-opacity')) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  function paintPlayerControlIcon(button) {
+    if (!(button instanceof HTMLElement)) return;
+    for (const [name, value] of [
+      ['display', 'inline-flex'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['flex', '0 0 3.25rem'],
+      ['width', '3.25rem'],
+      ['min-width', '3.25rem'],
+      ['max-width', '3.25rem'],
+      ['height', '3.25rem'],
+      ['align-items', 'center'],
+      ['justify-content', 'center'],
+      ['color', '#fff'],
+      ['-webkit-text-fill-color', '#fff'],
+      ['overflow', 'visible'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['background', 'transparent'],
+    ]) {
+      button.style.setProperty(name, value, 'important');
+    }
+    const svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) return;
+    svg.removeAttribute('hidden');
+    for (const [name, value] of [
+      ['display', 'block'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['width', '2rem'],
+      ['height', '2rem'],
+      ['overflow', 'visible'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['color', '#fff'],
+      ['flex', '0 0 auto'],
+    ]) {
+      svg.style.setProperty(name, value, 'important');
+    }
+    for (const shape of svg.querySelectorAll(
+      'path, polygon, polyline, circle, line, rect'
+    )) {
+      if (isViewBoxRect(shape)) {
+        shape.remove();
+        continue;
+      }
+      if (shapeWantsStroke(shape)) {
+        shape.setAttribute('stroke', '#fff');
+        shape.setAttribute('fill', 'none');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+        shape.style.setProperty('stroke-width', '2', 'important');
+        continue;
+      }
+      shape.setAttribute('fill', '#fff');
+      shape.style.setProperty('fill', '#fff', 'important');
+      shape.style.setProperty('stroke', 'none', 'important');
+    }
+  }
+
+  /*
+   * WHAT: Shows a play triangle or pause bars on the playback button.
+   * IDEALOGY: One glyph path is swapped in place so the button does not rebuild markup and an extra icon cannot pile up in the strip.
+   * FLOW:
+   *   paused or playing --> keep a single svg --> set the play or pause path --> button shows that glyph
+   * HOW: Stores paused or playing on the button and removes extra SVG nodes. If none exists it builds the play icon, then sets the filled path to the play or pause shape and paints that path white. The remaining SVG is shown.
+   * EVENT LOG: Called from createPlayerControlButton and syncCustomPlayerControls. No media event of its own.
+   */
+  function setPlaybackGlyph(button, paused) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.dataset.fypPlaybackState = paused ? 'paused' : 'playing';
+    for (const extra of [...button.querySelectorAll('svg')].slice(1)) {
+      extra.remove();
+    }
+    let svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) {
+      replaceIconContents(button, PLAYER_CONTROL_ICONS.play, {
+        playerIcon: true,
+      });
+      svg = button.querySelector('svg');
+    }
+    const glyph = playbackGlyphPath(svg);
+    if (glyph) {
+      glyph.setAttribute(
+        'd',
+        paused ? PLAYBACK_GLYPH_PATHS.play : PLAYBACK_GLYPH_PATHS.pause
+      );
+      glyph.setAttribute('fill', '#fff');
+      glyph.style.setProperty('fill', '#fff', 'important');
+      glyph.style.setProperty('stroke', 'none', 'important');
+    }
+    if (svg instanceof Element) {
+      svg.removeAttribute('hidden');
+      svg.style.setProperty('display', 'block', 'important');
+      svg.style.setProperty('visibility', 'visible', 'important');
+      svg.style.setProperty('opacity', '1', 'important');
+    }
+    paintPlayerControlIcon(button);
+  }
+
+  function videoInSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    return (
+      document.pictureInPictureElement === video ||
+      video.webkitPresentationMode === 'picture-in-picture'
+    );
+  }
+
+  /*
+   * WHAT: Moves the video into WebKit picture-in-picture when the browser allows it.
+   * IDEALOGY: PiP is an explicit strip action. Ordinary playback does not call this, so starting a video cannot switch the page into PiP by itself.
+   * FLOW:
+   *   PiP tap while inline --> allow PiP --> webkitSetPresentationMode --> video is in picture-in-picture
+   * HOW: Clears disablepictureinpicture, then returns false when presentation mode is missing or unsupported. It asks for picture-in-picture and returns whether that mode is now active.
+   * EVENT LOG: webkitSetPresentationMode and webkitSupportsPresentationMode. Called from the pip branch of runPlayerControlAction.
+   */
+  function enterSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    video.removeAttribute('disablepictureinpicture');
+    try {
+      video.disablePictureInPicture = false;
+    } catch {}
+    if (typeof video.webkitSetPresentationMode !== 'function') return false;
+    const supports =
+      typeof video.webkitSupportsPresentationMode !== 'function' ||
+      video.webkitSupportsPresentationMode('picture-in-picture');
+    if (!supports) return false;
+    try {
+      video.webkitSetPresentationMode('picture-in-picture');
+    } catch {
+      return false;
+    }
+    return video.webkitPresentationMode === 'picture-in-picture';
+  }
+
+  function leaveSystemMiniPlayer(video) {
+    if (
+      video instanceof HTMLVideoElement &&
+      video.webkitPresentationMode === 'picture-in-picture' &&
+      typeof video.webkitSetPresentationMode === 'function'
+    ) {
+      try {
+        video.webkitSetPresentationMode('inline');
+      } catch {}
+    }
+  }
+
+  /*
+   * WHAT: Builds one control-strip button with an accessible name and a painted icon.
+   * IDEALOGY: Buttons are DOM nodes so a rejected innerHTML write cannot stop the strip from appearing.
+   * FLOW:
+   *   action and label --> button element --> play glyph or painted icon --> button ready to mount
+   * HOW: Creates a button with the player-control class, action data attribute, label, title, and aria-pressed. Speed and quality buttons also advertise a menu. Play-pause starts on the play glyph; every other action fills the button with the given icon.
+   * EVENT LOG: Called from createPlayerControlButtons. Pointer capture later reads data-fyp-player-action.
+   */
   function createPlayerControlButton(action, label, icon, extraClass = '') {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1692,10 +2052,22 @@
       button.setAttribute('aria-haspopup', 'menu');
       button.setAttribute('aria-expanded', 'false');
     }
-    replaceIconContents(button, icon);
+    if (action === 'play-pause') setPlaybackGlyph(button, true);
+    else {
+      replaceIconContents(button, icon, { playerIcon: true });
+      paintPlayerControlIcon(button);
+    }
     return button;
   }
 
+  /*
+   * WHAT: Builds the six control-strip buttons in one row.
+   * IDEALOGY: The strip is assembled in one place so rewind, play, skip, PiP, AirPlay, and fullscreen stay together instead of borrowing YouTube's player chrome.
+   * FLOW:
+   *   toolbar create --> rewind, play, forward, PiP, AirPlay, fullscreen --> one row returned
+   * HOW: Returns those six buttons in that order. Each button comes from createPlayerControlButton and paints its own white icon.
+   * EVENT LOG: Called from ensurePlayerControlsToolbar when the toolbar is missing or its layout id changed.
+   */
   function createPlayerControlButtons() {
     return [
       ['rewind', 'Back 10 seconds', PLAYER_CONTROL_ICONS.rewind],
@@ -1720,6 +2092,14 @@
     return video;
   }
 
+  /*
+   * WHAT: Updates the play, PiP, and fullscreen buttons to match the current video.
+   * IDEALOGY: The strip reads the attached video so the glyph stays correct after play, pause, or a mode change without mirroring YouTube's hidden player buttons.
+   * FLOW:
+   *   toolbar present --> read the video --> paint play or pause --> mark PiP and fullscreen pressed
+   * HOW: Finds the toolbar and the current video without attaching again. The play button gets the matching glyph, Play or Pause label, and pressed state. PiP is pressed when this video is the picture-in-picture element, and fullscreen is pressed when the document or video is fullscreen.
+   * EVENT LOG: Called after play, pause, player actions, and the attached video's WebKit lifecycle listener.
+   */
   function syncCustomPlayerControls() {
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (!(toolbar instanceof HTMLElement)) return;
@@ -1733,11 +2113,8 @@
       const playbackState = paused ? 'paused' : 'playing';
       if (playButton.dataset.fypPlaybackState !== playbackState) {
         playButton.dataset.fypPlaybackState = playbackState;
-        replaceIconContents(
-          playButton,
-          paused ? PLAYER_CONTROL_ICONS.play : PLAYER_CONTROL_ICONS.pause
-        );
       }
+      setPlaybackGlyph(playButton, paused);
       playButton.setAttribute('aria-label', label);
       playButton.title = label;
       playButton.setAttribute('aria-pressed', String(!paused));
@@ -1761,6 +2138,10 @@
           video?.webkitDisplayingFullscreen
       );
       fullscreenButton.setAttribute('aria-pressed', String(fullscreenActive));
+    }
+    for (const button of toolbar.querySelectorAll('.fyp-player-control')) {
+      if (button === playButton) continue;
+      paintPlayerControlIcon(button);
     }
   }
 
@@ -1814,7 +2195,9 @@
     button.dataset.fypPlayerOption = 'menu-collapse';
     button.setAttribute('aria-label', 'Collapse menu');
     button.title = 'Collapse menu';
-    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse);
+    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse, {
+      playerIcon: true,
+    });
     menu.appendChild(button);
     return button;
   }
@@ -2257,10 +2640,18 @@
     setTimeout(syncCustomPlayerControls, 250);
   }
 
+  /*
+   * WHAT: Runs a strip action: seek, play or pause, a menu, AirPlay, PiP, or fullscreen.
+   * IDEALOGY: The strip drives the attached video directly. Actions other than play and PiP try to keep playback going so the tap does not look like a pause.
+   * FLOW:
+   *   strip tap --> current video --> seek, play, menu, AirPlay, PiP, or fullscreen --> buttons sync
+   * HOW: Seeks ten seconds, or plays and pauses with a short user-pause window. Speed and quality open their menus. AirPlay allows x-webkit-airplay and shows the target picker. PiP enters or leaves the system mini player, with requestPictureInPicture as backup. Fullscreen toggles the document or video and records a two-second fullscreen intent.
+   * EVENT LOG: Called from the pointer capture handler. Uses play, pause, webkitShowPlaybackTargetPicker, webkitSetPresentationMode, requestPictureInPicture, and requestFullscreen.
+   */
   async function runPlayerControlAction(action, sourceButton) {
     const video = controllableVideo();
     if (!(video instanceof HTMLVideoElement)) return;
-    const preservePlayback = action !== 'play-pause' && !video.paused;
+    const preservePlayback = action !== 'play-pause' && action !== 'pip' && !video.paused;
 
     if (action === 'rewind' || action === 'forward') {
       const offset = action === 'rewind' ? -10 : 10;
@@ -2299,20 +2690,26 @@
         video.webkitShowPlaybackTargetPicker();
       }
     } else if (action === 'pip') {
-      video.removeAttribute('disablepictureinpicture');
-      try {
-        video.disablePictureInPicture = false;
-      } catch {}
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture?.();
-      } else if (typeof video.requestPictureInPicture === 'function') {
-        await video.requestPictureInPicture();
-      } else if (typeof video.webkitSetPresentationMode === 'function') {
-        const mode =
-          video.webkitPresentationMode === 'picture-in-picture'
-            ? 'inline'
-            : 'picture-in-picture';
-        video.webkitSetPresentationMode(mode);
+      if (video.paused && !video.ended) {
+        state.wantsPlayback = true;
+        state.userPauseUntil = 0;
+        try {
+          video.play();
+        } catch {}
+      }
+      if (videoInSystemMiniPlayer(video)) {
+        leaveSystemMiniPlayer(video);
+        if (document.pictureInPictureElement === video) {
+          try {
+            await document.exitPictureInPicture();
+          } catch {}
+        }
+      } else if (!enterSystemMiniPlayer(video)) {
+        if (typeof video.requestPictureInPicture === 'function') {
+          try {
+            await video.requestPictureInPicture();
+          } catch {}
+        }
       }
     } else if (action === 'fullscreen') {
       state.fullscreenIntentUntil = Date.now() + 2000;
@@ -2447,7 +2844,9 @@
 
     const button = target.closest('[data-fyp-player-action]');
     if (!(button instanceof HTMLButtonElement)) return;
-    if (event.cancelable) event.preventDefault();
+    if (button.dataset.fypPlayerAction !== 'pip' && event.cancelable) {
+      event.preventDefault();
+    }
     event.stopImmediatePropagation();
     if (!acceptSinglePlayerControlAction(button)) return;
     void runPlayerControlAction(button.dataset.fypPlayerAction, button);
@@ -2480,6 +2879,14 @@
     if (window.scrollX) window.scrollTo(0, window.scrollY);
   }
 
+  /*
+   * WHAT: Marks a video so WebKit keeps it inline and still allows AirPlay.
+   * IDEALOGY: Inline playback is set on the element itself before native play, because a later patch cannot undo a fullscreen choice WebKit already made.
+   * FLOW:
+   *   video present --> set playsinline and AirPlay --> clear the PiP disable flag --> video can start inline
+   * HOW: Sets the inline marker plus playsinline and webkit-playsinline when they are missing, and sets x-webkit-airplay to allow. It also assigns playsInline and webkitPlaysInline, then removes disablepictureinpicture when that property write succeeds.
+   * EVENT LOG: Called from video creation, play, attachVideo, and the WebKit lifecycle listener. No listener of its own.
+   */
   function enforceInlinePlayback(video) {
     if (!video) return;
     video.setAttribute('data-fyp-inline-playback', 'true');
@@ -2540,10 +2947,12 @@
   }
 
   /*
-   * WebKit can choose native fullscreen before a late play() patch takes
-   * effect. Mark video elements at creation time, then repeat immediately
-   * before native play(). Fullscreen entry remains available only for the two
-   * seconds following a real tap on YouTube's fullscreen control.
+   * WHAT: Stops WebKit from putting the watch video into native fullscreen unless fullscreen was just tapped.
+   * IDEALOGY: One guard owns creation, source, and play so inline playback is already set before YouTube's player calls the browser. Fullscreen stays available only after a real control tap.
+   * FLOW:
+   *   first install --> mark new videos inline --> ignore unsolicited fullscreen --> a recent fullscreen tap still enters
+   * HOW: Patches element creation so new videos are marked inline, and marks a video again before its src is set and before play. Fullscreen methods and a presentation mode of fullscreen are ignored unless a fullscreen control was tapped in the last two seconds. Added video nodes are marked as they appear.
+   * EVENT LOG: pointerdown or touchstart, click, play, and a MutationObserver. Also patches play, setAttribute, the src setter, requestFullscreen, and webkitSetPresentationMode.
    */
   function installInlinePlaybackGuard() {
     const flag = '__ytMobileOrionInlinePlaybackGuardV2';
@@ -2707,6 +3116,14 @@
 
   installInlinePlaybackGuard();
 
+  /*
+   * WHAT: Keeps one watch video as the element that play, pause, and resume follow.
+   * IDEALOGY: One attached video owns inline playback and the media session so preview clips do not each claim background audio.
+   * FLOW:
+   *   found video --> drop listeners on the previous one --> mark this video --> play and pause stay attached
+   * HOW: If this video is already current, it only reapplies inline playback and caption dedupe. Otherwise it clears the previous listeners, stores the new video, marks it attached, and listens for play, pause, ended, metadata, time updates, and WebKit lifecycle changes. A video that is already playing claims the media session.
+   * EVENT LOG: play, playing, pause, ended, loadedmetadata, timeupdate, and the WebKit lifecycle list from loadstart through webkitcurrentplaybacktargetiswirelesschanged.
+   */
   function attachVideo(video) {
     if (!video || video === state.video) {
       if (video) {
@@ -3184,6 +3601,14 @@
     syncMediaSessionPlayback(video);
   }
 
+  /*
+   * WHAT: Wires lock-screen play, pause, and seek to this tab's video.
+   * IDEALOGY: Only the owning tab installs handlers, so another tab's claim can deactivate this one instead of both writing navigator.mediaSession.
+   * FLOW:
+   *   this tab owns the session --> refresh metadata --> set play, pause, and seek --> lock screen controls this video
+   * HOW: Returns when mediaSession is missing. If this tab does not own the session, it deactivates. Otherwise, unless handlers were installed recently, it updates metadata and sets play, pause, seek back, seek forward, and seek to.
+   * EVENT LOG: navigator.mediaSession.setActionHandler, driven by attachVideo, play, visibilitychange, and the storage event when this tab still owns the key.
+   */
   function installMediaSessionHandlers({ force = false } = {}) {
     if (!('mediaSession' in navigator)) return;
     if (!ownsMediaSession()) {
@@ -3221,6 +3646,14 @@
     }
   }
 
+  /*
+   * WHAT: Claims the current video and starts background recovery when the page leaves the screen.
+   * IDEALOGY: Background audio stays with the tab that owns the media session, and a recent intentional pause is left alone.
+   * FLOW:
+   *   page hides --> attach the current video --> claim the session if it is playing --> recover only if playback is still wanted
+   * HOW: Attaches the current or found video, claims the session when it is still playing, installs session handlers, and sets the audio session type to playback. If the user-pause window has passed and the video is playing, it marks playback as wanted and then recovers.
+   * EVENT LOG: visibilitychange, webkitvisibilitychange, freeze, pagehide, and window blur.
+   */
   function prepareForBackground() {
     const video = state.video || findVideo();
     if (!video) return;
@@ -3277,6 +3710,14 @@
     );
   }
 
+  /*
+   * WHAT: Skips a playing ad by clicking skip or moving that ad video toward its end.
+   * IDEALOGY: Skip stays on the player that is actually showing an ad, then the watch video is attached again so recovery does not stay on the ad.
+   * FLOW:
+   *   interval --> click skip buttons --> ad still showing? seek or raise its rate --> otherwise reattach the watch video
+   * HOW: Clicks the known skip buttons. If the player is not in a short interrupting ad, it restores any raised playback rate and reattaches the watch video. While that ad is showing, it seeks a short ad to its duration, or raises the playback rate when the seek does not apply.
+   * EVENT LOG: The 300ms interval started at the end of the script. Uses button click, currentTime, and playbackRate.
+   */
   function skipPlayerAd() {
     document.querySelectorAll(SKIP_BUTTON_SELECTOR).forEach((button) => {
       if (button instanceof HTMLElement) button.click();
@@ -3361,6 +3802,14 @@
     });
   }
 
+  /*
+   * WHAT: Unlocks page scrolling after the hamburger drawer has actually closed.
+   * IDEALOGY: Closing the drawer can leave overflow hidden because the hidden mini-guide rail is the state YouTube expects to restore. This only clears that leftover lock and does not write the drawer's opened state.
+   * FLOW:
+   *   guide close or scan --> drawer or dialog still open? stop --> remove overflow hidden --> page scrolls again
+   * HOW: Returns while the guide is open, opening, peeking, or another overlay dialog is open. Otherwise it removes inline overflow hidden from html, body, and the app nodes, and clears aria-hidden on ytd-app.
+   * EVENT LOG: yt-guide-close, iron-overlay-closed, plus calls from scanPage and yt-navigate-finish.
+   */
   function restoreScrollAfterGuideClose() {
     /*
      * After close, Polymer may keep overflow:hidden on html/body/ytd-app
@@ -3392,6 +3841,14 @@
     }
   }
 
+  /*
+   * WHAT: Removes an ad-block warning dialog and resumes a paused watch video that is already ready.
+   * IDEALOGY: The warning is a page dialog, so it is removed only when its text matches that warning. The guide drawer keeps its own close path.
+   * FLOW:
+   *   interval --> matching warning text --> remove the dialog and leftover backdrop --> play if the watch video was paused and ready
+   * HOW: Checks enforcement, error, and dialog nodes and removes one whose text matches the ad-block warning. After a removal it clears orphan backdrops, restores scroll, then attaches and plays a paused watch video that already has data.
+   * EVENT LOG: The 300ms interval started at the end of the script.
+   */
   function dismissAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -3456,6 +3913,14 @@
     root.querySelectorAll?.(selector).forEach((element) => element.remove());
   }
 
+  /*
+   * WHAT: Installs the mobile layout stylesheet that reshapes desktop YouTube on a phone.
+   * IDEALOGY: One style node owns layout so later scans do not keep rewriting CSS against YouTube Polymer.
+   * FLOW:
+   *   startup --> style missing or layout id changed --> write stylesheet --> page uses that version
+   * HOW: Finds or creates the style element, then returns when its layout version already matches. Otherwise it stamps the current layout version and replaces the stylesheet text.
+   * EVENT LOG: Called once during script startup, after the page listeners are registered.
+   */
   function injectStyle() {
     let style = document.getElementById(STYLE_ID);
     if (!style) {
@@ -4971,7 +5436,7 @@
           background: transparent !important;
           border: none !important;
           border-radius: 50% !important;
-          color: var(--yt-spec-text-primary, #0f0f0f) !important;
+          color: #fff !important;
           cursor: pointer !important;
           visibility: visible !important;
           opacity: 1 !important;
@@ -4981,7 +5446,9 @@
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton,
         html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
-        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy {
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton {
           color: #fff !important;
         }
 
@@ -4991,8 +5458,16 @@
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton svg {
           width: 22px !important;
           height: 22px !important;
-          color: inherit !important;
-          fill: currentColor !important;
+          color: #fff !important;
+          fill: #fff !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy path:not([fill='none']),
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton path:not([fill='none']) {
+          fill: #fff !important;
+          color: #fff !important;
         }
 
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button,
@@ -5080,14 +5555,15 @@
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} {
         box-sizing: border-box;
-        position: relative;
-        z-index: 100;
+        position: relative !important;
+        z-index: 2147483646 !important;
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
         pointer-events: auto !important;
         isolation: isolate;
-        flex-wrap: wrap;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         float: none !important;
         clear: both !important;
         width: 100% !important;
@@ -5096,13 +5572,13 @@
         min-height: 4rem;
         margin: clamp(.25rem, 1.2vw, .45rem) 0 clamp(.5rem, 2.4vw, .8rem) !important;
         padding: clamp(.45rem, 2vw, .7rem);
-        gap: clamp(.65rem, 3vw, 1rem);
+        gap: .35rem;
         justify-content: center;
         align-items: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, .2) !important;
         border-radius: clamp(.85rem, 4vw, 1.2rem);
-        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .06));
+        background: #111 !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         overflow: visible;
@@ -5111,9 +5587,9 @@
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID},
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID},
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} {
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, .14);
-        background: rgba(255, 255, 255, .08);
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, .2) !important;
+        background: #111 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
@@ -5122,18 +5598,23 @@
         display: inline-flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        flex: 0 0 auto;
-        width: clamp(3rem, 14vw, 3.75rem);
-        min-width: 3rem;
-        height: clamp(3rem, 13vw, 3.5rem);
+        flex: 0 0 3.25rem !important;
+        position: relative !important;
+        z-index: 2147483646 !important;
+        width: 3.25rem !important;
+        min-width: 3.25rem !important;
+        max-width: 3.25rem !important;
+        height: 3.25rem !important;
         margin: 0;
         padding: 0;
         align-items: center;
         justify-content: center;
-        color: currentColor;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
         background: transparent !important;
         border: 0 !important;
         border-radius: 0;
+        overflow: visible;
         cursor: pointer;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -5142,14 +5623,19 @@
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
-        color: #fff;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
         background: transparent !important;
         border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: currentColor;
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
         background: transparent !important;
         border: 0 !important;
       }
@@ -5160,7 +5646,8 @@
         .fyp-player-control[data-fyp-player-action='play-pause'],
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: currentColor;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
         background: transparent !important;
         border: 0 !important;
       }
@@ -5169,7 +5656,8 @@
         .fyp-player-control[aria-pressed='true']:not(
           [data-fyp-player-action='play-pause']
       ) {
-        color: currentColor;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
         background: transparent !important;
         border: 0 !important;
       }
@@ -5191,19 +5679,63 @@
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
         display: block !important;
+        position: relative !important;
+        z-index: 2147483646 !important;
         flex: 0 0 auto;
-        width: clamp(1.5rem, 7vw, 1.9rem) !important;
-        height: clamp(1.5rem, 7vw, 1.9rem) !important;
+        width: 2rem !important;
+        height: 2rem !important;
         max-width: none;
         max-height: none;
         overflow: visible;
-        color: currentColor;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #fff !important;
+        forced-color-adjust: none;
+        pointer-events: none;
       }
 
+      /* Same idea as the search overlay: one owned control, one state.
+         A second icon must never paint over the rest of the strip. */
       #${PLAYER_CONTROLS_TOOLBAR_ID}
-        .fyp-player-control[data-fyp-player-action='play-pause'] svg {
-        fill: currentColor;
-        stroke: none;
+        .fyp-player-control[data-fyp-player-action='play-pause']
+        > svg
+        ~ svg {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        pointer-events: none !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='none']:not([stroke='#fff']) {
+        fill: none !important;
+        stroke: none !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='#fff'] {
+        stroke: #fff !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] polyline:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] polyline:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] circle:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] circle:not([fill='#fff']) {
+        fill: none !important;
+        stroke: #fff !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentcolor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='#fff'] {
+        fill: #fff !important;
+        stroke: none !important;
       }
 
       /* Native settings gear stays available; overflow/more clutter stays hidden. */
@@ -5678,6 +6210,14 @@
     element.dataset.fypShortsHidden = 'true';
   }
 
+  /*
+   * WHAT: Hides Shorts, Playables, and shelves that lead to them.
+   * IDEALOGY: Those items are removed from the desktop page so shelves and guide links cannot keep opening them.
+   * FLOW:
+   *   a node or the document --> collect shorts nodes and matching shelves --> hide the container --> guide entries are hidden too
+   * HOW: Collects nodes that match the shorts selector and shelves whose links, title, or label mention shorts, playables, or mini-games. Each hit is hidden at its container, then shorts entries in the guide are hidden.
+   * EVENT LOG: Called by the shorts MutationObserver and by yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
   function removeShortsAndPlayables(root = document) {
     const candidates = new Set();
     const collect = (node) => {
@@ -5725,6 +6265,14 @@
     hideShortsGuideEntries(root);
   }
 
+  /*
+   * WHAT: Keeps Shorts hidden as YouTube adds shelves and navigates.
+   * IDEALOGY: One observer owns shorts removal so each new shelf is hidden without a second full-page sweep fighting the first.
+   * FLOW:
+   *   startup --> hide current shorts --> watch added nodes --> hide again on navigation
+   * HOW: Returns if the observer already exists. Otherwise it hides shorts once, watches the document for added elements, and hides shorts inside each added root. Navigation and page-show events hide shorts on the whole document again.
+   * EVENT LOG: MutationObserver, yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
   function installShortsRemovalListener() {
     if (shortsRemovalObserver) return;
 
@@ -5927,6 +6475,14 @@
     return isSearchField(input) ? input : null;
   }
 
+  /*
+   * WHAT: Creates the search dialog that opens from the masthead.
+   * IDEALOGY: The overlay is separate from YouTube's search field, so a swap between input and textarea cannot break focus or submit.
+   * FLOW:
+   *   first search open --> build dialog, field, and submit icon --> listen for submit --> overlay is ready
+   * HOW: Returns the existing overlay. Otherwise it builds a hidden dialog with a search field and a painted submit button and appends it. A backdrop tap closes it. Form submit and Enter run the search.
+   * EVENT LOG: submit and keydown on the form, plus click and touchstart on the backdrop. Built from the search click handler and applyMobileShell.
+   */
   function ensureMobileSearchElements() {
     const existing = document.getElementById(SEARCH_OVERLAY_ID);
     if (existing) return existing;
@@ -5963,7 +6519,7 @@
     submit.className = 'fyp-search-submit';
     submit.setAttribute('aria-label', 'Search');
     submit.title = 'Search';
-    replaceIconContents(submit, SEARCH_BUTTON_ICON_MARKUP);
+    submit.textContent = 'Search';
 
     form.append(input, submit);
     dialog.append(form);
@@ -6023,6 +6579,14 @@
     return url.href;
   }
 
+  /*
+   * WHAT: Sends a typed query to YouTube search results and closes the overlay.
+   * IDEALOGY: Submit uses the desktop results URL the shell already targets, instead of handing the query to the masthead form.
+   * FLOW:
+   *   non-empty query --> close overlay --> assign the results URL --> search results page
+   * HOW: Collapses extra whitespace and focuses the field again when the query is empty. A real query closes the overlay, then navigates to the desktop host results page with search_query set.
+   * EVENT LOG: Called from the overlay form submit and the field Enter key. Uses location.assign.
+   */
   function submitMobileSearch(rawQuery) {
     const query = String(rawQuery || '').replace(/\s+/g, ' ').trim();
     const input = document.getElementById(SEARCH_OVERLAY_INPUT_ID);
@@ -6033,6 +6597,8 @@
     closeMobileSearch();
     location.assign(buildYouTubeSearchUrl(query));
   }
+
+  let searchOverlayHideTimer = 0;
 
   function closeMobileSearch() {
     const masthead = document.querySelector('ytd-masthead');
@@ -6050,13 +6616,26 @@
 
     const overlay = document.getElementById(SEARCH_OVERLAY_ID);
     if (overlay) {
-      overlay.hidden = true;
       overlay.removeAttribute('data-open');
       overlay.setAttribute('aria-hidden', 'true');
+      for (const property of ['display', 'visibility', 'opacity', 'pointer-events']) {
+        overlay.style.removeProperty(property);
+      }
+      const dialog = overlay.querySelector('[data-fyp-search-dialog]');
+      if (dialog instanceof HTMLElement) {
+        dialog.style.removeProperty('transition');
+        dialog.style.removeProperty('transform');
+        dialog.style.removeProperty('opacity');
+      }
       const input = overlay.querySelector(`#${SEARCH_OVERLAY_INPUT_ID}`);
       if (isSearchField(input)) {
         try { input.blur(); } catch {}
       }
+      clearTimeout(searchOverlayHideTimer);
+      searchOverlayHideTimer = setTimeout(() => {
+        if (overlay.getAttribute('data-open') === 'true') return;
+        overlay.hidden = true;
+      }, 420);
     }
     const nativeInput = findNativeSearchInput(masthead);
     if (nativeInput) {
@@ -6067,15 +6646,27 @@
   }
 
   /*
-   * The YouTube masthead is only the trigger. FYP owns a separate, stable
-   * overlay so YouTube can switch between input and textarea implementations
-   * without breaking focus or submit behavior. Synchronous focus keeps the
-   * virtual keyboard eligible on iOS/WebKit.
+   * WHAT: Opens the search overlay when the masthead search control is tapped.
+   * IDEALOGY: The masthead is only the trigger. A separate overlay keeps focus reliable when YouTube changes the search field.
+   * FLOW:
+   *   search trigger tap --> close the guide --> show the overlay and copy any native query --> focus the field
+   * HOW: Ignores taps inside the overlay and taps when it is already open. A real trigger cancels the event, closes the guide drawer, builds the overlay, copies the native field value, marks search active, and focuses the field with the caret at the end.
+   * EVENT LOG: document click and touchstart. Focus uses the overlay input's focus method.
    */
   function handleMobileSearchClick(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (target.closest(`#${SEARCH_OVERLAY_ID}`)) return;
+
+    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
+    if (!trigger) return;
+
+    // iOS opens the keyboard from the click that follows touchstart.
+    // preventDefault on touchstart cancels that click, so the field never focuses.
+    if (event.type === 'touchstart') {
+      event.stopImmediatePropagation();
+      return;
+    }
 
     const masthead = target.closest('ytd-masthead') || document.querySelector('ytd-masthead');
     if (!masthead) return;
@@ -6083,9 +6674,6 @@
     const alreadyOpen =
       document.documentElement?.getAttribute('data-fyp-search-active') === 'true';
     if (alreadyOpen) return;
-
-    const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
-    if (!trigger) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -6103,14 +6691,20 @@
 
     const nativeInput = findNativeSearchInput(masthead);
     input.value = nativeInput?.value || '';
-    try { nativeInput?.blur(); } catch {}
 
     masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
     document.documentElement?.setAttribute('data-fyp-search-active', 'true');
     document.body?.setAttribute('data-fyp-search-active', 'true');
+    clearTimeout(searchOverlayHideTimer);
     overlay.hidden = false;
     overlay.setAttribute('data-open', 'true');
     overlay.setAttribute('aria-hidden', 'false');
+    setImportantStyles(overlay, {
+      display: 'flex',
+      visibility: 'visible',
+      opacity: '1',
+      'pointer-events': 'auto',
+    });
     trigger.setAttribute('aria-expanded', 'true');
     hideAskGeminiControls();
     ensureGuideButtonVisible();
@@ -6129,26 +6723,25 @@
       btn.setAttribute('aria-hidden', 'true');
     }
 
-    // Focus the FYP-owned field synchronously inside the user gesture.
-    try {
-      input.focus({ preventScroll: true });
-    } catch {
-      input.focus();
-    }
+    // The field is already visible. Focus inside this click so iOS opens the keyboard.
     const end = input.value.length;
+    try {
+      input.focus();
+    } catch {
+      // ignore
+    }
     input.setSelectionRange?.(end, end);
-
-    requestAnimationFrame(() => {
-      if (document.documentElement?.getAttribute('data-fyp-search-active') !== 'true') return;
-      try {
-        input.focus({ preventScroll: true });
-      } catch {
-        // ignore
-      }
-      input.setSelectionRange?.(input.value.length, input.value.length);
-    });
+    try { nativeInput?.blur(); } catch {}
   }
 
+  /*
+   * WHAT: Hides YouTube's page miniplayer when the shell refreshes.
+   * IDEALOGY: The floating YouTube miniplayer is not the phone layout, so the shell turns it off instead of leaving a second player on screen.
+   * FLOW:
+   *   scan or navigation --> clear miniplayer flags --> hide miniplayer nodes --> click close when one is present
+   * HOW: Clears miniplayer-active attributes and properties on ytd-app. It hides the miniplayer nodes, clears their active state, and clicks close buttons whose label includes Close.
+   * EVENT LOG: Called from scanPage, yt-navigate-finish, popstate, and applyMobileShell. Uses a click on the close button.
+   */
   function dismissMiniplayer() {
     const app = document.querySelector('ytd-app');
     if (app) {
@@ -6226,6 +6819,14 @@
     } catch {}
   }
 
+  /*
+   * WHAT: Keeps the hamburger drawer as the only navigation, without swipe or the mini-guide rail.
+   * IDEALOGY: Navigation is a single tap on the guide button. The rail and swipe are turned off so they do not sit beside the drawer.
+   * FLOW:
+   *   guide button sync --> hide the mini-guide --> disable drawer swipe --> leftover scroll lock is cleared
+   * HOW: Hides each mini-guide renderer and zeroes the mini-guide width variables on ytd-app. Each guide drawer gets disable-swipe, shorts entries in the guide are hidden, and scroll restore runs afterward.
+   * EVENT LOG: Called at the end of ensureGuideButtonVisible, which scanPage and yt-navigate-finish call.
+   */
   function lockGuideToTapOnly() {
     for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
       setImportantStyles(mini, {
@@ -6391,6 +6992,7 @@
   function applyMobileShell() {
     hideNativeNavigationAndShorts();
     ensureGuideButtonVisible();
+    paintMastheadSearchIcons();
     ensureMobileSearchElements();
     hideAskGeminiControls();
     hideUploadControls();
@@ -6926,25 +7528,32 @@
     return true;
   }
 
+  function watchIdFromLocation() {
+    try {
+      return new URL(location.href).searchParams.get('v') || '';
+    } catch {
+      return '';
+    }
+  }
+
   function isVisibleWatchRoot(watch) {
     if (!(watch instanceof Element) || !watch.isConnected) return false;
-    for (let node = watch; node instanceof Element; node = node.parentElement) {
-      if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true') {
-        return false;
-      }
-      const style = getComputedStyle(node);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-    }
+    if (watch.hasAttribute('hidden')) return false;
+    const style = getComputedStyle(watch);
+    if (style.display === 'none') return false;
     return true;
   }
 
   function findVisibleWatchRoot() {
-    const candidates = [
-      ...document.querySelectorAll(
-        'ytd-app[is-watch-page] ytd-watch-flexy, ytd-watch-flexy[video-id], ytd-watch-flexy'
-      ),
-    ];
-    return candidates.find(isVisibleWatchRoot) || null;
+    const wanted = watchIdFromLocation();
+    const nodes = [...document.querySelectorAll('ytd-watch-flexy')].filter(
+      isVisibleWatchRoot
+    );
+    if (wanted) {
+      const match = nodes.find((node) => node.getAttribute('video-id') === wanted);
+      if (match) return match;
+    }
+    return nodes[nodes.length - 1] || null;
   }
 
   function findActivePlayerElement() {
@@ -7088,6 +7697,28 @@
     return false;
   }
 
+  /*
+   * WHAT: Places the control strip under the watch title, or the next available watch slot.
+   * IDEALOGY: The strip stays in the title and metadata block, using the first real watch anchor instead of YouTube's player overlay.
+   * FLOW:
+   *   toolbar and watch anchors --> title, metadata, below, player, or watch --> insert --> strip is in the page
+   * HOW: Inserts after the title when one exists. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
+   * EVENT LOG: Called from ensurePlayerControlsToolbar. No event of its own.
+   */
+  function raisePlayerControlsStack(toolbar) {
+    if (!(toolbar instanceof HTMLElement)) return;
+    toolbar.style.setProperty('position', 'relative', 'important');
+    toolbar.style.setProperty('z-index', '2147483646', 'important');
+    toolbar.style.setProperty('overflow', 'visible', 'important');
+    const parent = toolbar.parentElement;
+    if (!(parent instanceof HTMLElement) || parent === document.body) return;
+    if (parent.dataset.fypControlsRaised === 'true') return;
+    parent.dataset.fypControlsRaised = 'true';
+    parent.style.setProperty('position', 'relative', 'important');
+    parent.style.setProperty('z-index', '2147483645', 'important');
+    parent.style.setProperty('overflow', 'visible', 'important');
+  }
+
   function mountPlayerControlsToolbar(
     toolbar,
     title,
@@ -7119,6 +7750,14 @@
     return false;
   }
 
+  /*
+   * WHAT: Creates the watch control strip and keeps it in the title block.
+   * IDEALOGY: One toolbar id owns the strip. Off a watch page it is removed so other pages do not keep player buttons.
+   * FLOW:
+   *   /watch with a visible watch root --> create or reuse the toolbar --> mount if misplaced --> sync the buttons
+   * HOW: Removes the toolbar only when the path is not /watch. A missing watch root during a video change is left alone, because YouTube hides the old page before the new one exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, moves it when it is on the wrong video or inside the collapsed player, and syncs the buttons.
+   * EVENT LOG: Called from scanPage and from the toolbar retry schedule after yt-navigate-finish, popstate, and pageshow.
+   */
   function ensurePlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
@@ -7126,10 +7765,7 @@
     }
 
     const watch = findVisibleWatchRoot();
-    if (!watch) {
-      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
-      return;
-    }
+    if (!watch) return;
     const title = findWatchTitleAnchor();
     const metadata = findWatchMetadataHost();
     const below = findWatchBelowHost();
@@ -7157,16 +7793,12 @@
       toolbar.replaceChildren(...createPlayerControlButtons());
     }
 
-    if (
-      !toolbarIsCorrectlyPlaced(
-        toolbar,
-        title,
-        metadata,
-        below,
-        playerHost,
-        watch
-      )
-    ) {
+    const onThisWatch =
+      toolbar.isConnected &&
+      toolbar.closest('ytd-watch-flexy') === watch &&
+      !toolbar.closest(COLLAPSED_PLAYER_SHELL_SELECTOR);
+    const settledOnTitle = toolbar.dataset.fypControlsAnchor === 'title';
+    if (!onThisWatch || (!settledOnTitle && title instanceof Element)) {
       mountPlayerControlsToolbar(
         toolbar,
         title,
@@ -7175,12 +7807,18 @@
         playerHost,
         watch
       );
+      if (title instanceof Element && toolbar.previousElementSibling === title) {
+        toolbar.dataset.fypControlsAnchor = 'title';
+      } else {
+        delete toolbar.dataset.fypControlsAnchor;
+      }
     }
+    raisePlayerControlsStack(toolbar);
     syncCustomPlayerControls();
   }
 
   const PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
-    0, 60, 160, 400, 900, 1800, 3500,
+    0, 60, 160, 400, 900, 1800, 3500, 6000, 10000,
   ]);
   let playerControlsToolbarScheduleToken = 0;
 
@@ -7269,6 +7907,14 @@
 
   let lastPageScanAt = 0;
 
+  /*
+   * WHAT: Refreshes the phone shell, search layout, controls, and attached video after the page changes.
+   * IDEALOGY: YouTube swaps watch DOM without a full load, so one scan reapplies the shell instead of patching each Polymer render.
+   * FLOW:
+   *   DOM ready or mutation --> scan --> shell, guide, controls, video --> page matches the current route
+   * HOW: Records the scan time and sends Shorts or Playables routes home. Then it applies the shell, search layout, guide button, scroll restore, upload hide, and miniplayer dismiss, mounts the control strip, and attaches the current watch video.
+   * EVENT LOG: DOMContentLoaded, the document MutationObserver, and an immediate call when the document is already loaded.
+   */
   function scanPage() {
     lastPageScanAt = Date.now();
     ensureViewport();
@@ -7317,6 +7963,9 @@
     restoreScrollAfterGuideClose,
     true
   );
+  nativeDocumentAddEventListener('yt-navigate-start', () => {
+    if (location.pathname === '/watch') schedulePlayerControlsToolbar();
+  }, true);
   nativeDocumentAddEventListener('yt-navigate-finish', () => {
     if (redirectChannelRootToVideos()) return;
     if (
