@@ -60,26 +60,27 @@ assert.match(
 );
 assert.match(
   source,
-  /function arrangeWatchComments\(\) \{\s*positionCommentsAfterRecommendations\(\);\s*removeLegacyCommentPagination\(\);/
+  /function arrangeWatchComments\(\) \{\s*restoreNativeCommentControls\(\);\s*positionCommentsAfterRecommendations\(\);\s*removeLegacyCommentPagination\(\);/
 );
 assert.match(
   source,
   /ytd-commentbox #contenteditable-root,[\s\S]*font-size: 16px !important;/
 );
-assert.match(source, /comment\.querySelector\('#main'\)/);
-assert.match(source, /nativeEngagement\.insertAdjacentElement\('afterend', actions\)/);
-assert.match(source, /vm-yt-comment-action-label/);
-assert.match(source, /fill: 'currentColor'/);
-assert.match(source, /height: '44px'/);
+assert.match(source, /function restoreNativeCommentControls\(root = document\)/);
+assert.match(
+  source,
+  /function arrangeWatchComments\(\) \{\s*restoreNativeCommentControls\(\);\s*positionCommentsAfterRecommendations\(\);/
+);
 assert.match(source, /order: 4 !important/);
 assert.doesNotMatch(
   source,
-  /ytd-comment-view-model\[data-vm-comment-enhanced='true'\][\s\S]*?padding:/
+  /comment\.dataset\.vmCommentEnhanced = 'true'/
 );
 assert.doesNotMatch(
   source,
-  /comment\.dataset\.vmCommentEnhanced = 'true';\s*setImportantStyles\(comment/
+  /actions\.className = 'vm-yt-comment-actions'|button\.className = 'vm-yt-comment-action'/
 );
-assert.doesNotMatch(source, /vm-yt-comment-action[\s\S]{0,900}flex: '1 1 50%'/);
+assert.doesNotMatch(source, /function enhanceComments\(/);
+assert.doesNotMatch(source, /#toolbar\.ytd-comment-view-model[\s\S]*display: none/);
 
-console.log('recommendations precede native comments without focus zoom: ok');
+console.log('native comments preserve YouTube actions without focus zoom: ok');

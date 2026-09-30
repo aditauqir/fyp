@@ -84,7 +84,11 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(source, /lucide lucide-settings/);
 assert.doesNotMatch(source, /playerControlButtonMarkup\(\s*'quality'/);
-assert.match(source, /lucide lucide-airplay/);
+assert.match(source, /stroke-opacity=\"\.4\"/);
+assert.match(source, /M0 0h512v512H0z/);
+assert.match(source, /M3 2\.803a1 1 0 0 1 1\.5-\.865/);
+assert.match(source, /M11 7H8v10h3zm2 10h3V7h-3z/);
+assert.match(source, /M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12/);
 assert.match(source, /webkitShowPlaybackTargetPicker/);
 assert.match(source, /x-webkit-airplay', 'allow'/);
 assert.match(source, /video\.currentTime \+ offset/);
@@ -139,10 +143,23 @@ assert.match(
 );
 assert.doesNotMatch(source, /fypPlayerHoverSimulated/);
 assert.match(source, /playButton\.dataset\.fypPlaybackState !== playbackState/);
-assert.match(source, /M8 5v14l11-7z/);
-assert.match(source, /M6 4h4v16H6zm8 0h4v16h-4z/);
+assert.match(source, /M3 2\.803a1 1 0 0 1 1\.5-\.865/);
+assert.match(source, /M11 7H8v10h3zm2 10h3V7h-3z/);
 assert.match(source, /stroke: none/);
-assert.match(source, /clamp\(2\.9rem, 13vw, 3\.45rem\)/);
+assert.doesNotMatch(
+  source,
+  /#\$\{PLAYER_CONTROLS_TOOLBAR_ID\} \.fyp-player-control svg \{[^}]*fill: none/
+);
+assert.match(source, /gap: clamp\(\.65rem, 3vw, 1rem\)/);
+assert.match(source, /width: clamp\(3rem, 14vw, 3\.75rem\)/);
+assert.match(source, /min-width: 3rem/);
+assert.match(source, /height: clamp\(3rem, 13vw, 3\.5rem\)/);
+assert.match(source, /background: transparent !important;/);
+assert.match(source, /border: 0 !important;/);
+assert.match(source, /border-radius: 0;/);
+assert.match(source, /-webkit-tap-highlight-color: transparent/);
+assert.match(source, /width: clamp\(1\.5rem, 7vw, 1\.9rem\) !important/);
+assert.match(source, /height: clamp\(1\.5rem, 7vw, 1\.9rem\) !important/);
 assert.match(source, /state\.video\.isConnected/);
 assert.match(source, /function updateMediaSessionMetadata\(\)/);
 assert.match(source, /navigator\.mediaSession\.metadata = new MediaMetadata/);

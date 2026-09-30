@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      3.2.0
-// @release-label 3.2.0
+// @version      3.2.3
+// @release-label 3.2.3
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.0');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.3');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -1596,19 +1596,24 @@
   }
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
-    rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    // YouTube-like filled triangle / bars (Material path), not Lucide stroke play/pause.
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
-    forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
-    fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
+    pause:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" d="M11 7H8v10h3zm2 10h3V7h-3z"/></svg>',
+    play:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="currentColor" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"/></svg>',
+    rewind:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M455.979 424.271A24.053 24.053 0 0 0 480 400.251V112.015a24 24 0 0 0-38.285-19.286L264 224.369V112.015a24 24 0 0 0-38.285-19.286L31.155 236.847a24 24 0 0 0 0 38.57l194.56 144.119A24 24 0 0 0 264 400.251V287.9l177.715 131.637a23.92 23.92 0 0 0 14.264 4.734M232 384.37L58.88 256.132L232 127.9ZM448 127.9v256.47L274.88 256.132Z"/></svg>',
+    forward:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M32 111.882v288.236A23.979 23.979 0 0 0 70.285 419.4L248 287.763v112.355a23.979 23.979 0 0 0 38.285 19.282l194.56-144.119a24 24 0 0 0 0-38.57L286.285 92.6A24 24 0 0 0 248 111.882v112.355L70.285 92.6A24 24 0 0 0 32 111.882m248 15.881L453.119 256L280 384.237Zm-216 0L237.119 256L64 384.237Z"/></svg>',
+    pip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" fill-rule="evenodd" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zm3-1h12a1 1 0 0 1 1 1v6.268A2 2 0 0 0 18 12h-4a2 2 0 0 0-2 2v4c0 .364.097.706.268 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"/></svg>',
+    fullscreen:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
     speed:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     airplay:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path stroke-opacity=".4" d="M4.1043 15.8632C2.8523 15.4715 2 14.3118 2 13L2 6C2 4.3431 3.3431 3 5 3L19 3C20.6569 3 22 4.3431 22 6L22 13C22 14.3118 21.1477 15.4715 19.8957 15.8632"/><path fill="currentColor" fill-rule="evenodd" d="M13.6 13.4667L17.6 18.8C17.8596 19.1462 18 19.5673 18 20C18 21.1046 17.1046 22 16 22L8 22C6.8954 22 6 21.1046 6 20C6 19.5673 6.1404 19.1462 6.4 18.8L10.4 13.4667C10.7777 12.9631 11.3705 12.6667 12 12.6667C12.6295 12.6667 13.2223 12.9631 13.6 13.4667Z" clip-rule="evenodd" stroke="none"/></g></svg>',
     collapse:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>',
   });
 
   /*
@@ -5061,77 +5066,6 @@
 
       }
 
-      [data-vm-comment-enhanced='true'] > #toolbar,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-view-model,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-renderer {
-        display: none !important;
-      }
-
-      .vm-yt-comment-actions {
-        box-sizing: border-box;
-        display: flex !important;
-        flex: 0 0 auto !important;
-        align-items: center;
-        align-self: flex-start;
-        width: max-content !important;
-        max-width: 100% !important;
-        height: 44px !important;
-        min-height: 44px !important;
-        max-height: 44px !important;
-        margin-top: clamp(.45rem, 2vw, .75rem);
-        gap: clamp(.4rem, 2vw, .75rem);
-      }
-
-      .vm-yt-comment-action {
-        appearance: none;
-        -webkit-appearance: none;
-        box-sizing: border-box;
-        display: inline-flex !important;
-        flex: 0 0 44px !important;
-        width: 44px !important;
-        min-width: 44px !important;
-        max-width: 44px !important;
-        height: 44px !important;
-        min-height: 44px;
-        max-height: 44px !important;
-        padding: 0 !important;
-        align-items: center;
-        justify-content: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        background: transparent;
-        border: 0;
-        border-radius: 999px;
-        font: 600 14px/1 Roboto, Arial, sans-serif;
-        touch-action: manipulation;
-      }
-
-      .vm-yt-comment-action[data-pressed='true'] {
-        color: #ff0033;
-        background: rgba(255, 0, 51, .1);
-        border-color: rgba(255, 0, 51, .32);
-      }
-
-      .vm-yt-comment-action svg {
-        display: block !important;
-        flex: 0 0 22px !important;
-        width: 22px !important;
-        height: 22px !important;
-        fill: currentColor !important;
-        stroke: none !important;
-      }
-
-      .vm-yt-comment-action-label {
-        position: absolute !important;
-        width: 1px !important;
-        height: 1px !important;
-        margin: -1px !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        clip: rect(0 0 0 0) !important;
-        white-space: nowrap !important;
-        border: 0 !important;
-      }
-
       ytd-comment-simplebox-renderer #placeholder-area,
       ytd-comment-simplebox-renderer #simplebox-placeholder {
         box-sizing: border-box;
@@ -5177,7 +5111,7 @@
         min-height: 4rem;
         margin: clamp(.25rem, 1.2vw, .45rem) 0 clamp(.5rem, 2.4vw, .8rem) !important;
         padding: clamp(.45rem, 2vw, .7rem);
-        gap: clamp(.35rem, 1.8vw, .65rem);
+        gap: clamp(.65rem, 3vw, 1rem);
         justify-content: center;
         align-items: center;
         color: var(--yt-spec-text-primary, #0f0f0f);
@@ -5204,34 +5138,35 @@
         visibility: visible !important;
         opacity: 1 !important;
         flex: 0 0 auto;
-        width: clamp(2.9rem, 13vw, 3.45rem);
-        min-width: 2.9rem;
-        height: clamp(2.75rem, 12vw, 3.25rem);
+        width: clamp(3rem, 14vw, 3.75rem);
+        min-width: 3rem;
+        height: clamp(3rem, 13vw, 3.5rem);
         margin: 0;
-        padding: clamp(.62rem, 2.6vw, .85rem);
+        padding: 0;
         align-items: center;
         justify-content: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .08));
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
-        border-radius: 999px;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0;
         cursor: pointer;
         touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
         color: #fff;
-        background: rgba(255, 255, 255, .12);
-        border: 1px solid rgba(255, 255, 255, .12);
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #fff;
-        background: #0f0f0f;
-        border-color: #0f0f0f;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -5240,18 +5175,18 @@
         .fyp-player-control[data-fyp-player-action='play-pause'],
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #0f0f0f;
-        background: #fff;
-        border-color: #fff;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[aria-pressed='true']:not(
           [data-fyp-player-action='play-pause']
-        ) {
-        color: #fff;
-        background: #ff0033;
-        border-color: #ff0033;
+      ) {
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:active {
@@ -5270,16 +5205,14 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-        max-width: clamp(1.25rem, 5.6vw, 1.6rem);
-        max-height: clamp(1.25rem, 5.6vw, 1.6rem);
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        display: block !important;
+        flex: 0 0 auto;
+        width: clamp(1.5rem, 7vw, 1.9rem) !important;
+        height: clamp(1.5rem, 7vw, 1.9rem) !important;
+        max-width: none;
+        max-height: none;
+        overflow: visible;
+        color: currentColor;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -6698,6 +6631,7 @@
   }
 
   function arrangeWatchComments() {
+    restoreNativeCommentControls();
     positionCommentsAfterRecommendations();
     removeLegacyCommentPagination();
   }
@@ -6955,177 +6889,20 @@
     }
   }
 
-  function findNativeCommentAction(comment, selectors) {
-    return [...comment.querySelectorAll(selectors)].find(
-      (element) => !element.closest('.vm-yt-comment-actions')
-    );
-  }
-
-  function enhanceComments(root = document) {
-    const comments = [
-      ...root.querySelectorAll?.('ytd-comment-view-model') || [],
-      ...[...root.querySelectorAll?.('ytd-comment-renderer') || []].filter(
-        (comment) => !comment.querySelector('ytd-comment-view-model')
-      ),
-    ];
-
-    for (const comment of comments) {
-      if (comment.dataset.vmCommentEnhanced === 'true') continue;
-
-      const likeSelectors = [
-        '#like-button button',
-        'like-button-view-model button',
-        'button[aria-label^="Like"]',
-        '[role="button"][aria-label^="Like"]',
-      ].join(',');
-      const replySelectors = [
-        '#reply-button-end button',
-        'ytd-button-renderer#reply-button button',
-        'button[aria-label^="Reply"]',
-        '[role="button"][aria-label^="Reply"]',
-      ].join(',');
-      if (
-        !findNativeCommentAction(comment, likeSelectors) &&
-        !findNativeCommentAction(comment, replySelectors)
-      ) {
-        continue;
-      }
-
-      comment.dataset.vmCommentEnhanced = 'true';
-
+  function restoreNativeCommentControls(root = document) {
+    const enhancedComments = root.querySelectorAll?.(
+      '[data-vm-comment-enhanced="true"]'
+    ) || [];
+    for (const comment of enhancedComments) {
       for (const toolbar of comment.querySelectorAll('#toolbar')) {
-        setImportantStyles(toolbar, {
-          display: 'none',
-          visibility: 'hidden',
-        });
+        toolbar.style.removeProperty('display');
+        toolbar.style.removeProperty('visibility');
       }
-
-      const actions = document.createElement('div');
-      actions.className = 'vm-yt-comment-actions';
-      setImportantStyles(actions, {
-        'box-sizing': 'border-box',
-        display: 'flex',
-        flex: '0 0 auto',
-        'align-items': 'center',
-        'align-self': 'flex-start',
-        width: 'max-content',
-        'max-width': '100%',
-        height: '44px',
-        'min-height': '44px',
-        'max-height': '44px',
-        'margin-top': '8px',
-        gap: '8px',
-      });
-
-      const createAction = (label, icon) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'vm-yt-comment-action';
-        button.setAttribute('aria-label', `${label} this comment`);
-        const iconElement = svgElementFromMarkup(icon);
-        if (iconElement) {
-          iconElement.setAttribute('viewBox', '0 0 24 24');
-          iconElement.setAttribute('aria-hidden', 'true');
-          setImportantStyles(iconElement, {
-            display: 'block',
-            width: '22px',
-            height: '22px',
-            flex: '0 0 22px',
-            fill: 'currentColor',
-            stroke: 'none',
-          });
-          button.appendChild(iconElement);
-        }
-        const labelElement = document.createElement('span');
-        labelElement.className = 'vm-yt-comment-action-label';
-        labelElement.setAttribute('aria-hidden', 'true');
-        labelElement.textContent = label;
-        button.appendChild(labelElement);
-        setImportantStyles(button, {
-          appearance: 'none',
-          display: 'inline-flex',
-          flex: '0 0 44px',
-          width: '44px',
-          'min-width': '44px',
-          'max-width': '44px',
-          height: '44px',
-          'min-height': '44px',
-          'max-height': '44px',
-          padding: '0',
-          'align-items': 'center',
-          'justify-content': 'center',
-          color: 'var(--yt-spec-text-primary, #0f0f0f)',
-          background: 'transparent',
-          border: '0',
-          'border-radius': '999px',
-          'font-family': 'Roboto, Arial, sans-serif',
-          'font-size': '14px',
-          'font-weight': '600',
-          'line-height': '1',
-          'touch-action': 'manipulation',
-        });
-        return button;
-      };
-
-      const like = createAction(
-        'Like',
-        '<path d="M7 10v11H3V10h4Zm0 9h10.2a2 2 0 0 0 1.9-1.4l1.7-5.5A2 2 0 0 0 18.9 9H14l.7-3.2A2.8 2.8 0 0 0 12 2.5L7 10Z"/>'
-      );
-      const reply = createAction(
-        'Reply',
-        '<path d="M9 17 4 12l5-5v3h5a6 6 0 0 1 6 6v3a7 7 0 0 0-6-6H9v4Z"/>'
-      );
-
-      const syncLikeState = () => {
-        const nativeLike = findNativeCommentAction(comment, likeSelectors);
-        const pressed = Boolean(
-          nativeLike?.getAttribute('aria-pressed') === 'true' ||
-          nativeLike?.closest('[aria-pressed="true"]')
-        );
-        like.dataset.pressed = String(pressed);
-        like.querySelector('span').textContent = pressed ? 'Liked' : 'Like';
-        like.style.setProperty(
-          'color',
-          pressed ? '#ff0033' : 'var(--yt-spec-text-primary, #0f0f0f)',
-          'important'
-        );
-      };
-
-      like.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        findNativeCommentAction(comment, likeSelectors)?.click();
-        setTimeout(syncLikeState, 50);
-        setTimeout(syncLikeState, 350);
-      });
-
-      reply.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nativeReply = findNativeCommentAction(comment, replySelectors);
-        nativeReply?.click();
-        setTimeout(() => {
-          const editor = comment.querySelector(
-            'ytd-commentbox textarea, #contenteditable-root, [contenteditable="true"]'
-          );
-          editor?.focus();
-          editor?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }, 120);
-      });
-
-      actions.append(like, reply);
-      const actionHost =
-        comment.querySelector('#main') ||
-        comment.querySelector('#body, #content') ||
-        comment;
-      const nativeEngagement = comment.querySelector('#action-buttons');
-      if (nativeEngagement?.parentElement === actionHost) {
-        nativeEngagement.insertAdjacentElement('afterend', actions);
-      } else {
-        actionHost.appendChild(actions);
-      }
-      syncLikeState();
+      comment.removeAttribute('data-vm-comment-enhanced');
     }
+    root.querySelectorAll?.('.vm-yt-comment-actions').forEach((actions) => {
+      actions.remove();
+    });
   }
 
   function ensureViewport() {
@@ -7530,7 +7307,6 @@
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
-    enhanceComments();
     removeAdCards();
     const video = findVideo();
     if (video) attachVideo(video);
@@ -7576,7 +7352,6 @@
     schedulePlayerControlsToolbar();
     closeMobileSearch();
     arrangeWatchComments();
-    enhanceComments();
     if (location.pathname === '/watch') {
       void refreshWatchDislikeCount({ force: true });
     }

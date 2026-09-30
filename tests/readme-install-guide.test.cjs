@@ -45,7 +45,7 @@ assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion/);
 assert.match(readme, /repeat steps 7–9 until Orion confirms the install/);
-assert.match(readme, /3\.2\.0_release\.zip/);
+assert.match(readme, /3\.2\.3_release\.zip/);
 assert.match(readme, /### Do not enable Request Desktop Website/);
 assert.match(readme, /Set \*\*Request Desktop Website\*\* to off/);
 assert.match(install, /Do not set Orion \*\*Request Desktop Website\*\*/);
@@ -53,7 +53,7 @@ assert.match(readme, /The extension selects the YouTube backend/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstall/);
 assert.ok(
-  fs.existsSync(path.join(root, '3.2.0_release.zip')),
+  fs.existsSync(path.join(root, '3.2.3_release.zip')),
   'preferred Orion release ZIP'
 );
 assert.match(readme, /Tapping the extension icon shows no buttons/);

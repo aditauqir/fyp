@@ -3,7 +3,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.5.g');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.3');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -24,7 +24,7 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v320-visible-watch';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -47,6 +47,8 @@
   const SEARCH_OVERLAY_ID = 'fyp-search-overlay';
   const SEARCH_OVERLAY_FORM_ID = 'fyp-search-overlay-form';
   const SEARCH_OVERLAY_INPUT_ID = 'fyp-search-overlay-input';
+  const SEARCH_BUTTON_ICON_MARKUP =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-search" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path><path d="M21 21l-6 -6"></path></svg>';
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
@@ -65,6 +67,55 @@
   const MEDIA_SESSION_LEASE_MS = 15000;
   const MEDIA_SESSION_REFRESH_MS = 5000;
   const PAGE_SCAN_MIN_INTERVAL_MS = 1200;
+  const SHORTS_REMOVAL_SELECTOR = [
+    'a[href^="/shorts"]',
+    'a[href*="/shorts/"]',
+    'a[href*="youtube.com/shorts/"]',
+    'a[href^="/playables"]',
+    'a[href*="/playables/"]',
+    'a[href*="youtube.com/playables"]',
+    'button[aria-label="Shorts"]',
+    'button[title="Shorts"]',
+    '[aria-label="Shorts"]',
+    '[title="Shorts"]',
+    '[aria-label*="Playables" i]',
+    '[title*="Playables" i]',
+    '[is-shorts]',
+    '[is-playables]',
+    '[is-playable]',
+    'ytd-reel-shelf-renderer',
+    'ytm-reel-shelf-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'yt-playable-game-renderer',
+    'ytd-game-card-renderer',
+    'ytd-playable-renderer',
+    'ytd-playables-shelf-renderer',
+    'yt-playables-shelf-renderer',
+  ].join(',');
+  const SHORTS_REMOVAL_CONTAINER_SELECTOR = [
+    'ytm-pivot-bar-item-renderer',
+    'ytd-guide-entry-renderer',
+    'ytd-mini-guide-entry-renderer',
+    'yt-tab-shape',
+    '[role="tab"]',
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-rich-shelf-renderer',
+    'ytd-rich-section-renderer',
+    'ytd-reel-shelf-renderer',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'yt-lockup-view-model',
+    'tp-yt-paper-item',
+    'grid-shelf-view-model',
+  ].join(',');
+  let shortsRemovalObserver = null;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
     'hd1080',
@@ -186,17 +237,28 @@
       #${SEARCH_OVERLAY_ID} button[type='submit'] {
         box-sizing: border-box !important;
         flex: 0 0 auto !important;
-        min-width: 76px !important;
-        height: 38px !important;
+        width: 44px !important;
+        min-width: 44px !important;
+        height: 44px !important;
         margin: 0 !important;
-        padding: 0 16px !important;
+        padding: 9px !important;
         color: #fff !important;
         background: #0f0f0f !important;
         border: 0 !important;
-        border-radius: 20px !important;
+        border-radius: 50% !important;
         cursor: pointer !important;
-        font: 600 14px/38px Roboto, Arial, sans-serif !important;
         touch-action: manipulation !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} button[type='submit'] svg {
+        display: block !important;
+        width: 24px !important;
+        height: 24px !important;
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 2 !important;
+        stroke-linecap: round !important;
+        stroke-linejoin: round !important;
       }
 
       html[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
@@ -1507,9 +1569,7 @@
   }
 
   function holdPlayerControlsVisible() {
-    const player = document.querySelector(
-      '#movie_player, .html5-video-player'
-    );
+    const player = findActivePlayerElement();
     if (!(player instanceof HTMLElement)) return;
 
     player.dataset.fypControlsVisible = 'true';
@@ -1521,19 +1581,24 @@
   }
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
-    rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    // YouTube-like filled triangle / bars (Material path), not Lucide stroke play/pause.
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
-    forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
-    fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
+    pause:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" d="M11 7H8v10h3zm2 10h3V7h-3z"/></svg>',
+    play:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="currentColor" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"/></svg>',
+    rewind:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M455.979 424.271A24.053 24.053 0 0 0 480 400.251V112.015a24 24 0 0 0-38.285-19.286L264 224.369V112.015a24 24 0 0 0-38.285-19.286L31.155 236.847a24 24 0 0 0 0 38.57l194.56 144.119A24 24 0 0 0 264 400.251V287.9l177.715 131.637a23.92 23.92 0 0 0 14.264 4.734M232 384.37L58.88 256.132L232 127.9ZM448 127.9v256.47L274.88 256.132Z"/></svg>',
+    forward:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M32 111.882v288.236A23.979 23.979 0 0 0 70.285 419.4L248 287.763v112.355a23.979 23.979 0 0 0 38.285 19.282l194.56-144.119a24 24 0 0 0 0-38.57L286.285 92.6A24 24 0 0 0 248 111.882v112.355L70.285 92.6A24 24 0 0 0 32 111.882m248 15.881L453.119 256L280 384.237Zm-216 0L237.119 256L64 384.237Z"/></svg>',
+    pip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" fill-rule="evenodd" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zm3-1h12a1 1 0 0 1 1 1v6.268A2 2 0 0 0 18 12h-4a2 2 0 0 0-2 2v4c0 .364.097.706.268 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"/></svg>',
+    fullscreen:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
     speed:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     airplay:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path stroke-opacity=".4" d="M4.1043 15.8632C2.8523 15.4715 2 14.3118 2 13L2 6C2 4.3431 3.3431 3 5 3L19 3C20.6569 3 22 4.3431 22 6L22 13C22 14.3118 21.1477 15.4715 19.8957 15.8632"/><path fill="currentColor" fill-rule="evenodd" d="M13.6 13.4667L17.6 18.8C17.8596 19.1462 18 19.5673 18 20C18 21.1046 17.1046 22 16 22L8 22C6.8954 22 6 21.1046 6 20C6 19.5673 6.1404 19.1462 6.4 18.8L10.4 13.4667C10.7777 12.9631 11.3705 12.6667 12 12.6667C12.6295 12.6667 13.2223 12.9631 13.6 13.4667Z" clip-rule="evenodd" stroke="none"/></g></svg>',
     collapse:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>',
   });
 
   /*
@@ -1816,7 +1881,7 @@
   }
 
   function youtubeCaptionTrackList() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.getOption !== 'function') return [];
     try {
       const tracks = player.getOption('captions', 'tracklist');
@@ -1840,7 +1905,7 @@
   }
 
   function selectYouTubeCaptionTrack(selectedTrack) {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.setOption !== 'function') return false;
     try {
       player.loadModule?.('captions');
@@ -1898,7 +1963,7 @@
   }
 
   function currentYouTubeCaptionTrack() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.getOption !== 'function') return null;
     try {
       const track = player.getOption('captions', 'track');
@@ -1933,7 +1998,7 @@
   }
 
   function youtubeQualityOptions() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player) {
       return FALLBACK_QUALITY_LEVELS.map((quality) => ({
         quality,
@@ -1999,7 +2064,7 @@
     if (video && selectedQualityByVideo.has(video)) {
       return selectedQualityByVideo.get(video);
     }
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     try {
       return (
         player?.getPlaybackQuality?.() ||
@@ -2012,7 +2077,7 @@
   }
 
   function applyYouTubeQuality(quality) {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || !quality) return;
     try {
       player.setPlaybackQualityRange?.(quality, quality);
@@ -2092,7 +2157,7 @@
     } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          const player = document.querySelector('#movie_player');
+          const player = findActivePlayerElement();
           player?.loadModule?.('captions');
           player?.setOption?.('captions', 'track', {});
         } catch {}
@@ -2147,7 +2212,7 @@
         const applyPlaybackRate = () => {
           video.playbackRate = speed;
           try {
-            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+            findActivePlayerElement()?.setPlaybackRate?.(speed);
           } catch {}
         };
         applyPlaybackRate();
@@ -2706,7 +2771,11 @@
 
   function findVideo() {
     const videos = [...document.querySelectorAll('video')];
-    const watchVideos = videos.filter((video) => {
+    const activeWatch = findVisibleWatchRoot();
+    const routedVideos = activeWatch
+      ? [...activeWatch.querySelectorAll('video')]
+      : videos.filter((video) => !video.closest('ytd-watch-flexy'));
+    const watchVideos = routedVideos.filter((video) => {
       if (!(video instanceof HTMLVideoElement)) return false;
       if (video.hasAttribute('data-no-fullscreen')) return false;
       if (video.closest('#inline-preview-player, #inline-player')) return false;
@@ -2714,7 +2783,7 @@
         video.closest('#movie_player, #player-container, ytd-player#ytd-player')
       );
     });
-    const candidates = watchVideos.length ? watchVideos : videos;
+    const candidates = watchVideos.length ? watchVideos : routedVideos;
     return (
       candidates.find((video) => video.classList.contains('html5-main-video')) ||
       candidates.find((video) => !video.ended && video.readyState > 0) ||
@@ -3072,7 +3141,7 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     try {
-      document.querySelector('#movie_player')?.playVideo?.();
+      findActivePlayerElement()?.playVideo?.();
     } catch {
       // Player API is optional; the media element path below remains authoritative.
     }
@@ -3090,7 +3159,7 @@
     state.userPauseUntil = Date.now() + 5000;
     clearRecoveryTimers();
     try {
-      document.querySelector('#movie_player')?.pauseVideo?.();
+      findActivePlayerElement()?.pauseVideo?.();
     } catch {
       // Player API is optional; the native pause below remains authoritative.
     }
@@ -3764,6 +3833,7 @@
           margin-top: 0 !important;
           float: none !important;
           clear: both !important;
+          overflow: visible !important;
         }
 
         ytd-watch-flexy ytd-watch-metadata #title,
@@ -4981,66 +5051,6 @@
 
       }
 
-      ytd-comment-view-model[data-vm-comment-enhanced='true'],
-      ytd-comment-renderer[data-vm-comment-enhanced='true'] {
-        box-sizing: border-box;
-        width: 100%;
-        min-width: 0;
-        padding: clamp(.65rem, 2.8vw, 1rem) clamp(.6rem, 3vw, 1rem);
-        border-bottom: 1px solid rgba(127, 127, 127, .2);
-        touch-action: manipulation;
-      }
-
-      [data-vm-comment-enhanced='true'] > #toolbar,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-view-model,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-renderer {
-        display: none !important;
-      }
-
-      .vm-yt-comment-actions {
-        box-sizing: border-box;
-        display: flex;
-        width: 100%;
-        margin-top: clamp(.45rem, 2vw, .75rem);
-        gap: clamp(.4rem, 2vw, .75rem);
-      }
-
-      .vm-yt-comment-action {
-        appearance: none;
-        -webkit-appearance: none;
-        box-sizing: border-box;
-        display: inline-flex;
-        flex: 1 1 50%;
-        min-width: 0;
-        min-height: 44px;
-        padding: clamp(.55rem, 2.5vw, .75rem) clamp(.7rem, 3vw, 1rem);
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        color: inherit;
-        background: rgba(127, 127, 127, .12);
-        border: 1px solid rgba(127, 127, 127, .22);
-        border-radius: clamp(.6rem, 3vw, .9rem);
-        font: 600 clamp(.78rem, 3.2vw, .9rem)/1 Roboto, Arial, sans-serif;
-        touch-action: manipulation;
-      }
-
-      .vm-yt-comment-action[data-pressed='true'] {
-        color: #ff0033;
-        background: rgba(255, 0, 51, .1);
-        border-color: rgba(255, 0, 51, .32);
-      }
-
-      .vm-yt-comment-action svg {
-        width: 1.15rem;
-        height: 1.15rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 1.8;
-      }
-
       ytd-comment-simplebox-renderer #placeholder-area,
       ytd-comment-simplebox-renderer #simplebox-placeholder {
         box-sizing: border-box;
@@ -5065,25 +5075,28 @@
         width: 100% !important;
         max-width: 100% !important;
         margin: clamp(.35rem, 1.5vw, .75rem) 0 0 !important;
-        order: 3 !important;
+        order: 4 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} {
         box-sizing: border-box;
         position: relative;
-        z-index: 5;
+        z-index: 100;
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
+        pointer-events: auto !important;
+        isolation: isolate;
         flex-wrap: wrap;
         float: none !important;
         clear: both !important;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0;
+        min-height: 4rem;
         margin: clamp(.25rem, 1.2vw, .45rem) 0 clamp(.5rem, 2.4vw, .8rem) !important;
         padding: clamp(.45rem, 2vw, .7rem);
-        gap: clamp(.35rem, 1.8vw, .65rem);
+        gap: clamp(.65rem, 3vw, 1rem);
         justify-content: center;
         align-items: center;
         color: var(--yt-spec-text-primary, #0f0f0f);
@@ -5110,34 +5123,35 @@
         visibility: visible !important;
         opacity: 1 !important;
         flex: 0 0 auto;
-        width: clamp(2.9rem, 13vw, 3.45rem);
-        min-width: 2.9rem;
-        height: clamp(2.75rem, 12vw, 3.25rem);
+        width: clamp(3rem, 14vw, 3.75rem);
+        min-width: 3rem;
+        height: clamp(3rem, 13vw, 3.5rem);
         margin: 0;
-        padding: clamp(.62rem, 2.6vw, .85rem);
+        padding: 0;
         align-items: center;
         justify-content: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .08));
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
-        border-radius: 999px;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0;
         cursor: pointer;
         touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
         color: #fff;
-        background: rgba(255, 255, 255, .12);
-        border: 1px solid rgba(255, 255, 255, .12);
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #fff;
-        background: #0f0f0f;
-        border-color: #0f0f0f;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -5146,18 +5160,18 @@
         .fyp-player-control[data-fyp-player-action='play-pause'],
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #0f0f0f;
-        background: #fff;
-        border-color: #fff;
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[aria-pressed='true']:not(
           [data-fyp-player-action='play-pause']
-        ) {
-        color: #fff;
-        background: #ff0033;
-        border-color: #ff0033;
+      ) {
+        color: currentColor;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:active {
@@ -5176,16 +5190,14 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-        max-width: clamp(1.25rem, 5.6vw, 1.6rem);
-        max-height: clamp(1.25rem, 5.6vw, 1.6rem);
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        display: block !important;
+        flex: 0 0 auto;
+        width: clamp(1.5rem, 7vw, 1.9rem) !important;
+        height: clamp(1.5rem, 7vw, 1.9rem) !important;
+        max-width: none;
+        max-height: none;
+        overflow: visible;
+        color: currentColor;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -5590,10 +5602,12 @@
   }
 
   function hideShortsGuideEntries(root = document) {
-    const entries = root.querySelectorAll?.(
+    const entrySelector =
       'ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer, ytm-pivot-bar-item-renderer, ' +
-        'tp-yt-paper-item, yt-list-item-view-model'
-    ) || [];
+      'tp-yt-paper-item, yt-list-item-view-model';
+    const entries = [];
+    if (root instanceof Element && root.matches(entrySelector)) entries.push(root);
+    entries.push(...(root.querySelectorAll?.(entrySelector) || []));
 
     for (const entry of entries) {
       const href = [
@@ -5641,6 +5655,108 @@
       entry.hidden = true;
       entry.dataset.vmShortsHidden = 'true';
     }
+  }
+
+  function isShortsOrPlayablesHref(href) {
+    return /(?:^|\/)(?:shorts|playables)(?:\/|$|\?)/i.test(String(href || ''));
+  }
+
+  function concealShortsElement(element) {
+    if (!(element instanceof Element)) return;
+    if (element.dataset.fypShortsHidden === 'true') return;
+    setImportantStyles(element, {
+      display: 'none',
+      visibility: 'hidden',
+      'pointer-events': 'none',
+      height: '0',
+      margin: '0',
+      padding: '0',
+      overflow: 'hidden',
+    });
+    element.setAttribute('aria-hidden', 'true');
+    element.hidden = true;
+    element.dataset.fypShortsHidden = 'true';
+  }
+
+  function removeShortsAndPlayables(root = document) {
+    const candidates = new Set();
+    const collect = (node) => {
+      if (!(node instanceof Element)) return;
+      if (node.matches(SHORTS_REMOVAL_SELECTOR)) candidates.add(node);
+      node.querySelectorAll?.(SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+        candidates.add(element);
+      });
+
+      node.querySelectorAll?.(
+        'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+      ).forEach((shelf) => {
+        const heading = (
+          shelf.querySelector?.(
+            '#title, #title-text, .title, yt-formatted-string, h2, [id*="title"]'
+          )?.textContent || ''
+        ).trim();
+        const ariaLabel = shelf.getAttribute?.('aria-label') || '';
+        const hasShortsHref = [...(shelf.querySelectorAll?.('a[href]') || [])].some(
+          (link) => isShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+        );
+        if (
+          hasShortsHref ||
+          /shorts|playables|mini[\s-]?games/i.test(heading) ||
+          /shorts|playables|mini[\s-]?games/i.test(ariaLabel)
+        ) {
+          candidates.add(shelf);
+        }
+      });
+    };
+
+    if (root instanceof Element) collect(root);
+    root.querySelectorAll?.(SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+      candidates.add(element);
+    });
+    root.querySelectorAll?.(
+      'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+    ).forEach((shelf) => collect(shelf));
+
+    for (const candidate of candidates) {
+      const item =
+        candidate.closest(SHORTS_REMOVAL_CONTAINER_SELECTOR) || candidate;
+      concealShortsElement(item);
+    }
+    hideShortsGuideEntries(root);
+  }
+
+  function installShortsRemovalListener() {
+    if (shortsRemovalObserver) return;
+
+    removeShortsAndPlayables(document);
+    shortsRemovalObserver = new MutationObserver((mutations) => {
+      const roots = new Set();
+      for (const mutation of mutations) {
+        if (mutation.target instanceof Element) roots.add(mutation.target);
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) roots.add(node);
+        }
+      }
+      for (const root of roots) removeShortsAndPlayables(root);
+    });
+    shortsRemovalObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+
+    const cleanShortsOnNavigation = () => removeShortsAndPlayables(document);
+    nativeDocumentAddEventListener(
+      'yt-navigate-start',
+      cleanShortsOnNavigation,
+      true
+    );
+    nativeDocumentAddEventListener(
+      'yt-navigate-finish',
+      cleanShortsOnNavigation,
+      true
+    );
+    nativeWindowAddEventListener('popstate', cleanShortsOnNavigation, true);
+    nativeWindowAddEventListener('pageshow', cleanShortsOnNavigation, true);
   }
 
   function hideNativeNavigationAndShorts() {
@@ -5778,13 +5894,19 @@
     }
 
     hideShortsGuideEntries(document);
+    removeShortsAndPlayables(document);
   }
 
   function blockShortsNavigation(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const link = target.closest('a[href*="/shorts"], a[href*="/playables"]');
-    if (!link) return;
+    const link = target.closest('a[href]');
+    if (
+      !link ||
+      !isShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
@@ -5838,8 +5960,10 @@
 
     const submit = document.createElement('button');
     submit.type = 'submit';
+    submit.className = 'fyp-search-submit';
     submit.setAttribute('aria-label', 'Search');
-    submit.textContent = 'Search';
+    submit.title = 'Search';
+    replaceIconContents(submit, SEARCH_BUTTON_ICON_MARKUP);
 
     form.append(input, submit);
     dialog.append(form);
@@ -5874,6 +5998,23 @@
       true
     );
     return overlay;
+  }
+
+  function restoreSearchHiddenElements() {
+    for (const element of document.querySelectorAll(
+      '[data-fyp-search-inline-hidden="true"]'
+    )) {
+      element.removeAttribute('data-fyp-search-inline-hidden');
+      element.removeAttribute('aria-hidden');
+      for (const property of [
+        'display',
+        'visibility',
+        'opacity',
+        'pointer-events',
+      ]) {
+        element.style.removeProperty(property);
+      }
+    }
   }
 
   function buildYouTubeSearchUrl(query) {
@@ -5921,6 +6062,7 @@
     if (nativeInput) {
       try { nativeInput.blur(); } catch {}
     }
+    restoreSearchHiddenElements();
     ensureGuideButtonVisible();
   }
 
@@ -5977,6 +6119,7 @@
     for (const btn of document.querySelectorAll(
       '#guide-button, ytd-masthead #guide-button, button[aria-label="Guide"], ytd-masthead #start, #start'
     )) {
+      btn.setAttribute('data-fyp-search-inline-hidden', 'true');
       setImportantStyles(btn, {
         display: 'none',
         visibility: 'hidden',
@@ -6473,6 +6616,7 @@
   }
 
   function arrangeWatchComments() {
+    restoreNativeCommentControls();
     positionCommentsAfterRecommendations();
     removeLegacyCommentPagination();
   }
@@ -6730,159 +6874,20 @@
     }
   }
 
-  function findNativeCommentAction(comment, selectors) {
-    return [...comment.querySelectorAll(selectors)].find(
-      (element) => !element.closest('.vm-yt-comment-actions')
-    );
-  }
-
-  function enhanceComments(root = document) {
-    const comments = [
-      ...root.querySelectorAll?.('ytd-comment-view-model') || [],
-      ...[...root.querySelectorAll?.('ytd-comment-renderer') || []].filter(
-        (comment) => !comment.querySelector('ytd-comment-view-model')
-      ),
-    ];
-
-    for (const comment of comments) {
-      if (comment.dataset.vmCommentEnhanced === 'true') continue;
-
-      const likeSelectors = [
-        '#like-button button',
-        'like-button-view-model button',
-        'button[aria-label^="Like"]',
-        '[role="button"][aria-label^="Like"]',
-      ].join(',');
-      const replySelectors = [
-        '#reply-button-end button',
-        'ytd-button-renderer#reply-button button',
-        'button[aria-label^="Reply"]',
-        '[role="button"][aria-label^="Reply"]',
-      ].join(',');
-      if (
-        !findNativeCommentAction(comment, likeSelectors) &&
-        !findNativeCommentAction(comment, replySelectors)
-      ) {
-        continue;
-      }
-
-      comment.dataset.vmCommentEnhanced = 'true';
-      setImportantStyles(comment, {
-        'box-sizing': 'border-box',
-        width: '100%',
-        'min-width': '0',
-        'max-width': '100%',
-        padding: '12px 10px',
-        'border-bottom': '1px solid rgba(127, 127, 127, .2)',
-        'touch-action': 'manipulation',
-      });
-
+  function restoreNativeCommentControls(root = document) {
+    const enhancedComments = root.querySelectorAll?.(
+      '[data-vm-comment-enhanced="true"]'
+    ) || [];
+    for (const comment of enhancedComments) {
       for (const toolbar of comment.querySelectorAll('#toolbar')) {
-        setImportantStyles(toolbar, {
-          display: 'none',
-          visibility: 'hidden',
-        });
+        toolbar.style.removeProperty('display');
+        toolbar.style.removeProperty('visibility');
       }
-
-      const actions = document.createElement('div');
-      actions.className = 'vm-yt-comment-actions';
-      setImportantStyles(actions, {
-        'box-sizing': 'border-box',
-        display: 'flex',
-        width: '100%',
-        'margin-top': '8px',
-        gap: '8px',
-      });
-
-      const createAction = (label, icon) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'vm-yt-comment-action';
-        button.setAttribute('aria-label', `${label} this comment`);
-        const iconElement = svgElementFromMarkup(icon);
-        if (iconElement) {
-          iconElement.setAttribute('viewBox', '0 0 24 24');
-          iconElement.setAttribute('aria-hidden', 'true');
-          button.appendChild(iconElement);
-        }
-        const labelElement = document.createElement('span');
-        labelElement.textContent = label;
-        button.appendChild(labelElement);
-        setImportantStyles(button, {
-          appearance: 'none',
-          display: 'inline-flex',
-          flex: '1 1 50%',
-          'min-width': '0',
-          'min-height': '44px',
-          padding: '10px 12px',
-          'align-items': 'center',
-          'justify-content': 'center',
-          gap: '6px',
-          color: 'inherit',
-          background: 'rgba(127, 127, 127, .12)',
-          border: '1px solid rgba(127, 127, 127, .22)',
-          'border-radius': '12px',
-          'font-family': 'Roboto, Arial, sans-serif',
-          'font-size': '14px',
-          'font-weight': '600',
-          'line-height': '1',
-          'touch-action': 'manipulation',
-        });
-        return button;
-      };
-
-      const like = createAction(
-        'Like',
-        '<path d="M7 10v11H3V10h4Zm0 9h10.2a2 2 0 0 0 1.9-1.4l1.7-5.5A2 2 0 0 0 18.9 9H14l.7-3.2A2.8 2.8 0 0 0 12 2.5L7 10Z"/>'
-      );
-      const reply = createAction(
-        'Reply',
-        '<path d="M9 17 4 12l5-5v3h5a6 6 0 0 1 6 6v3a7 7 0 0 0-6-6H9v4Z"/>'
-      );
-
-      const syncLikeState = () => {
-        const nativeLike = findNativeCommentAction(comment, likeSelectors);
-        const pressed = Boolean(
-          nativeLike?.getAttribute('aria-pressed') === 'true' ||
-          nativeLike?.closest('[aria-pressed="true"]')
-        );
-        like.dataset.pressed = String(pressed);
-        like.querySelector('span').textContent = pressed ? 'Liked' : 'Like';
-        like.style.setProperty(
-          'color',
-          pressed ? '#ff0033' : 'inherit',
-          'important'
-        );
-      };
-
-      like.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        findNativeCommentAction(comment, likeSelectors)?.click();
-        setTimeout(syncLikeState, 50);
-        setTimeout(syncLikeState, 350);
-      });
-
-      reply.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nativeReply = findNativeCommentAction(comment, replySelectors);
-        nativeReply?.click();
-        setTimeout(() => {
-          const editor = comment.querySelector(
-            'ytd-commentbox textarea, #contenteditable-root, [contenteditable="true"]'
-          );
-          editor?.focus();
-          editor?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }, 120);
-      });
-
-      actions.append(like, reply);
-      const actionHost =
-        comment.querySelector('#body, #main, #content') || comment;
-      actionHost.appendChild(actions);
-      syncLikeState();
+      comment.removeAttribute('data-vm-comment-enhanced');
     }
+    root.querySelectorAll?.('.vm-yt-comment-actions').forEach((actions) => {
+      actions.remove();
+    });
   }
 
   function ensureViewport() {
@@ -6913,21 +6918,57 @@
   function isUsableWatchMount(node) {
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
+    const watch = node.closest('ytd-watch-flexy');
+    if (watch && !isVisibleWatchRoot(watch)) return false;
     if (node.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
     const style = getComputedStyle(node);
-    if (style.display === 'none') return false;
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
     return true;
   }
 
+  function isVisibleWatchRoot(watch) {
+    if (!(watch instanceof Element) || !watch.isConnected) return false;
+    for (let node = watch; node instanceof Element; node = node.parentElement) {
+      if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true') {
+        return false;
+      }
+      const style = getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+    }
+    return true;
+  }
+
+  function findVisibleWatchRoot() {
+    const candidates = [
+      ...document.querySelectorAll(
+        'ytd-app[is-watch-page] ytd-watch-flexy, ytd-watch-flexy[video-id], ytd-watch-flexy'
+      ),
+    ];
+    return candidates.find(isVisibleWatchRoot) || null;
+  }
+
+  function findActivePlayerElement() {
+    const watch = findVisibleWatchRoot();
+    const player = watch?.querySelector('#movie_player, .html5-video-player');
+    if (player instanceof HTMLElement) return player;
+    const video =
+      state.video instanceof HTMLVideoElement && state.video.isConnected
+        ? state.video
+        : null;
+    return video?.closest('#movie_player, .html5-video-player') || null;
+  }
+
   function findWatchTitleAnchor() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
       'ytd-watch-metadata #title',
       'ytd-video-primary-info-renderer #title',
-      'ytd-watch-flexy ytd-watch-metadata h1',
-      'ytd-watch-flexy #below h1',
+      'ytd-watch-metadata h1',
+      '#below h1',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (!isUsableWatchMount(candidate)) continue;
         return candidate.closest('#title') || candidate;
       }
@@ -6936,12 +6977,14 @@
   }
 
   function findWatchMetadataHost() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy ytd-watch-metadata',
-      'ytd-watch-flexy ytd-video-primary-info-renderer',
+      'ytd-watch-metadata',
+      'ytd-video-primary-info-renderer',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (isUsableWatchMount(candidate)) return candidate;
       }
     }
@@ -6949,40 +6992,43 @@
   }
 
   function findWatchBelowHost() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy #below',
-      'ytd-watch-flexy #primary-inner',
+      '#below',
+      '#primary-inner',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (isUsableWatchMount(candidate)) return candidate;
     }
     return null;
   }
 
   function findVisibleWatchPlayerHost() {
-    const watch = document.querySelector('ytd-watch-flexy');
-    if (!(watch instanceof Element)) return null;
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const fullBleed =
       watch.hasAttribute('full-bleed-player') ||
       watch.hasAttribute('theater');
     const selectors = fullBleed
       ? [
-          'ytd-watch-flexy #player-full-bleed-container',
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
+          '#player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
         ]
       : [
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
-          'ytd-watch-flexy #player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
+          '#player-full-bleed-container',
         ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (!(candidate instanceof Element) || !candidate.isConnected) continue;
       if (candidate.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
       if (candidate.closest('[hidden]')) continue;
-      if (getComputedStyle(candidate).display === 'none') continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
       return candidate;
     }
     return null;
@@ -7079,17 +7125,21 @@
       return;
     }
 
+    const watch = findVisibleWatchRoot();
+    if (!watch) {
+      document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
+      return;
+    }
     const title = findWatchTitleAnchor();
     const metadata = findWatchMetadataHost();
     const below = findWatchBelowHost();
     const playerHost = findVisibleWatchPlayerHost();
-    const watch = document.querySelector('ytd-watch-flexy');
     const watchChromeExists =
       title instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
-      watch instanceof Element;
+      isVisibleWatchRoot(watch);
 
     if (!watchChromeExists) return;
 
@@ -7242,7 +7292,6 @@
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
-    enhanceComments();
     removeAdCards();
     const video = findVideo();
     if (video) attachVideo(video);
@@ -7288,7 +7337,6 @@
     schedulePlayerControlsToolbar();
     closeMobileSearch();
     arrangeWatchComments();
-    enhanceComments();
     if (location.pathname === '/watch') {
       void refreshWatchDislikeCount({ force: true });
     }
@@ -7336,6 +7384,14 @@
     passive: true,
   });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
+  nativeDocumentAddEventListener('pointerdown', blockShortsNavigation, {
+    capture: true,
+    passive: false,
+  });
+  nativeDocumentAddEventListener('touchstart', blockShortsNavigation, {
+    capture: true,
+    passive: false,
+  });
   nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
   nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
   nativeDocumentAddEventListener('touchstart', handleMobileSearchClick, {
@@ -7383,6 +7439,7 @@
   }, true);
 
   injectStyle();
+  installShortsRemovalListener();
   applyMobileShell();
   schedulePlayerControlsToolbar();
 
