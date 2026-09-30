@@ -22,6 +22,9 @@ assert.match(readme, /Join%20the%20server%20for%20support%20or%20help/);
 assert.match(readme, /github\.com\/aditauqir\/fyp\/releases\/latest/);
 assert.doesNotMatch(readme, /mandatory for ad blocking/i);
 assert.match(readme, /You do not need uBlock Origin/);
+assert.match(readme, /Fyoutube treats YouTube's masthead search control as a trigger only/);
+assert.match(readme, /search_query=blue\+balls/);
+assert.match(readme, /current\s+YouTube search field may be a `textarea`/);
 assert.match(readme, /## Credits/);
 assert.match(
   readme,
@@ -42,7 +45,7 @@ assert.match(readme, /github\.com\/aditauqir\/fyp\/compare/);
 assert.match(readme, /Orion says the extension could not be installed/);
 assert.match(readme, /Close the YouTube tab in Orion/);
 assert.match(readme, /repeat steps 7–9 until Orion confirms the install/);
-assert.match(readme, /3\.1\.1_release\.zip/);
+assert.match(readme, /3\.2\.15_release\.zip/);
 assert.match(readme, /### Do not enable Request Desktop Website/);
 assert.match(readme, /Set \*\*Request Desktop Website\*\* to off/);
 assert.match(install, /Do not set Orion \*\*Request Desktop Website\*\*/);
@@ -50,7 +53,7 @@ assert.match(readme, /The extension selects the YouTube backend/);
 assert.match(readme, /On My iPhone → Downloads/);
 assert.match(readme, /uninstall/);
 assert.ok(
-  fs.existsSync(path.join(root, '3.1.1_release.zip')),
+  fs.existsSync(path.join(root, '3.2.15_release.zip')),
   'preferred Orion release ZIP'
 );
 assert.match(readme, /Tapping the extension icon shows no buttons/);

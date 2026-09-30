@@ -60,11 +60,27 @@ assert.match(
 );
 assert.match(
   source,
-  /function arrangeWatchComments\(\) \{\s*positionCommentsAfterRecommendations\(\);\s*removeLegacyCommentPagination\(\);/
+  /function arrangeWatchComments\(\) \{\s*restoreNativeCommentControls\(\);\s*positionCommentsAfterRecommendations\(\);\s*removeLegacyCommentPagination\(\);/
 );
 assert.match(
   source,
   /ytd-commentbox #contenteditable-root,[\s\S]*font-size: 16px !important;/
 );
+assert.match(source, /function restoreNativeCommentControls\(root = document\)/);
+assert.match(
+  source,
+  /function arrangeWatchComments\(\) \{\s*restoreNativeCommentControls\(\);\s*positionCommentsAfterRecommendations\(\);/
+);
+assert.match(source, /order: 4 !important/);
+assert.doesNotMatch(
+  source,
+  /comment\.dataset\.vmCommentEnhanced = 'true'/
+);
+assert.doesNotMatch(
+  source,
+  /actions\.className = 'vm-yt-comment-actions'|button\.className = 'vm-yt-comment-action'/
+);
+assert.doesNotMatch(source, /function enhanceComments\(/);
+assert.doesNotMatch(source, /#toolbar\.ytd-comment-view-model[\s\S]*display: none/);
 
-console.log('recommendations precede native comments without focus zoom: ok');
+console.log('native comments preserve YouTube actions without focus zoom: ok');

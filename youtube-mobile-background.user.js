@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Fyoutube
+// @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      3.1.1
-// @release-label 3.1.1
-// @description  Orion iOS: inline playback, built-in YouTube ad blocking, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
+// @version      3.2.15
+// @release-label 3.2.15
+// @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
 // @match        *://www.youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.1.1');
+  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.15');
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -39,12 +39,12 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
     /^\/(?:@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)\/?$/;
-  const NAV_LAYOUT_VERSION = 'ext-v310-search-bar';
+  const NAV_LAYOUT_VERSION = 'ext-v3212-search-icon';
   const CPU_TAMER_FLAG = '__fypYoutubeCpuTamer';
   /** Off by default on Orion — opt in via __fypEnableCpuTamer or localStorage. */
   const CPU_TAMER_ENABLED_BY_DEFAULT = false;
@@ -59,6 +59,13 @@
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const SIMPLE_SEARCH_ATTR = 'data-fyp-simple-search';
   const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open';
+  const SEARCH_OVERLAY_ID = 'fyp-search-overlay';
+  const SEARCH_OVERLAY_FORM_ID = 'fyp-search-overlay-form';
+  const SEARCH_OVERLAY_INPUT_ID = 'fyp-search-overlay-input';
+  const SEARCH_GLYPH_D =
+    'M18 10c0-4.41-3.59-8-8-8s-8 3.59-8 8s3.59 8 8 8c1.85 0 3.54-.63 4.9-1.69l5.1 5.1L21.41 20l-5.1-5.1A8 8 0 0 0 18 10M4 10c0-3.31 2.69-6 6-6s6 2.69 6 6s-2.69 6-6 6s-6-2.69-6-6';
+  const SEARCH_BUTTON_ICON_MARKUP =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" fill-rule="evenodd" d="${SEARCH_GLYPH_D}"/></svg>`;
   const MOBILE_SEARCH_TRIGGER_SELECTOR = [
     'ytd-masthead #search-button',
     'ytd-masthead #search-button-narrow',
@@ -77,6 +84,55 @@
   const MEDIA_SESSION_LEASE_MS = 15000;
   const MEDIA_SESSION_REFRESH_MS = 5000;
   const PAGE_SCAN_MIN_INTERVAL_MS = 1200;
+  const SHORTS_REMOVAL_SELECTOR = [
+    'a[href^="/shorts"]',
+    'a[href*="/shorts/"]',
+    'a[href*="youtube.com/shorts/"]',
+    'a[href^="/playables"]',
+    'a[href*="/playables/"]',
+    'a[href*="youtube.com/playables"]',
+    'button[aria-label="Shorts"]',
+    'button[title="Shorts"]',
+    '[aria-label="Shorts"]',
+    '[title="Shorts"]',
+    '[aria-label*="Playables" i]',
+    '[title*="Playables" i]',
+    '[is-shorts]',
+    '[is-playables]',
+    '[is-playable]',
+    'ytd-reel-shelf-renderer',
+    'ytm-reel-shelf-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'yt-playable-game-renderer',
+    'ytd-game-card-renderer',
+    'ytd-playable-renderer',
+    'ytd-playables-shelf-renderer',
+    'yt-playables-shelf-renderer',
+  ].join(',');
+  const SHORTS_REMOVAL_CONTAINER_SELECTOR = [
+    'ytm-pivot-bar-item-renderer',
+    'ytd-guide-entry-renderer',
+    'ytd-mini-guide-entry-renderer',
+    'yt-tab-shape',
+    '[role="tab"]',
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-rich-shelf-renderer',
+    'ytd-rich-section-renderer',
+    'ytd-reel-shelf-renderer',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'yt-lockup-view-model',
+    'tp-yt-paper-item',
+    'grid-shelf-view-model',
+  ].join(',');
+  let shortsRemovalObserver = null;
   const FALLBACK_QUALITY_LEVELS = Object.freeze([
     'auto',
     'hd1080',
@@ -98,11 +154,19 @@
   ].join(',');
 
   /*
-   * 2.2.1 recovery: do not hide native masthead search. Only strip Ask/voice/AI
-   * clutter that fights usable search on Orion. Custom Home chip / Watch pill /
-   * overlay / skeleton from 2.1.5–2.2.0 are intentionally gone.
+   * Search recovery: hide Ask/voice/AI clutter early, then let the stable FYP
+   * overlay own the search interaction instead of depending on YouTube's
+   * changing masthead input implementation.
    */
   const CRITICAL_STYLE_ID = `${SCRIPT_ID}-critical-style`;
+  /*
+   * WHAT: Hides voice-search and Ask controls before the rest of the page settles.
+   * IDEALOGY: Search belongs to the FYP overlay, so those masthead buttons are cleared once at startup instead of being patched inside YouTube's changing header.
+   * FLOW:
+   *   script start --> style missing --> append hide rules --> voice and Ask stay invisible
+   * HOW: Creates one style element with display, visibility, and pointer-events rules for the voice-search and Ask selectors, then appends it. A later call returns when that style id is already in the document.
+   * EVENT LOG: Called directly once the function is defined, before the later page scan.
+   */
   function injectCriticalAskHideStyle() {
     if (document.getElementById(CRITICAL_STYLE_ID)) return;
     const style = document.createElement('style');
@@ -118,6 +182,134 @@
       button[aria-label*='Voice search' i],
       [aria-label*='Ask YouTube' i],
       [aria-label*='Ask Gemini' i] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+
+      /* Search is a FYP-owned layer. Keep it independent from YouTube's
+       * changing masthead DOM, including the modern textarea searchbox. */
+      #${SEARCH_OVERLAY_ID} {
+        box-sizing: border-box !important;
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 2147483647 !important;
+        display: none !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 12px !important;
+        color: var(--yt-spec-text-primary, #0f0f0f) !important;
+        background: rgba(0, 0, 0, .38) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition-property: opacity, visibility !important;
+        transition-duration: .32s !important;
+        transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1) !important;
+      }
+
+      #${SEARCH_OVERLAY_ID}[hidden] {
+        display: none !important;
+      }
+
+      #${SEARCH_OVERLAY_ID}[data-open='true'] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog] {
+        box-sizing: border-box !important;
+        width: min(640px, 100%) !important;
+        max-width: 640px !important;
+        margin: 0 auto !important;
+        padding: 4px !important;
+        background: var(--yt-spec-base-background, #fff) !important;
+        border: 1px solid rgba(0, 0, 0, .16) !important;
+        border-radius: 28px !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, .28) !important;
+        pointer-events: auto !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} form {
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        width: 100% !important;
+        min-height: 48px !important;
+        margin: 0 !important;
+        padding: 0 6px 0 16px !important;
+      }
+
+      #${SEARCH_OVERLAY_INPUT_ID} {
+        box-sizing: border-box !important;
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 42px !important;
+        margin: 0 !important;
+        padding: 0 8px 0 0 !important;
+        color: var(--yt-spec-text-primary, #0f0f0f) !important;
+        background: transparent !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        font: 400 16px/42px Roboto, Arial, sans-serif !important;
+        -webkit-appearance: none !important;
+      }
+
+      #${SEARCH_OVERLAY_INPUT_ID}::placeholder {
+        color: var(--yt-spec-text-secondary, #606060) !important;
+        opacity: 1 !important;
+      }
+
+      #${SEARCH_OVERLAY_ID} button[type='submit'] {
+        box-sizing: border-box !important;
+        flex: 0 0 auto !important;
+        min-width: 76px !important;
+        height: 38px !important;
+        margin: 0 !important;
+        padding: 0 16px !important;
+        color: #fff !important;
+        background: #0f0f0f !important;
+        border: 0 !important;
+        border-radius: 20px !important;
+        cursor: pointer !important;
+        font: 600 14px/38px Roboto, Arial, sans-serif !important;
+        touch-action: manipulation !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
+      html[dark-theme] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog],
+      ytd-app[dark] #${SEARCH_OVERLAY_ID} [data-fyp-search-dialog] {
+        color: #f1f1f1 !important;
+        background: #212121 !important;
+        border-color: rgba(255, 255, 255, .22) !important;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, .58) !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_INPUT_ID},
+      html[dark-theme] #${SEARCH_OVERLAY_INPUT_ID},
+      ytd-app[dark] #${SEARCH_OVERLAY_INPUT_ID} {
+        color: #fff !important;
+      }
+
+      html[dark] #${SEARCH_OVERLAY_INPUT_ID}::placeholder,
+      html[dark-theme] #${SEARCH_OVERLAY_INPUT_ID}::placeholder,
+      ytd-app[dark] #${SEARCH_OVERLAY_INPUT_ID}::placeholder {
+        color: #aaa !important;
+      }
+
+      html[data-fyp-search-active='true'] ytd-masthead #center,
+      html[data-fyp-search-active='true'] ytd-masthead #end {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
@@ -587,8 +779,11 @@
 
   if (redirectChannelRootToVideos()) return;
 
-  // Never land on Shorts — send those URLs to Home.
-  if (location.pathname.startsWith('/shorts')) {
+  // Never land on Shorts or Playables (mini-games) — send those URLs to Home.
+  if (
+    location.pathname.startsWith('/shorts') ||
+    location.pathname.startsWith('/playables')
+  ) {
     location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
     return;
   }
@@ -991,6 +1186,14 @@
     );
   }
 
+  /*
+   * WHAT: Makes this tab the one lock-screen controls talk to.
+   * IDEALOGY: Several tabs can hold a watch page, so one localStorage lease decides the owner. A hidden tab does not take that lease from a tab that still holds it.
+   * FLOW:
+   *   watch video not ended --> no live foreign owner while hidden --> write the lease --> this tab owns the session
+   * HOW: Returns false off a watch page, without a video, or when the video has ended. It also returns false when another tab's lease is still valid and this document is hidden. Otherwise it stores this tab id, the video id, and an expiry, or keeps a local owner flag if storage throws.
+   * EVENT LOG: Called from play, attachVideo, visibilitychange, and prepareForBackground. Uses localStorage.
+   */
   function claimMediaSessionOwnership(video = state.video) {
     if (
       location.pathname !== '/watch' ||
@@ -1324,6 +1527,14 @@
     }
   }
 
+  /*
+   * WHAT: Restarts a video the user still wants after the page hides or the browser pauses it.
+   * IDEALOGY: Recovery follows this tab's playback flag, so a hidden-page pause is not treated as a permanent stop and a user pause is not undone.
+   * FLOW:
+   *   playback still wanted --> play once --> retry while hidden --> video keeps playing
+   * HOW: Calls play immediately, clears older retry timers, and schedules more play attempts at 80, 250, 750, and 1500 milliseconds. Each retry runs only while playback is still wanted and the document is really hidden.
+   * EVENT LOG: Called from the hidden-page pause path and from prepareForBackground. Uses HTMLMediaElement.play.
+   */
   function recoverPlayback(video = state.video) {
     if (!video || !state.wantsPlayback || video.ended) return;
     safePlay(video);
@@ -1400,9 +1611,7 @@
   }
 
   function holdPlayerControlsVisible() {
-    const player = document.querySelector(
-      '#movie_player, .html5-video-player'
-    );
+    const player = findActivePlayerElement();
     if (!(player instanceof HTMLElement)) return;
 
     player.dataset.fypControlsVisible = 'true';
@@ -1414,20 +1623,189 @@
   }
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
-    rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    // YouTube-like filled triangle / bars (Material path), not Lucide stroke play/pause.
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
-    forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
-    fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
+    pause:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="#fff" d="M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>',
+    play:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"/><path fill="#fff" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"/></svg>',
+    rewind:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M455.979 424.271A24.053 24.053 0 0 0 480 400.251V112.015a24 24 0 0 0-38.285-19.286L264 224.369V112.015a24 24 0 0 0-38.285-19.286L31.155 236.847a24 24 0 0 0 0 38.57l194.56 144.119A24 24 0 0 0 264 400.251V287.9l177.715 131.637a23.92 23.92 0 0 0 14.264 4.734M232 384.37L58.88 256.132L232 127.9ZM448 127.9v256.47L274.88 256.132Z"/></svg>',
+    forward:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"/><path fill="currentColor" d="M32 111.882v288.236A23.979 23.979 0 0 0 70.285 419.4L248 287.763v112.355a23.979 23.979 0 0 0 38.285 19.282l194.56-144.119a24 24 0 0 0 0-38.57L286.285 92.6A24 24 0 0 0 248 111.882v112.355L70.285 92.6A24 24 0 0 0 32 111.882m248 15.881L453.119 256L280 384.237Zm-216 0L237.119 256L64 384.237Z"/></svg>',
+    pip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path fill="currentColor" fill-rule="evenodd" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zm3-1h12a1 1 0 0 1 1 1v6.268A2 2 0 0 0 18 12h-4a2 2 0 0 0-2 2v4c0 .364.097.706.268 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"/></svg>',
+    fullscreen:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
     speed:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     airplay:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path stroke-opacity=".4" d="M4.1043 15.8632C2.8523 15.4715 2 14.3118 2 13L2 6C2 4.3431 3.3431 3 5 3L19 3C20.6569 3 22 4.3431 22 6L22 13C22 14.3118 21.1477 15.4715 19.8957 15.8632"/><path fill="currentColor" fill-rule="evenodd" d="M13.6 13.4667L17.6 18.8C17.8596 19.1462 18 19.5673 18 20C18 21.1046 17.1046 22 16 22L8 22C6.8954 22 6 21.1046 6 20C6 19.5673 6.1404 19.1462 6.4 18.8L10.4 13.4667C10.7777 12.9631 11.3705 12.6667 12 12.6667C12.6295 12.6667 13.2223 12.9631 13.6 13.4667Z" clip-rule="evenodd" stroke="none"/></g></svg>',
     collapse:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>',
   });
+
+  /*
+   * YouTube can enforce Trusted Types on Element.innerHTML. Build FYP-owned
+   * controls through DOM nodes so one rejected icon cannot abort scanPage()
+   * before the video is attached to the playback state.
+   */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function cloneSvgNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      if (!text || !text.trim()) return null;
+      return document.createTextNode(text);
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const clone = document.createElementNS(SVG_NS, node.localName);
+    for (const attr of node.attributes) {
+      clone.setAttribute(attr.name, attr.value);
+    }
+    for (const child of node.childNodes) {
+      const copied = cloneSvgNode(child);
+      if (copied) clone.appendChild(copied);
+    }
+    return clone;
+  }
+
+  function isCurrentColorPaint(value) {
+    return /^currentcolor$/i.test(String(value || '').trim());
+  }
+
+  function isWhitePaint(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === '#fff' || text === '#ffffff';
+  }
+
+  /*
+   * WHAT: Forces player-button icons to stay white on the dark control strip.
+   * IDEALOGY: YouTube's path fill can paint custom icons nearly black, so the paint is set on the SVG itself instead of inheriting YouTube's CSS variables.
+   * FLOW:
+   *   icon built --> walk fill and stroke --> force white paint --> glyph stays visible
+   * HOW: Walks the SVG and its descendants. A currentColor or white fill becomes #fff with an important inline fill, and a none fill stays none. Matching strokes become white. The SVG then gets an important white color plus visible display, overflow, opacity, and visibility.
+   * EVENT LOG: Called from replaceIconContents when the icon is flagged as a player icon.
+   */
+  function solidifyPlayerIcon(svg) {
+    const nodes = [svg, ...svg.querySelectorAll('*')];
+    for (const node of nodes) {
+      const fill = node.getAttribute('fill');
+      const stroke = node.getAttribute('stroke');
+      if (isCurrentColorPaint(fill) || isWhitePaint(fill)) {
+        node.setAttribute('fill', '#fff');
+        node.style.setProperty('fill', '#fff', 'important');
+        if (!stroke || stroke === 'none') {
+          node.style.setProperty('stroke', 'none', 'important');
+        }
+      } else if (fill === 'none') {
+        node.style.setProperty('fill', 'none', 'important');
+      }
+      if (isCurrentColorPaint(stroke) || isWhitePaint(stroke)) {
+        node.setAttribute('stroke', '#fff');
+        node.style.setProperty('stroke', '#fff', 'important');
+        if (!isWhitePaint(node.getAttribute('fill'))) {
+          node.style.setProperty('fill', 'none', 'important');
+        }
+      }
+    }
+
+    const strokeHosts = [svg, ...svg.querySelectorAll('[stroke="#fff"]')];
+    for (const host of strokeHosts) {
+      if (host.getAttribute('stroke') !== '#fff') continue;
+      for (const shape of host.querySelectorAll(
+        'path, polyline, circle, line, polygon'
+      )) {
+        if (isWhitePaint(shape.getAttribute('fill'))) continue;
+        if (shape.getAttribute('stroke') === 'none') continue;
+        shape.setAttribute('stroke', '#fff');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+      }
+    }
+
+    svg.style.setProperty('color', '#fff', 'important');
+    svg.style.setProperty('display', 'block', 'important');
+    svg.style.setProperty('overflow', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+  }
+
+  function svgElementFromMarkup(markup) {
+    try {
+      const text = String(markup || '').trim();
+      const source = text.startsWith('<svg')
+        ? text
+        : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      const svg = parsed?.documentElement;
+      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
+      return cloneSvgNode(svg);
+    } catch {
+      return null;
+    }
+  }
+
+  function replaceIconContents(element, markup, options = {}) {
+    if (!(element instanceof Element)) return;
+    const svg = svgElementFromMarkup(markup);
+    if (svg && options.playerIcon) solidifyPlayerIcon(svg);
+    if (svg) element.replaceChildren(svg);
+    else element.replaceChildren();
+  }
+
+  function paintSearchSubmitIcon(button) {
+    if (!(button instanceof Element)) return;
+    button.style.setProperty('background-color', '#0f0f0f', 'important');
+    button.style.setProperty('color', '#fff', 'important');
+    let svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) {
+      replaceIconContents(button, SEARCH_BUTTON_ICON_MARKUP);
+      svg = button.querySelector('svg');
+    }
+    if (!(svg instanceof Element)) return;
+    svg.style.setProperty('display', 'block', 'important');
+    svg.style.setProperty('width', '24px', 'important');
+    svg.style.setProperty('height', '24px', 'important');
+    svg.style.setProperty('overflow', 'visible', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    for (const shape of [...svg.querySelectorAll('path')]) {
+      if (isViewBoxRect(shape)) {
+        shape.remove();
+        continue;
+      }
+      shape.setAttribute('fill', '#fff');
+      shape.setAttribute('fill-rule', 'evenodd');
+      shape.style.setProperty('fill', '#fff', 'important');
+      shape.style.setProperty('stroke', 'none', 'important');
+    }
+  }
+
+  function paintMastheadSearchIcons() {
+    const paint = isDarkTheme() ? '#fff' : '#0f0f0f';
+    const icons = document.querySelectorAll(
+      [
+        'ytd-masthead #search-button yt-icon',
+        'ytd-masthead #search-button svg',
+        'ytd-masthead #search-button-narrow yt-icon',
+        'ytd-masthead #search-button-narrow svg',
+        'ytd-masthead yt-icon-button[aria-label="Search"] yt-icon',
+        'ytd-masthead yt-icon-button[aria-label="Search"] svg',
+      ].join(',')
+    );
+    for (const icon of icons) {
+      if (!(icon instanceof Element)) continue;
+      if (icon.closest(`#${SEARCH_OVERLAY_ID}, #${PLAYER_CONTROLS_TOOLBAR_ID}, .fyp-player-control`)) {
+        continue;
+      }
+      icon.style.setProperty('color', paint, 'important');
+      const root = icon.shadowRoot || icon;
+      for (const shape of root.querySelectorAll('path')) {
+        if (isViewBoxRect(shape)) continue;
+        if (shape.getAttribute('fill') === 'none') continue;
+        shape.style.setProperty('fill', paint, 'important');
+      }
+    }
+  }
 
   function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
@@ -1479,6 +1857,245 @@
     ].join('');
   }
 
+  const PLAYBACK_GLYPH_PATHS = Object.freeze({
+    play: 'M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z',
+    pause:
+      'M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z',
+  });
+
+  function isViewBoxRect(shape) {
+    const d = String(shape.getAttribute('d') || '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    return /^m00h\d+v\d+h0z$/.test(d);
+  }
+
+  function playbackGlyphPath(svg) {
+    if (!(svg instanceof Element)) return null;
+    for (const shape of [...svg.querySelectorAll('path')]) {
+      if (isViewBoxRect(shape)) shape.remove();
+    }
+    const paths = [...svg.querySelectorAll('path')];
+    return (
+      paths.find((path) => path.getAttribute('fill') !== 'none') ||
+      paths[paths.length - 1] ||
+      null
+    );
+  }
+
+  function shapeWantsStroke(shape) {
+    if (isViewBoxRect(shape)) return false;
+    const fill = String(shape.getAttribute('fill') || '').trim();
+    if (isCurrentColorPaint(fill) || isWhitePaint(fill)) return false;
+    if (fill && fill !== 'none') return false;
+    let node = shape;
+    while (node) {
+      const stroke = node.getAttribute && node.getAttribute('stroke');
+      if (stroke && stroke !== 'none') return true;
+      if (node.getAttribute && node.getAttribute('stroke-opacity')) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  function paintPlayerControlIcon(button) {
+    if (!(button instanceof HTMLElement)) return;
+    for (const [name, value] of [
+      ['display', 'inline-flex'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['flex', '0 0 3.25rem'],
+      ['width', '3.25rem'],
+      ['min-width', '3.25rem'],
+      ['max-width', '3.25rem'],
+      ['height', '3.25rem'],
+      ['align-items', 'center'],
+      ['justify-content', 'center'],
+      ['color', '#fff'],
+      ['-webkit-text-fill-color', '#fff'],
+      ['overflow', 'visible'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['background', 'transparent'],
+    ]) {
+      button.style.setProperty(name, value, 'important');
+    }
+    const svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) return;
+    svg.removeAttribute('hidden');
+    for (const [name, value] of [
+      ['display', 'block'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['width', '2rem'],
+      ['height', '2rem'],
+      ['overflow', 'visible'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['color', '#fff'],
+      ['flex', '0 0 auto'],
+    ]) {
+      svg.style.setProperty(name, value, 'important');
+    }
+    for (const shape of svg.querySelectorAll(
+      'path, polygon, polyline, circle, line, rect'
+    )) {
+      if (isViewBoxRect(shape)) {
+        shape.remove();
+        continue;
+      }
+      if (shapeWantsStroke(shape)) {
+        shape.setAttribute('stroke', '#fff');
+        shape.setAttribute('fill', 'none');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+        shape.style.setProperty('stroke-width', '2', 'important');
+        continue;
+      }
+      shape.setAttribute('fill', '#fff');
+      shape.style.setProperty('fill', '#fff', 'important');
+      shape.style.setProperty('stroke', 'none', 'important');
+    }
+  }
+
+  /*
+   * WHAT: Shows a play triangle or pause bars on the playback button.
+   * IDEALOGY: One glyph path is swapped in place so the button does not rebuild markup and an extra icon cannot pile up in the strip.
+   * FLOW:
+   *   paused or playing --> keep a single svg --> set the play or pause path --> button shows that glyph
+   * HOW: Stores paused or playing on the button and removes extra SVG nodes. If none exists it builds the play icon, then sets the filled path to the play or pause shape and paints that path white. The remaining SVG is shown.
+   * EVENT LOG: Called from createPlayerControlButton and syncCustomPlayerControls. No media event of its own.
+   */
+  function setPlaybackGlyph(button, paused) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.dataset.fypPlaybackState = paused ? 'paused' : 'playing';
+    for (const extra of [...button.querySelectorAll('svg')].slice(1)) {
+      extra.remove();
+    }
+    let svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) {
+      replaceIconContents(button, PLAYER_CONTROL_ICONS.play, {
+        playerIcon: true,
+      });
+      svg = button.querySelector('svg');
+    }
+    const glyph = playbackGlyphPath(svg);
+    if (glyph) {
+      glyph.setAttribute(
+        'd',
+        paused ? PLAYBACK_GLYPH_PATHS.play : PLAYBACK_GLYPH_PATHS.pause
+      );
+      glyph.setAttribute('fill', '#fff');
+      glyph.style.setProperty('fill', '#fff', 'important');
+      glyph.style.setProperty('stroke', 'none', 'important');
+    }
+    if (svg instanceof Element) {
+      svg.removeAttribute('hidden');
+      svg.style.setProperty('display', 'block', 'important');
+      svg.style.setProperty('visibility', 'visible', 'important');
+      svg.style.setProperty('opacity', '1', 'important');
+    }
+    paintPlayerControlIcon(button);
+  }
+
+  function videoInSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    return (
+      document.pictureInPictureElement === video ||
+      video.webkitPresentationMode === 'picture-in-picture'
+    );
+  }
+
+  /*
+   * WHAT: Moves the video into WebKit picture-in-picture when the browser allows it.
+   * IDEALOGY: PiP is an explicit strip action. Ordinary playback does not call this, so starting a video cannot switch the page into PiP by itself.
+   * FLOW:
+   *   PiP tap while inline --> allow PiP --> webkitSetPresentationMode --> video is in picture-in-picture
+   * HOW: Clears disablepictureinpicture, then returns false when presentation mode is missing or unsupported. It asks for picture-in-picture and returns whether that mode is now active.
+   * EVENT LOG: webkitSetPresentationMode and webkitSupportsPresentationMode. Called from the pip branch of runPlayerControlAction.
+   */
+  function enterSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    video.removeAttribute('disablepictureinpicture');
+    try {
+      video.disablePictureInPicture = false;
+    } catch {}
+    if (typeof video.webkitSetPresentationMode !== 'function') return false;
+    const supports =
+      typeof video.webkitSupportsPresentationMode !== 'function' ||
+      video.webkitSupportsPresentationMode('picture-in-picture');
+    if (!supports) return false;
+    try {
+      video.webkitSetPresentationMode('picture-in-picture');
+    } catch {
+      return false;
+    }
+    return video.webkitPresentationMode === 'picture-in-picture';
+  }
+
+  function leaveSystemMiniPlayer(video) {
+    if (
+      video instanceof HTMLVideoElement &&
+      video.webkitPresentationMode === 'picture-in-picture' &&
+      typeof video.webkitSetPresentationMode === 'function'
+    ) {
+      try {
+        video.webkitSetPresentationMode('inline');
+      } catch {}
+    }
+  }
+
+  /*
+   * WHAT: Builds one control-strip button with an accessible name and a painted icon.
+   * IDEALOGY: Buttons are DOM nodes so a rejected innerHTML write cannot stop the strip from appearing.
+   * FLOW:
+   *   action and label --> button element --> play glyph or painted icon --> button ready to mount
+   * HOW: Creates a button with the player-control class, action data attribute, label, title, and aria-pressed. Speed and quality buttons also advertise a menu. Play-pause starts on the play glyph; every other action fills the button with the given icon.
+   * EVENT LOG: Called from createPlayerControlButtons. Pointer capture later reads data-fyp-player-action.
+   */
+  function createPlayerControlButton(action, label, icon, extraClass = '') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
+    button.dataset.fypPlayerAction = action;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', 'false');
+    if (action === 'speed' || action === 'quality') {
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
+    }
+    if (action === 'play-pause') setPlaybackGlyph(button, true);
+    else {
+      replaceIconContents(button, icon, { playerIcon: true });
+      paintPlayerControlIcon(button);
+    }
+    return button;
+  }
+
+  /*
+   * WHAT: Builds the six control-strip buttons in one row.
+   * IDEALOGY: The strip is assembled in one place so rewind, play, skip, PiP, AirPlay, and fullscreen stay together instead of borrowing YouTube's player chrome.
+   * FLOW:
+   *   toolbar create --> rewind, play, forward, PiP, AirPlay, fullscreen --> one row returned
+   * HOW: Returns those six buttons in that order. Each button comes from createPlayerControlButton and paints its own white icon.
+   * EVENT LOG: Called from ensurePlayerControlsToolbar when the toolbar is missing or its layout id changed.
+   */
+  function createPlayerControlButtons() {
+    return [
+      ['rewind', 'Back 10 seconds', PLAYER_CONTROL_ICONS.rewind],
+      ['play-pause', 'Play', PLAYER_CONTROL_ICONS.play],
+      ['forward', 'Forward 10 seconds', PLAYER_CONTROL_ICONS.forward],
+      ['pip', 'Picture in Picture', PLAYER_CONTROL_ICONS.pip],
+      ['airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay],
+      ['fullscreen', 'Fullscreen', PLAYER_CONTROL_ICONS.fullscreen],
+    ].map(([action, label, icon]) =>
+      createPlayerControlButton(action, label, icon)
+    );
+  }
+
   function controllableVideo(shouldAttach = true) {
     const stateVideo =
       state.video instanceof HTMLVideoElement && state.video.isConnected
@@ -1490,6 +2107,14 @@
     return video;
   }
 
+  /*
+   * WHAT: Updates the play, PiP, and fullscreen buttons to match the current video.
+   * IDEALOGY: The strip reads the attached video so the glyph stays correct after play, pause, or a mode change without mirroring YouTube's hidden player buttons.
+   * FLOW:
+   *   toolbar present --> read the video --> paint play or pause --> mark PiP and fullscreen pressed
+   * HOW: Finds the toolbar and the current video without attaching again. The play button gets the matching glyph, Play or Pause label, and pressed state. PiP is pressed when this video is the picture-in-picture element, and fullscreen is pressed when the document or video is fullscreen.
+   * EVENT LOG: Called after play, pause, player actions, and the attached video's WebKit lifecycle listener.
+   */
   function syncCustomPlayerControls() {
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (!(toolbar instanceof HTMLElement)) return;
@@ -1503,10 +2128,8 @@
       const playbackState = paused ? 'paused' : 'playing';
       if (playButton.dataset.fypPlaybackState !== playbackState) {
         playButton.dataset.fypPlaybackState = playbackState;
-        playButton.innerHTML = paused
-          ? PLAYER_CONTROL_ICONS.play
-          : PLAYER_CONTROL_ICONS.pause;
       }
+      setPlaybackGlyph(playButton, paused);
       playButton.setAttribute('aria-label', label);
       playButton.title = label;
       playButton.setAttribute('aria-pressed', String(!paused));
@@ -1530,6 +2153,10 @@
           video?.webkitDisplayingFullscreen
       );
       fullscreenButton.setAttribute('aria-pressed', String(fullscreenActive));
+    }
+    for (const button of toolbar.querySelectorAll('.fyp-player-control')) {
+      if (button === playButton) continue;
+      paintPlayerControlIcon(button);
     }
   }
 
@@ -1583,7 +2210,9 @@
     button.dataset.fypPlayerOption = 'menu-collapse';
     button.setAttribute('aria-label', 'Collapse menu');
     button.title = 'Collapse menu';
-    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse, {
+      playerIcon: true,
+    });
     menu.appendChild(button);
     return button;
   }
@@ -1650,7 +2279,7 @@
   }
 
   function youtubeCaptionTrackList() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.getOption !== 'function') return [];
     try {
       const tracks = player.getOption('captions', 'tracklist');
@@ -1674,7 +2303,7 @@
   }
 
   function selectYouTubeCaptionTrack(selectedTrack) {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.setOption !== 'function') return false;
     try {
       player.loadModule?.('captions');
@@ -1732,7 +2361,7 @@
   }
 
   function currentYouTubeCaptionTrack() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || typeof player.getOption !== 'function') return null;
     try {
       const track = player.getOption('captions', 'track');
@@ -1767,7 +2396,7 @@
   }
 
   function youtubeQualityOptions() {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player) {
       return FALLBACK_QUALITY_LEVELS.map((quality) => ({
         quality,
@@ -1833,7 +2462,7 @@
     if (video && selectedQualityByVideo.has(video)) {
       return selectedQualityByVideo.get(video);
     }
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     try {
       return (
         player?.getPlaybackQuality?.() ||
@@ -1846,7 +2475,7 @@
   }
 
   function applyYouTubeQuality(quality) {
-    const player = document.querySelector('#movie_player');
+    const player = findActivePlayerElement();
     if (!player || !quality) return;
     try {
       player.setPlaybackQualityRange?.(quality, quality);
@@ -1926,7 +2555,7 @@
     } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          const player = document.querySelector('#movie_player');
+          const player = findActivePlayerElement();
           player?.loadModule?.('captions');
           player?.setOption?.('captions', 'track', {});
         } catch {}
@@ -1981,7 +2610,7 @@
         const applyPlaybackRate = () => {
           video.playbackRate = speed;
           try {
-            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+            findActivePlayerElement()?.setPlaybackRate?.(speed);
           } catch {}
         };
         applyPlaybackRate();
@@ -2026,10 +2655,18 @@
     setTimeout(syncCustomPlayerControls, 250);
   }
 
+  /*
+   * WHAT: Runs a strip action: seek, play or pause, a menu, AirPlay, PiP, or fullscreen.
+   * IDEALOGY: The strip drives the attached video directly. Actions other than play and PiP try to keep playback going so the tap does not look like a pause.
+   * FLOW:
+   *   strip tap --> current video --> seek, play, menu, AirPlay, PiP, or fullscreen --> buttons sync
+   * HOW: Seeks ten seconds, or plays and pauses with a short user-pause window. Speed and quality open their menus. AirPlay allows x-webkit-airplay and shows the target picker. PiP enters or leaves the system mini player, with requestPictureInPicture as backup. Fullscreen toggles the document or video and records a two-second fullscreen intent.
+   * EVENT LOG: Called from the pointer capture handler. Uses play, pause, webkitShowPlaybackTargetPicker, webkitSetPresentationMode, requestPictureInPicture, and requestFullscreen.
+   */
   async function runPlayerControlAction(action, sourceButton) {
     const video = controllableVideo();
     if (!(video instanceof HTMLVideoElement)) return;
-    const preservePlayback = action !== 'play-pause' && !video.paused;
+    const preservePlayback = action !== 'play-pause' && action !== 'pip' && !video.paused;
 
     if (action === 'rewind' || action === 'forward') {
       const offset = action === 'rewind' ? -10 : 10;
@@ -2068,20 +2705,26 @@
         video.webkitShowPlaybackTargetPicker();
       }
     } else if (action === 'pip') {
-      video.removeAttribute('disablepictureinpicture');
-      try {
-        video.disablePictureInPicture = false;
-      } catch {}
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture?.();
-      } else if (typeof video.requestPictureInPicture === 'function') {
-        await video.requestPictureInPicture();
-      } else if (typeof video.webkitSetPresentationMode === 'function') {
-        const mode =
-          video.webkitPresentationMode === 'picture-in-picture'
-            ? 'inline'
-            : 'picture-in-picture';
-        video.webkitSetPresentationMode(mode);
+      if (video.paused && !video.ended) {
+        state.wantsPlayback = true;
+        state.userPauseUntil = 0;
+        try {
+          video.play();
+        } catch {}
+      }
+      if (videoInSystemMiniPlayer(video)) {
+        leaveSystemMiniPlayer(video);
+        if (document.pictureInPictureElement === video) {
+          try {
+            await document.exitPictureInPicture();
+          } catch {}
+        }
+      } else if (!enterSystemMiniPlayer(video)) {
+        if (typeof video.requestPictureInPicture === 'function') {
+          try {
+            await video.requestPictureInPicture();
+          } catch {}
+        }
       }
     } else if (action === 'fullscreen') {
       state.fullscreenIntentUntil = Date.now() + 2000;
@@ -2216,7 +2859,9 @@
 
     const button = target.closest('[data-fyp-player-action]');
     if (!(button instanceof HTMLButtonElement)) return;
-    if (event.cancelable) event.preventDefault();
+    if (button.dataset.fypPlayerAction !== 'pip' && event.cancelable) {
+      event.preventDefault();
+    }
     event.stopImmediatePropagation();
     if (!acceptSinglePlayerControlAction(button)) return;
     void runPlayerControlAction(button.dataset.fypPlayerAction, button);
@@ -2231,6 +2876,11 @@
   }
 
   function enforceHorizontalViewportLock() {
+    const event = arguments[0];
+    if (guideDrawerIsBusy()) {
+      event?.stopImmediatePropagation?.();
+      return;
+    }
     const scrollingElement = document.scrollingElement;
     if (scrollingElement?.scrollLeft) scrollingElement.scrollLeft = 0;
     if (document.documentElement.scrollLeft) {
@@ -2244,8 +2894,17 @@
     if (window.scrollX) window.scrollTo(0, window.scrollY);
   }
 
+  /*
+   * WHAT: Marks a video so WebKit keeps it inline and still allows AirPlay.
+   * IDEALOGY: Inline playback is set on the element itself before native play, because a later patch cannot undo a fullscreen choice WebKit already made.
+   * FLOW:
+   *   video present --> set playsinline and AirPlay --> clear the PiP disable flag --> video can start inline
+   * HOW: Sets the inline marker plus playsinline and webkit-playsinline when they are missing, and sets x-webkit-airplay to allow. It also assigns playsInline and webkitPlaysInline, then removes disablepictureinpicture when that property write succeeds.
+   * EVENT LOG: Called from video creation, play, attachVideo, and the WebKit lifecycle listener. No listener of its own.
+   */
   function enforceInlinePlayback(video) {
     if (!video) return;
+    video.setAttribute('data-fyp-inline-playback', 'true');
     if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', '');
     if (!video.hasAttribute('webkit-playsinline')) {
       video.setAttribute('webkit-playsinline', '');
@@ -2303,10 +2962,12 @@
   }
 
   /*
-   * WebKit can choose native fullscreen before a late play() patch takes
-   * effect. Mark video elements at creation time, then repeat immediately
-   * before native play(). Fullscreen entry remains available only for the two
-   * seconds following a real tap on YouTube's fullscreen control.
+   * WHAT: Stops WebKit from putting the watch video into native fullscreen unless fullscreen was just tapped.
+   * IDEALOGY: One guard owns creation, source, and play so inline playback is already set before YouTube's player calls the browser. Fullscreen stays available only after a real control tap.
+   * FLOW:
+   *   first install --> mark new videos inline --> ignore unsolicited fullscreen --> a recent fullscreen tap still enters
+   * HOW: Patches element creation so new videos are marked inline, and marks a video again before its src is set and before play. Fullscreen methods and a presentation mode of fullscreen are ignored unless a fullscreen control was tapped in the last two seconds. Added video nodes are marked as they appear.
+   * EVENT LOG: pointerdown or touchstart, click, play, and a MutationObserver. Also patches play, setAttribute, the src setter, requestFullscreen, and webkitSetPresentationMode.
    */
   function installInlinePlaybackGuard() {
     const flag = '__ytMobileOrionInlinePlaybackGuardV2';
@@ -2470,6 +3131,14 @@
 
   installInlinePlaybackGuard();
 
+  /*
+   * WHAT: Keeps one watch video as the element that play, pause, and resume follow.
+   * IDEALOGY: One attached video owns inline playback and the media session so preview clips do not each claim background audio.
+   * FLOW:
+   *   found video --> drop listeners on the previous one --> mark this video --> play and pause stay attached
+   * HOW: If this video is already current, it only reapplies inline playback and caption dedupe. Otherwise it clears the previous listeners, stores the new video, marks it attached, and listens for play, pause, ended, metadata, time updates, and WebKit lifecycle changes. A video that is already playing claims the media session.
+   * EVENT LOG: play, playing, pause, ended, loadedmetadata, timeupdate, and the WebKit lifecycle list from loadstart through webkitcurrentplaybacktargetiswirelesschanged.
+   */
   function attachVideo(video) {
     if (!video || video === state.video) {
       if (video) {
@@ -2485,9 +3154,13 @@
       state.video.removeEventListener('ended', onVideoPause);
       state.video.removeEventListener('loadedmetadata', onVideoLoaded);
       state.video.removeEventListener('timeupdate', onVideoTimeUpdate);
+      for (const eventName of WEBKIT_VIDEO_LIFECYCLE_EVENTS) {
+        state.video.removeEventListener(eventName, onVideoInlineLifecycle, true);
+      }
     }
 
     state.video = video;
+    video.setAttribute('data-fyp-video-attached', 'true');
     state.wantsPlayback = !video.paused && !video.ended;
     enforceInlinePlayback(video);
     suppressDuplicateNativeCaptions(video);
@@ -2497,8 +3170,30 @@
     video.addEventListener('ended', onVideoPause, true);
     video.addEventListener('loadedmetadata', onVideoLoaded, true);
     video.addEventListener('timeupdate', onVideoTimeUpdate, true);
+    for (const eventName of WEBKIT_VIDEO_LIFECYCLE_EVENTS) {
+      video.addEventListener(eventName, onVideoInlineLifecycle, true);
+    }
     if (!video.paused && !video.ended) claimMediaSessionOwnership(video);
     installMediaSessionHandlers();
+  }
+
+  const WEBKIT_VIDEO_LIFECYCLE_EVENTS = Object.freeze([
+    'loadstart',
+    'loadeddata',
+    'canplay',
+    'canplaythrough',
+    'emptied',
+    'webkitbeginfullscreen',
+    'webkitendfullscreen',
+    'webkitpresentationmodechanged',
+    'webkitcurrentplaybacktargetiswirelesschanged',
+  ]);
+
+  function onVideoInlineLifecycle(event) {
+    const video = event.currentTarget;
+    if (!(video instanceof HTMLVideoElement)) return;
+    enforceInlinePlayback(video);
+    syncCustomPlayerControls();
   }
 
   function onVideoTimeUpdate() {
@@ -2508,7 +3203,23 @@
 
   function findVideo() {
     const videos = [...document.querySelectorAll('video')];
+    const activeWatch = findVisibleWatchRoot();
+    const routedVideos = activeWatch
+      ? [...activeWatch.querySelectorAll('video')]
+      : videos.filter((video) => !video.closest('ytd-watch-flexy'));
+    const watchVideos = routedVideos.filter((video) => {
+      if (!(video instanceof HTMLVideoElement)) return false;
+      if (video.hasAttribute('data-no-fullscreen')) return false;
+      if (video.closest('#inline-preview-player, #inline-player')) return false;
+      return Boolean(
+        video.closest('#movie_player, #player-container, ytd-player#ytd-player')
+      );
+    });
+    const candidates = watchVideos.length ? watchVideos : routedVideos;
     return (
+      candidates.find((video) => video.classList.contains('html5-main-video')) ||
+      candidates.find((video) => !video.ended && video.readyState > 0) ||
+      candidates[0] ||
       videos.find((video) => video.classList.contains('html5-main-video')) ||
       videos.find((video) => !video.ended && video.readyState > 0) ||
       videos[0] ||
@@ -2862,7 +3573,7 @@
     state.userPauseUntil = 0;
     configurePlaybackAudioSession();
     try {
-      document.querySelector('#movie_player')?.playVideo?.();
+      findActivePlayerElement()?.playVideo?.();
     } catch {
       // Player API is optional; the media element path below remains authoritative.
     }
@@ -2880,7 +3591,7 @@
     state.userPauseUntil = Date.now() + 5000;
     clearRecoveryTimers();
     try {
-      document.querySelector('#movie_player')?.pauseVideo?.();
+      findActivePlayerElement()?.pauseVideo?.();
     } catch {
       // Player API is optional; the native pause below remains authoritative.
     }
@@ -2905,6 +3616,14 @@
     syncMediaSessionPlayback(video);
   }
 
+  /*
+   * WHAT: Wires lock-screen play, pause, and seek to this tab's video.
+   * IDEALOGY: Only the owning tab installs handlers, so another tab's claim can deactivate this one instead of both writing navigator.mediaSession.
+   * FLOW:
+   *   this tab owns the session --> refresh metadata --> set play, pause, and seek --> lock screen controls this video
+   * HOW: Returns when mediaSession is missing. If this tab does not own the session, it deactivates. Otherwise, unless handlers were installed recently, it updates metadata and sets play, pause, seek back, seek forward, and seek to.
+   * EVENT LOG: navigator.mediaSession.setActionHandler, driven by attachVideo, play, visibilitychange, and the storage event when this tab still owns the key.
+   */
   function installMediaSessionHandlers({ force = false } = {}) {
     if (!('mediaSession' in navigator)) return;
     if (!ownsMediaSession()) {
@@ -2942,6 +3661,14 @@
     }
   }
 
+  /*
+   * WHAT: Claims the current video and starts background recovery when the page leaves the screen.
+   * IDEALOGY: Background audio stays with the tab that owns the media session, and a recent intentional pause is left alone.
+   * FLOW:
+   *   page hides --> attach the current video --> claim the session if it is playing --> recover only if playback is still wanted
+   * HOW: Attaches the current or found video, claims the session when it is still playing, installs session handlers, and sets the audio session type to playback. If the user-pause window has passed and the video is playing, it marks playback as wanted and then recovers.
+   * EVENT LOG: visibilitychange, webkitvisibilitychange, freeze, pagehide, and window blur.
+   */
   function prepareForBackground() {
     const video = state.video || findVideo();
     if (!video) return;
@@ -2998,6 +3725,14 @@
     );
   }
 
+  /*
+   * WHAT: Skips a playing ad by clicking skip or moving that ad video toward its end.
+   * IDEALOGY: Skip stays on the player that is actually showing an ad, then the watch video is attached again so recovery does not stay on the ad.
+   * FLOW:
+   *   interval --> click skip buttons --> ad still showing? seek or raise its rate --> otherwise reattach the watch video
+   * HOW: Clicks the known skip buttons. If the player is not in a short interrupting ad, it restores any raised playback rate and reattaches the watch video. While that ad is showing, it seeks a short ad to its duration, or raises the playback rate when the seek does not apply.
+   * EVENT LOG: The 300ms interval started at the end of the script. Uses button click, currentTime, and playbackRate.
+   */
   function skipPlayerAd() {
     document.querySelectorAll(SKIP_BUTTON_SELECTOR).forEach((button) => {
       if (button instanceof HTMLElement) button.click();
@@ -3082,6 +3817,14 @@
     });
   }
 
+  /*
+   * WHAT: Unlocks page scrolling after the hamburger drawer has actually closed.
+   * IDEALOGY: Closing the drawer can leave overflow hidden because the hidden mini-guide rail is the state YouTube expects to restore. This only clears that leftover lock and does not write the drawer's opened state.
+   * FLOW:
+   *   guide close or scan --> drawer or dialog still open? stop --> remove overflow hidden --> page scrolls again
+   * HOW: Returns while the guide is open, opening, peeking, or another overlay dialog is open. Otherwise it removes inline overflow hidden from html, body, and the app nodes, and clears aria-hidden on ytd-app.
+   * EVENT LOG: yt-guide-close, iron-overlay-closed, plus calls from scanPage and yt-navigate-finish.
+   */
   function restoreScrollAfterGuideClose() {
     /*
      * After close, Polymer may keep overflow:hidden on html/body/ytd-app
@@ -3113,6 +3856,14 @@
     }
   }
 
+  /*
+   * WHAT: Removes an ad-block warning dialog and resumes a paused watch video that is already ready.
+   * IDEALOGY: The warning is a page dialog, so it is removed only when its text matches that warning. The guide drawer keeps its own close path.
+   * FLOW:
+   *   interval --> matching warning text --> remove the dialog and leftover backdrop --> play if the watch video was paused and ready
+   * HOW: Checks enforcement, error, and dialog nodes and removes one whose text matches the ad-block warning. After a removal it clears orphan backdrops, restores scroll, then attaches and plays a paused watch video that already has data.
+   * EVENT LOG: The 300ms interval started at the end of the script.
+   */
   function dismissAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -3177,6 +3928,14 @@
     root.querySelectorAll?.(selector).forEach((element) => element.remove());
   }
 
+  /*
+   * WHAT: Installs the mobile layout stylesheet that reshapes desktop YouTube on a phone.
+   * IDEALOGY: One style node owns layout so later scans do not keep rewriting CSS against YouTube Polymer.
+   * FLOW:
+   *   startup --> style missing or layout id changed --> write stylesheet --> page uses that version
+   * HOW: Finds or creates the style element, then returns when its layout version already matches. Otherwise it stamps the current layout version and replaces the stylesheet text.
+   * EVENT LOG: Called once during script startup, after the page listeners are registered.
+   */
   function injectStyle() {
     let style = document.getElementById(STYLE_ID);
     if (!style) {
@@ -3221,26 +3980,48 @@
         pointer-events: none !important;
       }
 
-      /* Burger drawer only — hide every persistent Home/Shorts/Subs/You rail. */
+      /* Burger drawer only — hide every persistent Home/Shorts/Subs/You rail and mini-games. */
       ytm-pivot-bar-renderer,
       ytd-mini-guide-renderer,
       ytd-mini-guide-entry-renderer,
       #guide-button-badge,
       ytd-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-guide-entry-renderer:has(a[href*='/playables']),
+      ytd-guide-entry-renderer:has(a[title*='Playables' i]),
       ytd-mini-guide-entry-renderer:has(a[href^='/shorts']),
+      ytd-mini-guide-entry-renderer:has(a[href*='/playables']),
       ytd-guide-entry-renderer:has(a[title='Shorts']),
       tp-yt-paper-item:has(a[href^='/shorts']),
+      tp-yt-paper-item:has(a[href*='/playables']),
       ytd-rich-shelf-renderer:has(a[href*='/shorts']),
+      ytd-rich-shelf-renderer:has(a[href*='/playables']),
+      ytd-rich-shelf-renderer:has([title*='Playables' i]),
+      ytd-rich-shelf-renderer:has([aria-label*='Playables' i]),
       ytd-reel-shelf-renderer,
       ytd-rich-section-renderer:has(a[href*='/shorts']),
+      ytd-rich-section-renderer:has(a[href*='/playables']),
+      ytd-rich-section-renderer:has([title*='Playables' i]),
+      ytd-rich-section-renderer:has([aria-label*='Playables' i]),
       ytm-reel-shelf-renderer,
       ytm-shorts-lockup-view-model,
       ytm-shorts-lockup-view-model-v2,
       ytd-reel-item-renderer,
       ytm-reel-item-renderer,
       ytd-rich-item-renderer:has(a[href*='/shorts']),
+      ytd-rich-item-renderer:has(a[href*='/playables']),
       yt-lockup-view-model:has(a[href*='/shorts']),
+      yt-lockup-view-model:has(a[href*='/playables']),
       grid-shelf-view-model:has(a[href*='/shorts']),
+      grid-shelf-view-model:has(a[href*='/playables']),
+      grid-shelf-view-model:has([title*='Playables' i]),
+      grid-shelf-view-model:has([aria-label*='Playables' i]),
+      yt-playable-game-renderer,
+      ytd-game-card-renderer,
+      ytd-playable-renderer,
+      ytd-playables-shelf-renderer,
+      yt-playables-shelf-renderer,
+      yt-chip-cloud-chip-renderer:has(yt-formatted-string[title*='Playables' i]),
+      yt-chip-cloud-chip-renderer:has([title*='Playables' i]),
       ytd-browse[page-subtype='channels'] yt-tab-shape:has(a[href$='/shorts']),
       ytd-browse[page-subtype='channels'] [role='tab']:has(a[href$='/shorts']),
       ytd-browse[page-subtype='channels'] ytd-rich-item-renderer:has(a[href*='/shorts']),
@@ -3250,11 +4031,40 @@
       ytd-browse[page-subtype='channels'] ytd-rich-shelf-renderer:has(a[href*='/shorts']),
       a[href^='/shorts'],
       a[href*='youtube.com/shorts/'],
+      a[href^='/playables'],
+      a[href*='youtube.com/playables'],
       [is-shorts],
-      ytd-thumbnail[href*='/shorts'] {
+      [is-playables],
+      [is-playable],
+      ytd-thumbnail[href*='/shorts'],
+      ytd-thumbnail[href*='/playables'] {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
+      }
+
+      /*
+       * Stabilize guide sidebar scrolling:
+       * Prevent vertical scroll gestures inside the drawer from chaining to
+       * window or triggering Polymer's swipe-to-close gesture.
+       */
+      tp-yt-app-drawer#guide {
+        touch-action: pan-y !important;
+      }
+      tp-yt-app-drawer#guide #contentContainer {
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
+        overscroll-behavior-y: contain !important;
+      }
+      tp-yt-app-drawer#guide ytd-guide-renderer,
+      tp-yt-app-drawer#guide #guide-wrapper,
+      tp-yt-app-drawer#guide #guide-inner-content,
+      tp-yt-app-drawer#guide #sections,
+      tp-yt-app-drawer#guide #items {
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
+        overscroll-behavior-y: contain !important;
+        -webkit-overflow-scrolling: touch !important;
       }
 
       ytd-app {
@@ -3503,6 +4313,7 @@
           margin-top: 0 !important;
           float: none !important;
           clear: both !important;
+          overflow: visible !important;
         }
 
         ytd-watch-flexy ytd-watch-metadata #title,
@@ -4413,37 +5224,103 @@
           pointer-events: none !important;
         }
 
+        /* Mobile Search overlay */
+        #fyp-search-backdrop {
+          display: none;
+        }
+
+        body[data-fyp-search-active='true'] #fyp-search-backdrop,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ #fyp-search-backdrop {
+          display: block !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 2147483645 !important;
+          background: rgba(0, 0, 0, .4) !important;
+          backdrop-filter: blur(2px) !important;
+          -webkit-backdrop-filter: blur(2px) !important;
+        }
+
+        html[data-fyp-search-active='true'] #start,
+        html[data-fyp-search-active='true'] #guide-button,
+        html[data-fyp-search-active='true'] #guide-button-icon,
+        html[data-fyp-search-active='true'] button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        html[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        html[data-fyp-search-active='true'] #guide,
+        html[data-fyp-search-active='true'] ytd-mini-guide-renderer,
+        body[data-fyp-search-active='true'] #start,
+        body[data-fyp-search-active='true'] #guide-button,
+        body[data-fyp-search-active='true'] #guide-button-icon,
+        body[data-fyp-search-active='true'] button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        body[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        body[data-fyp-search-active='true'] #guide,
+        body[data-fyp-search-active='true'] ytd-mini-guide-renderer,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #start,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #guide-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #guide-button-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] button[aria-label='Guide'],
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-icon-button#guide-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ #guide,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ tp-yt-app-drawer#guide,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ~ ytd-mini-guide-renderer {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
           position: fixed !important;
-          top: calc(env(safe-area-inset-top, 0px) + 8px) !important;
+          top: calc(env(safe-area-inset-top, 0px) + 6px) !important;
           right: 12px !important;
           left: 12px !important;
           z-index: 2147483646 !important;
           box-sizing: border-box !important;
           display: flex !important;
+          flex-direction: row !important;
           flex-wrap: nowrap !important;
           width: calc(100vw - 24px) !important;
           min-width: calc(100vw - 24px) !important;
           max-width: calc(100vw - 24px) !important;
           height: 48px !important;
           margin: 0 !important;
-          padding: 4px 4px 4px 8px !important;
+          padding: 4px 6px !important;
           align-items: center !important;
           color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: var(--yt-spec-base-background, #fff) !important;
-          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12)) !important;
+          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .15)) !important;
           border-radius: 24px !important;
-          box-shadow: 0 8px 28px rgba(0, 0, 0, .18) !important;
-          overflow: hidden !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, .2) !important;
+          overflow: visible !important;
         }
 
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
         html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center,
         ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center {
           color: #f1f1f1 !important;
-          background: rgb(15, 15, 15) !important;
+          background: #212121 !important;
           border: 1px solid rgba(255, 255, 255, .22) !important;
-          box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, .5) !important;
+        }
+
+        #fyp-search-back-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #fyp-search-back-button {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end #search-button,
@@ -4452,28 +5329,59 @@
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end button[aria-label='Search'],
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end [role='button'][aria-label='Search'],
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #end yt-icon-button[aria-label='Search'] {
+          display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
         }
 
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center > *,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] ytd-searchbox,
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] yt-searchbox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentHost,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInputBox,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center form,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #container,
-        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-input {
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentHost {
           box-sizing: border-box !important;
           display: flex !important;
           flex: 1 1 auto !important;
-          flex-wrap: nowrap !important;
-          width: 100% !important;
           min-width: 0 !important;
-          max-width: none !important;
-          height: 40px !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
           align-items: center !important;
+          position: relative !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center form,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSearchForm {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          min-width: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          align-items: center !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #container,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #search-input,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentInputBox {
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex: 1 1 auto !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          min-width: 0 !important;
+          width: auto !important;
+          max-width: none !important;
+          height: 38px !important;
+          margin: 0 !important;
+          padding: 0 4px 0 14px !important;
+          align-items: center !important;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
         }
 
         ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center
@@ -4492,14 +5400,19 @@
           flex: 1 1 auto !important;
           width: 100% !important;
           min-width: 0 !important;
-          height: 40px !important;
-          padding: 0 12px !important;
+          height: 38px !important;
+          padding: 0 4px !important;
+          margin: 0 !important;
           color: var(--yt-spec-text-primary, #0f0f0f) !important;
           background: transparent !important;
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
           font-size: 16px !important;
-          line-height: 40px !important;
+          line-height: 38px !important;
           opacity: 1 !important;
           visibility: visible !important;
+          -webkit-appearance: none !important;
         }
 
         html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input#search,
@@ -4514,66 +5427,118 @@
           color: #fff !important;
         }
 
-      }
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder {
+          color: var(--yt-spec-text-secondary, #717171) !important;
+          opacity: 1 !important;
+        }
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] input::placeholder {
+          color: #aaa !important;
+        }
 
-      ytd-comment-view-model[data-vm-comment-enhanced='true'],
-      ytd-comment-renderer[data-vm-comment-enhanced='true'] {
-        box-sizing: border-box;
-        width: 100%;
-        min-width: 0;
-        padding: clamp(.65rem, 2.8vw, 1rem) clamp(.6rem, 3vw, 1rem);
-        border-bottom: 1px solid rgba(127, 127, 127, .2);
-        touch-action: manipulation;
-      }
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton {
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex: 0 0 38px !important;
+          width: 38px !important;
+          height: 38px !important;
+          min-width: 38px !important;
+          margin: 0 !important;
+          padding: 6px !important;
+          background: transparent !important;
+          border: none !important;
+          border-radius: 50% !important;
+          color: #fff !important;
+          cursor: pointer !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
 
-      [data-vm-comment-enhanced='true'] > #toolbar,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-view-model,
-      [data-vm-comment-enhanced='true'] #toolbar.ytd-comment-renderer {
-        display: none !important;
-      }
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton,
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        html[dark-theme] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton {
+          color: #fff !important;
+        }
 
-      .vm-yt-comment-actions {
-        box-sizing: border-box;
-        display: flex;
-        width: 100%;
-        margin-top: clamp(.45rem, 2vw, .75rem);
-        gap: clamp(.4rem, 2vw, .75rem);
-      }
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy yt-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton yt-icon,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy svg,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton svg {
+          width: 22px !important;
+          height: 22px !important;
+          color: #fff !important;
+          fill: #fff !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
 
-      .vm-yt-comment-action {
-        appearance: none;
-        -webkit-appearance: none;
-        box-sizing: border-box;
-        display: inline-flex;
-        flex: 1 1 50%;
-        min-width: 0;
-        min-height: 44px;
-        padding: clamp(.55rem, 2.5vw, .75rem) clamp(.7rem, 3vw, 1rem);
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        color: inherit;
-        background: rgba(127, 127, 127, .12);
-        border: 1px solid rgba(127, 127, 127, .22);
-        border-radius: clamp(.6rem, 3vw, .9rem);
-        font: 600 clamp(.78rem, 3.2vw, .9rem)/1 Roboto, Arial, sans-serif;
-        touch-action: manipulation;
-      }
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #search-icon-legacy path:not([fill='none']),
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentSearchButton path:not([fill='none']) {
+          fill: #fff !important;
+          color: #fff !important;
+        }
 
-      .vm-yt-comment-action[data-pressed='true'] {
-        color: #ff0033;
-        background: rgba(255, 0, 51, .1);
-        border-color: rgba(255, 0, 51, .32);
-      }
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentClearButton {
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          flex: 0 0 32px !important;
+          width: 32px !important;
+          height: 32px !important;
+          min-width: 32px !important;
+          margin: 0 !important;
+          padding: 4px !important;
+          background: transparent !important;
+          border: none !important;
+          cursor: pointer !important;
+          color: var(--yt-spec-text-secondary, #606060) !important;
+        }
 
-      .vm-yt-comment-action svg {
-        width: 1.15rem;
-        height: 1.15rem;
-        fill: none;
-        stroke: currentColor;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        stroke-width: 1.8;
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center .ytSearchboxComponentClearButton,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] #center #clear-button {
+          color: #aaa !important;
+        }
+
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        .sbdd_a {
+          position: fixed !important;
+          top: calc(env(safe-area-inset-top, 0px) + 56px) !important;
+          left: 12px !important;
+          right: 12px !important;
+          width: calc(100vw - 24px) !important;
+          max-width: calc(100vw - 24px) !important;
+          max-height: calc(100vh - env(safe-area-inset-top, 0px) - 120px) !important;
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          z-index: 2147483647 !important;
+          background: var(--yt-spec-base-background, #fff) !important;
+          border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .15)) !important;
+          border-radius: 16px !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, .25) !important;
+        }
+
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        html[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        html[dark] .sbdd_a,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .ytSearchboxComponentSuggestionsContainer,
+        ytd-app[dark] ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true'] .sbsb_a,
+        ytd-app[dark] .sbdd_a {
+          background: #212121 !important;
+          border: 1px solid rgba(255, 255, 255, .2) !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, .5) !important;
+        }
+
       }
 
       ytd-comment-simplebox-renderer #placeholder-area,
@@ -4600,31 +5565,35 @@
         width: 100% !important;
         max-width: 100% !important;
         margin: clamp(.35rem, 1.5vw, .75rem) 0 0 !important;
-        order: 3 !important;
+        order: 4 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} {
         box-sizing: border-box;
-        position: relative;
-        z-index: 5;
+        position: relative !important;
+        z-index: 2147483646 !important;
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        flex-wrap: wrap;
+        pointer-events: auto !important;
+        isolation: isolate;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
         float: none !important;
         clear: both !important;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0;
+        min-height: 4rem;
         margin: clamp(.25rem, 1.2vw, .45rem) 0 clamp(.5rem, 2.4vw, .8rem) !important;
         padding: clamp(.45rem, 2vw, .7rem);
-        gap: clamp(.35rem, 1.8vw, .65rem);
+        gap: .35rem;
         justify-content: center;
         align-items: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, .2) !important;
         border-radius: clamp(.85rem, 4vw, 1.2rem);
-        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .06));
+        background: #111 !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         overflow: visible;
@@ -4633,9 +5602,9 @@
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID},
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID},
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} {
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, .14);
-        background: rgba(255, 255, 255, .08);
+        color: #fff !important;
+        border: 1px solid rgba(255, 255, 255, .2) !important;
+        background: #111 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
@@ -4644,35 +5613,46 @@
         display: inline-flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        flex: 0 0 auto;
-        width: clamp(2.9rem, 13vw, 3.45rem);
-        min-width: 2.9rem;
-        height: clamp(2.75rem, 12vw, 3.25rem);
+        flex: 0 0 3.25rem !important;
+        position: relative !important;
+        z-index: 2147483646 !important;
+        width: 3.25rem !important;
+        min-width: 3.25rem !important;
+        max-width: 3.25rem !important;
+        height: 3.25rem !important;
         margin: 0;
-        padding: clamp(.62rem, 2.6vw, .85rem);
+        padding: 0;
         align-items: center;
         justify-content: center;
-        color: var(--yt-spec-text-primary, #0f0f0f);
-        background: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, .08));
-        border: 1px solid var(--yt-spec-10-percent-layer, rgba(0, 0, 0, .12));
-        border-radius: 999px;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0;
+        overflow: visible;
         cursor: pointer;
         touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       html[dark-theme] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control,
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control {
-        color: #fff;
-        background: rgba(255, 255, 255, .12);
-        border: 1px solid rgba(255, 255, 255, .12);
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #fff;
-        background: #0f0f0f;
-        border-color: #0f0f0f;
+        display: inline-flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       html[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -4681,18 +5661,20 @@
         .fyp-player-control[data-fyp-player-action='play-pause'],
       ytd-app[dark] #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[data-fyp-player-action='play-pause'] {
-        color: #0f0f0f;
-        background: #fff;
-        border-color: #fff;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID}
         .fyp-player-control[aria-pressed='true']:not(
           [data-fyp-player-action='play-pause']
-        ) {
-        color: #fff;
-        background: #ff0033;
-        border-color: #ff0033;
+      ) {
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        background: transparent !important;
+        border: 0 !important;
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control:active {
@@ -4711,22 +5693,64 @@
       }
 
       #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
-        display: block;
-        width: 100%;
-        height: 100%;
-        max-width: clamp(1.25rem, 5.6vw, 1.6rem);
-        max-height: clamp(1.25rem, 5.6vw, 1.6rem);
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        display: block !important;
+        position: relative !important;
+        z-index: 2147483646 !important;
+        flex: 0 0 auto;
+        width: 2rem !important;
+        height: 2rem !important;
+        max-width: none;
+        max-height: none;
+        overflow: visible;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #fff !important;
+        forced-color-adjust: none;
+        pointer-events: none;
       }
 
+      /* Same idea as the search overlay: one owned control, one state.
+         A second icon must never paint over the rest of the strip. */
       #${PLAYER_CONTROLS_TOOLBAR_ID}
-        .fyp-player-control[data-fyp-player-action='play-pause'] svg {
-        fill: currentColor;
-        stroke: none;
+        .fyp-player-control[data-fyp-player-action='play-pause']
+        > svg
+        ~ svg {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: absolute !important;
+        pointer-events: none !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='none']:not([stroke='#fff']) {
+        fill: none !important;
+        stroke: none !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='#fff'] {
+        stroke: #fff !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] polyline:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] polyline:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] circle:not([fill='#fff']),
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] circle:not([fill='#fff']) {
+        fill: none !important;
+        stroke: #fff !important;
+      }
+
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentColor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentcolor'],
+      #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='#fff'] {
+        fill: #fff !important;
+        stroke: none !important;
       }
 
       /* Native settings gear stays available; overflow/more clutter stays hidden. */
@@ -5125,10 +6149,12 @@
   }
 
   function hideShortsGuideEntries(root = document) {
-    const entries = root.querySelectorAll?.(
+    const entrySelector =
       'ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer, ytm-pivot-bar-item-renderer, ' +
-        'tp-yt-paper-item, yt-list-item-view-model'
-    ) || [];
+      'tp-yt-paper-item, yt-list-item-view-model';
+    const entries = [];
+    if (root instanceof Element && root.matches(entrySelector)) entries.push(root);
+    entries.push(...(root.querySelectorAll?.(entrySelector) || []));
 
     for (const entry of entries) {
       const href = [
@@ -5154,9 +6180,9 @@
         .trim();
 
       const isShorts =
-        /\/shorts\b/i.test(href) ||
-        /^shorts\b/i.test(label) ||
-        (/\bshorts\b/i.test(label) && label.length < 48) ||
+        /\/shorts\b|\/playables\b/i.test(href) ||
+        /^(shorts|playables)\b/i.test(label) ||
+        (/(\bshorts\b|\bplayables\b|mini[\s-]?games)/i.test(label) && label.length < 48) ||
         /tab_shorts|shorts_fill|shorts_outline/i.test(
           entry.innerHTML?.slice?.(0, 500) || ''
         );
@@ -5178,6 +6204,124 @@
     }
   }
 
+  function isShortsOrPlayablesHref(href) {
+    return /(?:^|\/)(?:shorts|playables)(?:\/|$|\?)/i.test(String(href || ''));
+  }
+
+  function concealShortsElement(element) {
+    if (!(element instanceof Element)) return;
+    if (element.dataset.fypShortsHidden === 'true') return;
+    setImportantStyles(element, {
+      display: 'none',
+      visibility: 'hidden',
+      'pointer-events': 'none',
+      height: '0',
+      margin: '0',
+      padding: '0',
+      overflow: 'hidden',
+    });
+    element.setAttribute('aria-hidden', 'true');
+    element.hidden = true;
+    element.dataset.fypShortsHidden = 'true';
+  }
+
+  /*
+   * WHAT: Hides Shorts, Playables, and shelves that lead to them.
+   * IDEALOGY: Those items are removed from the desktop page so shelves and guide links cannot keep opening them.
+   * FLOW:
+   *   a node or the document --> collect shorts nodes and matching shelves --> hide the container --> guide entries are hidden too
+   * HOW: Collects nodes that match the shorts selector and shelves whose links, title, or label mention shorts, playables, or mini-games. Each hit is hidden at its container, then shorts entries in the guide are hidden.
+   * EVENT LOG: Called by the shorts MutationObserver and by yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
+  function removeShortsAndPlayables(root = document) {
+    const candidates = new Set();
+    const collect = (node) => {
+      if (!(node instanceof Element)) return;
+      if (node.matches(SHORTS_REMOVAL_SELECTOR)) candidates.add(node);
+      node.querySelectorAll?.(SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+        candidates.add(element);
+      });
+
+      node.querySelectorAll?.(
+        'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+      ).forEach((shelf) => {
+        const heading = (
+          shelf.querySelector?.(
+            '#title, #title-text, .title, yt-formatted-string, h2, [id*="title"]'
+          )?.textContent || ''
+        ).trim();
+        const ariaLabel = shelf.getAttribute?.('aria-label') || '';
+        const hasShortsHref = [...(shelf.querySelectorAll?.('a[href]') || [])].some(
+          (link) => isShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+        );
+        if (
+          hasShortsHref ||
+          /shorts|playables|mini[\s-]?games/i.test(heading) ||
+          /shorts|playables|mini[\s-]?games/i.test(ariaLabel)
+        ) {
+          candidates.add(shelf);
+        }
+      });
+    };
+
+    if (root instanceof Element) collect(root);
+    root.querySelectorAll?.(SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+      candidates.add(element);
+    });
+    root.querySelectorAll?.(
+      'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+    ).forEach((shelf) => collect(shelf));
+
+    for (const candidate of candidates) {
+      const item =
+        candidate.closest(SHORTS_REMOVAL_CONTAINER_SELECTOR) || candidate;
+      concealShortsElement(item);
+    }
+    hideShortsGuideEntries(root);
+  }
+
+  /*
+   * WHAT: Keeps Shorts hidden as YouTube adds shelves and navigates.
+   * IDEALOGY: One observer owns shorts removal so each new shelf is hidden without a second full-page sweep fighting the first.
+   * FLOW:
+   *   startup --> hide current shorts --> watch added nodes --> hide again on navigation
+   * HOW: Returns if the observer already exists. Otherwise it hides shorts once, watches the document for added elements, and hides shorts inside each added root. Navigation and page-show events hide shorts on the whole document again.
+   * EVENT LOG: MutationObserver, yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
+  function installShortsRemovalListener() {
+    if (shortsRemovalObserver) return;
+
+    removeShortsAndPlayables(document);
+    shortsRemovalObserver = new MutationObserver((mutations) => {
+      const roots = new Set();
+      for (const mutation of mutations) {
+        if (mutation.target instanceof Element) roots.add(mutation.target);
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) roots.add(node);
+        }
+      }
+      for (const root of roots) removeShortsAndPlayables(root);
+    });
+    shortsRemovalObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+
+    const cleanShortsOnNavigation = () => removeShortsAndPlayables(document);
+    nativeDocumentAddEventListener(
+      'yt-navigate-start',
+      cleanShortsOnNavigation,
+      true
+    );
+    nativeDocumentAddEventListener(
+      'yt-navigate-finish',
+      cleanShortsOnNavigation,
+      true
+    );
+    nativeWindowAddEventListener('popstate', cleanShortsOnNavigation, true);
+    nativeWindowAddEventListener('pageshow', cleanShortsOnNavigation, true);
+  }
+
   function hideNativeNavigationAndShorts() {
     for (const element of document.querySelectorAll(
       [
@@ -5190,6 +6334,11 @@
         'ytm-shorts-lockup-view-model-v2',
         'ytd-reel-item-renderer',
         'ytm-reel-item-renderer',
+        'yt-playable-game-renderer',
+        'ytd-game-card-renderer',
+        'ytd-playable-renderer',
+        'ytd-playables-shelf-renderer',
+        'yt-playables-shelf-renderer',
       ].join(',')
     )) {
       setImportantStyles(element, {
@@ -5204,20 +6353,41 @@
     for (const element of document.querySelectorAll(
       'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
     )) {
+      const titleText = (
+        element.querySelector?.('#title, .title, #title-text, yt-formatted-string, h2, [id*="title"]')
+          ?.textContent || ''
+      ).trim();
+      const ariaLabel = element.getAttribute?.('aria-label') || '';
       const isShortsShelf =
-        Boolean(element.querySelector?.('a[href*="/shorts"]')) ||
-        /shorts/i.test(
-          (element.querySelector?.('#title, .title, yt-formatted-string')
-            ?.textContent || '')
-            .trim()
-        );
+        Boolean(element.querySelector?.('a[href*="/shorts"], a[href*="/playables"]')) ||
+        /shorts|playables|mini[\s-]?games/i.test(titleText) ||
+        /shorts|playables|mini[\s-]?games/i.test(ariaLabel);
       if (!isShortsShelf) continue;
       setImportantStyles(element, {
         display: 'none',
         visibility: 'hidden',
         'pointer-events': 'none',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
       });
+      element.setAttribute('aria-hidden', 'true');
       element.hidden = true;
+      const section = element.closest('ytd-rich-section-renderer');
+      if (section && section !== element) {
+        setImportantStyles(section, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+          height: '0',
+          margin: '0',
+          padding: '0',
+          overflow: 'hidden',
+        });
+        section.setAttribute('aria-hidden', 'true');
+        section.hidden = true;
+      }
     }
 
     const possibleShortsControls = document.querySelectorAll([
@@ -5225,9 +6395,16 @@
       'a[href^="/shorts"]',
       'a[href*="/shorts"]',
       'a[href*="youtube.com/shorts"]',
+      'a[href^="/playables"]',
+      'a[href*="/playables"]',
+      'a[href*="youtube.com/playables"]',
       '[aria-label="Shorts"]',
       '[title="Shorts"]',
+      '[aria-label*="Playables" i]',
+      '[title*="Playables" i]',
       '[is-shorts]',
+      '[is-playables]',
+      '[is-playable]',
     ].join(','));
 
     for (const control of possibleShortsControls) {
@@ -5239,94 +6416,347 @@
             'ytd-rich-shelf-renderer, ytd-reel-shelf-renderer, ytd-rich-section-renderer, ' +
             'ytd-reel-item-renderer, ytm-reel-item-renderer, ' +
             'ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2, ' +
-            'yt-lockup-view-model, tp-yt-paper-item'
+            'yt-lockup-view-model, tp-yt-paper-item, grid-shelf-view-model'
         ) || control;
       setImportantStyles(item, {
         display: 'none',
         visibility: 'hidden',
         'pointer-events': 'none',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'hidden',
       });
       item.setAttribute('aria-hidden', 'true');
       item.hidden = true;
+      const section = item.closest('ytd-rich-section-renderer');
+      if (section && section !== item) {
+        setImportantStyles(section, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+          height: '0',
+          margin: '0',
+          padding: '0',
+          overflow: 'hidden',
+        });
+        section.setAttribute('aria-hidden', 'true');
+        section.hidden = true;
+      }
+    }
+
+    for (const chip of document.querySelectorAll('yt-chip-cloud-chip-renderer')) {
+      if (/playables|mini[\s-]?games/i.test(chip.textContent.trim())) {
+        setImportantStyles(chip, {
+          display: 'none',
+          visibility: 'hidden',
+          'pointer-events': 'none',
+        });
+        chip.hidden = true;
+      }
     }
 
     hideShortsGuideEntries(document);
+    removeShortsAndPlayables(document);
   }
 
   function blockShortsNavigation(event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const link = target.closest('a[href*="/shorts"]');
-    if (!link) return;
+    const link = target.closest('a[href]');
+    if (
+      !link ||
+      !isShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+    ) {
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     location.assign(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
   }
 
-  function closeMobileSearch() {
-    const masthead = document.querySelector('ytd-masthead');
-    if (!masthead) return;
-    masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
-    masthead
-      .querySelectorAll(
-        '#search-button, #search-icon-legacy, button[aria-label="Search"], ' +
-          '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
-      )
-      .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+  function isSearchField(element) {
+    return (
+      (typeof HTMLInputElement !== 'undefined' && element instanceof HTMLInputElement) ||
+      (typeof HTMLTextAreaElement !== 'undefined' && element instanceof HTMLTextAreaElement)
+    );
+  }
+
+  function findNativeSearchInput(masthead = document.querySelector('ytd-masthead')) {
+    const input = masthead?.querySelector(
+      'input#search, input[name="search_query"], textarea[name="search_query"], ' +
+        '.yt-searchbox-input, .ytSearchboxComponentInput'
+    );
+    return isSearchField(input) ? input : null;
   }
 
   /*
-   * Phone-width tap on the masthead search icon/box. We own the overlay
-   * (data-fyp-mobile-search-open) so YouTube's collapsed desktop searchbox
-   * does not stay icon-sized. Clicks inside an already-open #center pass
-   * through so the user can type and submit.
+   * WHAT: Creates the search dialog that opens from the masthead.
+   * IDEALOGY: The overlay is separate from YouTube's search field, so a swap between input and textarea cannot break focus or submit.
+   * FLOW:
+   *   first search open --> build dialog, field, and submit icon --> listen for submit --> overlay is ready
+   * HOW: Returns the existing overlay. Otherwise it builds a hidden dialog with a search field and a painted submit button and appends it. A backdrop tap closes it. Form submit and Enter run the search.
+   * EVENT LOG: submit and keydown on the form, plus click and touchstart on the backdrop. Built from the search click handler and applyMobileShell.
+   */
+  function ensureMobileSearchElements() {
+    const existing = document.getElementById(SEARCH_OVERLAY_ID);
+    if (existing) return existing;
+
+    const host = document.body || document.documentElement;
+    if (!host) return null;
+
+    const overlay = document.createElement('div');
+    overlay.id = SEARCH_OVERLAY_ID;
+    overlay.hidden = true;
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('data-fyp-search-dialog', 'true');
+
+    const form = document.createElement('form');
+    form.id = SEARCH_OVERLAY_FORM_ID;
+    form.setAttribute('role', 'search');
+
+    const input = document.createElement('input');
+    input.id = SEARCH_OVERLAY_INPUT_ID;
+    input.type = 'search';
+    input.name = 'search_query';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = 'Search YouTube';
+    input.setAttribute('aria-label', 'Search YouTube');
+    input.setAttribute('enterkeyhint', 'search');
+
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'fyp-search-submit';
+    submit.setAttribute('aria-label', 'Search');
+    submit.title = 'Search';
+    submit.textContent = 'Search';
+
+    form.append(input, submit);
+    dialog.append(form);
+    overlay.append(dialog);
+    host.append(overlay);
+
+    const dismiss = (event) => {
+      if (event.target !== overlay) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeMobileSearch();
+    };
+    overlay.addEventListener('click', dismiss, true);
+    overlay.addEventListener('touchstart', dismiss, { capture: true, passive: false });
+    form.addEventListener(
+      'submit',
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        submitMobileSearch(input.value);
+      },
+      true
+    );
+    input.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        event.stopPropagation();
+        submitMobileSearch(input.value);
+      },
+      true
+    );
+    return overlay;
+  }
+
+  function restoreSearchHiddenElements() {
+    for (const element of document.querySelectorAll(
+      '[data-fyp-search-inline-hidden="true"]'
+    )) {
+      element.removeAttribute('data-fyp-search-inline-hidden');
+      element.removeAttribute('aria-hidden');
+      for (const property of [
+        'display',
+        'visibility',
+        'opacity',
+        'pointer-events',
+      ]) {
+        element.style.removeProperty(property);
+      }
+    }
+  }
+
+  function buildYouTubeSearchUrl(query) {
+    const url = new URL(`https://${BACKEND_HOST}/results`);
+    url.search = new URLSearchParams({ search_query: query }).toString();
+    return url.href;
+  }
+
+  /*
+   * WHAT: Sends a typed query to YouTube search results and closes the overlay.
+   * IDEALOGY: Submit uses the desktop results URL the shell already targets, instead of handing the query to the masthead form.
+   * FLOW:
+   *   non-empty query --> close overlay --> assign the results URL --> search results page
+   * HOW: Collapses extra whitespace and focuses the field again when the query is empty. A real query closes the overlay, then navigates to the desktop host results page with search_query set.
+   * EVENT LOG: Called from the overlay form submit and the field Enter key. Uses location.assign.
+   */
+  function submitMobileSearch(rawQuery) {
+    const query = String(rawQuery || '').replace(/\s+/g, ' ').trim();
+    const input = document.getElementById(SEARCH_OVERLAY_INPUT_ID);
+    if (!query) {
+      if (isSearchField(input)) input.focus();
+      return;
+    }
+    closeMobileSearch();
+    location.assign(buildYouTubeSearchUrl(query));
+  }
+
+  let searchOverlayHideTimer = 0;
+
+  function closeMobileSearch() {
+    const masthead = document.querySelector('ytd-masthead');
+    if (masthead) {
+      masthead.removeAttribute(MOBILE_SEARCH_OPEN_ATTR);
+      masthead
+        .querySelectorAll(
+          '#search-button, #search-button-narrow, #search-icon-legacy, button[aria-label="Search"], ' +
+            '[role="button"][aria-label="Search"], yt-icon-button[aria-label="Search"]'
+        )
+        .forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    }
+    document.documentElement?.removeAttribute('data-fyp-search-active');
+    document.body?.removeAttribute('data-fyp-search-active');
+
+    const overlay = document.getElementById(SEARCH_OVERLAY_ID);
+    if (overlay) {
+      overlay.removeAttribute('data-open');
+      overlay.setAttribute('aria-hidden', 'true');
+      for (const property of ['display', 'visibility', 'opacity', 'pointer-events']) {
+        overlay.style.removeProperty(property);
+      }
+      const dialog = overlay.querySelector('[data-fyp-search-dialog]');
+      if (dialog instanceof HTMLElement) {
+        dialog.style.removeProperty('transition');
+        dialog.style.removeProperty('transform');
+        dialog.style.removeProperty('opacity');
+      }
+      const input = overlay.querySelector(`#${SEARCH_OVERLAY_INPUT_ID}`);
+      if (isSearchField(input)) {
+        try { input.blur(); } catch {}
+      }
+      clearTimeout(searchOverlayHideTimer);
+      searchOverlayHideTimer = setTimeout(() => {
+        if (overlay.getAttribute('data-open') === 'true') return;
+        overlay.hidden = true;
+      }, 420);
+    }
+    const nativeInput = findNativeSearchInput(masthead);
+    if (nativeInput) {
+      try { nativeInput.blur(); } catch {}
+    }
+    restoreSearchHiddenElements();
+    ensureGuideButtonVisible();
+  }
+
+  /*
+   * WHAT: Opens the search overlay when the masthead search control is tapped.
+   * IDEALOGY: The masthead is only the trigger. A separate overlay keeps focus reliable when YouTube changes the search field.
+   * FLOW:
+   *   search trigger tap --> close the guide --> show the overlay and copy any native query --> focus the field
+   * HOW: Ignores taps inside the overlay and taps when it is already open. A real trigger cancels the event, closes the guide drawer, builds the overlay, copies the native field value, marks search active, and focuses the field with the caret at the end.
+   * EVENT LOG: document click and touchstart. Focus uses the overlay input's focus method.
    */
   function handleMobileSearchClick(event) {
-    if (!window.matchMedia?.('(max-width: 700px)').matches) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest(`#${SEARCH_OVERLAY_ID}`)) return;
 
     const trigger = target.closest(MOBILE_SEARCH_TRIGGER_SELECTOR);
-    const masthead = target.closest('ytd-masthead');
-    if (!trigger || !masthead) {
-      const openMasthead = document.querySelector(
-        `ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}='true']`
-      );
-      if (openMasthead && !target.closest('ytd-masthead #center')) {
-        closeMobileSearch();
-      }
+    if (!trigger) return;
+
+    // iOS opens the keyboard from the click that follows touchstart.
+    // preventDefault on touchstart cancels that click, so the field never focuses.
+    if (event.type === 'touchstart') {
+      event.stopImmediatePropagation();
       return;
     }
+
+    const masthead = target.closest('ytd-masthead') || document.querySelector('ytd-masthead');
+    if (!masthead) return;
 
     const alreadyOpen =
-      masthead.getAttribute(MOBILE_SEARCH_OPEN_ATTR) === 'true';
-    if (alreadyOpen && trigger.closest('#center')) {
-      return;
-    }
-
-    const input = masthead.querySelector(
-      'input#search, input[name="search_query"], .yt-searchbox-input, ' +
-        '.ytSearchboxComponentInput'
-    );
-    if (!(input instanceof HTMLInputElement)) return;
+      document.documentElement?.getAttribute('data-fyp-search-active') === 'true';
+    if (alreadyOpen) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
-    masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
-    trigger.setAttribute('aria-expanded', 'true');
-    requestAnimationFrame(() => {
-      input.removeAttribute('hidden');
-      input.setAttribute('aria-hidden', 'false');
-      try {
-        input.focus({ preventScroll: true });
-      } catch {
-        input.focus();
+
+    // Close any open guide drawer so it never peeks/show through the overlay.
+    for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
+      if (typeof drawer.close === 'function') {
+        try { drawer.close(); } catch {}
       }
-      const end = input.value.length;
-      input.setSelectionRange?.(end, end);
+    }
+
+    const overlay = ensureMobileSearchElements();
+    const input = overlay?.querySelector(`#${SEARCH_OVERLAY_INPUT_ID}`);
+    if (!overlay || !isSearchField(input)) return;
+
+    const nativeInput = findNativeSearchInput(masthead);
+    input.value = nativeInput?.value || '';
+
+    masthead.setAttribute(MOBILE_SEARCH_OPEN_ATTR, 'true');
+    document.documentElement?.setAttribute('data-fyp-search-active', 'true');
+    document.body?.setAttribute('data-fyp-search-active', 'true');
+    clearTimeout(searchOverlayHideTimer);
+    overlay.hidden = false;
+    overlay.setAttribute('data-open', 'true');
+    overlay.setAttribute('aria-hidden', 'false');
+    setImportantStyles(overlay, {
+      display: 'flex',
+      visibility: 'visible',
+      opacity: '1',
+      'pointer-events': 'auto',
     });
+    trigger.setAttribute('aria-expanded', 'true');
+    hideAskGeminiControls();
+    ensureGuideButtonVisible();
+
+    // Force-hide hamburger menu elements immediately while the overlay is open.
+    for (const btn of document.querySelectorAll(
+      '#guide-button, ytd-masthead #guide-button, button[aria-label="Guide"], ytd-masthead #start, #start'
+    )) {
+      btn.setAttribute('data-fyp-search-inline-hidden', 'true');
+      setImportantStyles(btn, {
+        display: 'none',
+        visibility: 'hidden',
+        opacity: '0',
+        'pointer-events': 'none',
+      });
+      btn.setAttribute('aria-hidden', 'true');
+    }
+
+    // The field is already visible. Focus inside this click so iOS opens the keyboard.
+    const end = input.value.length;
+    try {
+      input.focus();
+    } catch {
+      // ignore
+    }
+    input.setSelectionRange?.(end, end);
+    try { nativeInput?.blur(); } catch {}
   }
 
+  /*
+   * WHAT: Hides YouTube's page miniplayer when the shell refreshes.
+   * IDEALOGY: The floating YouTube miniplayer is not the phone layout, so the shell turns it off instead of leaving a second player on screen.
+   * FLOW:
+   *   scan or navigation --> clear miniplayer flags --> hide miniplayer nodes --> click close when one is present
+   * HOW: Clears miniplayer-active attributes and properties on ytd-app. It hides the miniplayer nodes, clears their active state, and clicks close buttons whose label includes Close.
+   * EVENT LOG: Called from scanPage, yt-navigate-finish, popstate, and applyMobileShell. Uses a click on the close button.
+   */
   function dismissMiniplayer() {
     const app = document.querySelector('ytd-app');
     if (app) {
@@ -5394,6 +6824,24 @@
     }
   }
 
+  function disableGuideSwipe(drawer) {
+    if (!(drawer instanceof HTMLElement)) return;
+    if (!drawer.hasAttribute('disable-swipe')) {
+      drawer.setAttribute('disable-swipe', '');
+    }
+    try {
+      drawer.disableSwipe = true;
+    } catch {}
+  }
+
+  /*
+   * WHAT: Keeps the hamburger drawer as the only navigation, without swipe or the mini-guide rail.
+   * IDEALOGY: Navigation is a single tap on the guide button. The rail and swipe are turned off so they do not sit beside the drawer.
+   * FLOW:
+   *   guide button sync --> hide the mini-guide --> disable drawer swipe --> leftover scroll lock is cleared
+   * HOW: Hides each mini-guide renderer and zeroes the mini-guide width variables on ytd-app. Each guide drawer gets disable-swipe, shorts entries in the guide are hidden, and scroll restore runs afterward.
+   * EVENT LOG: Called at the end of ensureGuideButtonVisible, which scanPage and yt-navigate-finish call.
+   */
   function lockGuideToTapOnly() {
     for (const mini of document.querySelectorAll('ytd-mini-guide-renderer')) {
       setImportantStyles(mini, {
@@ -5411,6 +6859,7 @@
     }
 
     for (const drawer of document.querySelectorAll('tp-yt-app-drawer#guide, #guide')) {
+      disableGuideSwipe(drawer);
       hideShortsGuideEntries(drawer);
     }
 
@@ -5428,6 +6877,23 @@
       'button[aria-label="Guide"]',
       'button[aria-label*="Guide"]',
     ].join(','));
+
+    const isSearchActive =
+      document.body?.getAttribute('data-fyp-search-active') === 'true' ||
+      document.querySelector(`ytd-masthead[${MOBILE_SEARCH_OPEN_ATTR}="true"]`);
+
+    if (isSearchActive) {
+      for (const button of candidates) {
+        button.setAttribute('aria-hidden', 'true');
+        setImportantStyles(button, {
+          display: 'none',
+          visibility: 'hidden',
+          opacity: '0',
+          'pointer-events': 'none',
+        });
+      }
+      return;
+    }
 
     for (const button of candidates) {
       button.removeAttribute('hidden');
@@ -5541,6 +7007,9 @@
   function applyMobileShell() {
     hideNativeNavigationAndShorts();
     ensureGuideButtonVisible();
+    paintMastheadSearchIcons();
+    ensureMobileSearchElements();
+    hideAskGeminiControls();
     hideUploadControls();
     dismissMiniplayer();
     removeFloatingPillNav();
@@ -5764,6 +7233,7 @@
   }
 
   function arrangeWatchComments() {
+    restoreNativeCommentControls();
     positionCommentsAfterRecommendations();
     removeLegacyCommentPagination();
   }
@@ -5897,14 +7367,19 @@
     link.dataset.id = item.id;
     if (item.create) link.dataset.create = 'true';
     link.setAttribute('aria-label', item.label);
-    link.innerHTML = `
-      <span class="vm-yt-nav-icon-wrap">
-        <svg class="vm-yt-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
-          ${item.icon}
-        </svg>
-      </span>
-      <span class="vm-yt-nav-label">${item.label}</span>
-    `;
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'vm-yt-nav-icon-wrap';
+    const icon = svgElementFromMarkup(item.icon);
+    if (icon) {
+      icon.classList.add('vm-yt-nav-icon');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('aria-hidden', 'true');
+      iconWrap.appendChild(icon);
+    }
+    const label = document.createElement('span');
+    label.className = 'vm-yt-nav-label';
+    label.textContent = item.label;
+    link.append(iconWrap, label);
     return link;
   }
 
@@ -6016,154 +7491,20 @@
     }
   }
 
-  function findNativeCommentAction(comment, selectors) {
-    return [...comment.querySelectorAll(selectors)].find(
-      (element) => !element.closest('.vm-yt-comment-actions')
-    );
-  }
-
-  function enhanceComments(root = document) {
-    const comments = [
-      ...root.querySelectorAll?.('ytd-comment-view-model') || [],
-      ...[...root.querySelectorAll?.('ytd-comment-renderer') || []].filter(
-        (comment) => !comment.querySelector('ytd-comment-view-model')
-      ),
-    ];
-
-    for (const comment of comments) {
-      if (comment.dataset.vmCommentEnhanced === 'true') continue;
-
-      const likeSelectors = [
-        '#like-button button',
-        'like-button-view-model button',
-        'button[aria-label^="Like"]',
-        '[role="button"][aria-label^="Like"]',
-      ].join(',');
-      const replySelectors = [
-        '#reply-button-end button',
-        'ytd-button-renderer#reply-button button',
-        'button[aria-label^="Reply"]',
-        '[role="button"][aria-label^="Reply"]',
-      ].join(',');
-      if (
-        !findNativeCommentAction(comment, likeSelectors) &&
-        !findNativeCommentAction(comment, replySelectors)
-      ) {
-        continue;
-      }
-
-      comment.dataset.vmCommentEnhanced = 'true';
-      setImportantStyles(comment, {
-        'box-sizing': 'border-box',
-        width: '100%',
-        'min-width': '0',
-        'max-width': '100%',
-        padding: '12px 10px',
-        'border-bottom': '1px solid rgba(127, 127, 127, .2)',
-        'touch-action': 'manipulation',
-      });
-
+  function restoreNativeCommentControls(root = document) {
+    const enhancedComments = root.querySelectorAll?.(
+      '[data-vm-comment-enhanced="true"]'
+    ) || [];
+    for (const comment of enhancedComments) {
       for (const toolbar of comment.querySelectorAll('#toolbar')) {
-        setImportantStyles(toolbar, {
-          display: 'none',
-          visibility: 'hidden',
-        });
+        toolbar.style.removeProperty('display');
+        toolbar.style.removeProperty('visibility');
       }
-
-      const actions = document.createElement('div');
-      actions.className = 'vm-yt-comment-actions';
-      setImportantStyles(actions, {
-        'box-sizing': 'border-box',
-        display: 'flex',
-        width: '100%',
-        'margin-top': '8px',
-        gap: '8px',
-      });
-
-      const createAction = (label, icon) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'vm-yt-comment-action';
-        button.setAttribute('aria-label', `${label} this comment`);
-        button.innerHTML = `
-          <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>
-          <span>${label}</span>
-        `;
-        setImportantStyles(button, {
-          appearance: 'none',
-          display: 'inline-flex',
-          flex: '1 1 50%',
-          'min-width': '0',
-          'min-height': '44px',
-          padding: '10px 12px',
-          'align-items': 'center',
-          'justify-content': 'center',
-          gap: '6px',
-          color: 'inherit',
-          background: 'rgba(127, 127, 127, .12)',
-          border: '1px solid rgba(127, 127, 127, .22)',
-          'border-radius': '12px',
-          'font-family': 'Roboto, Arial, sans-serif',
-          'font-size': '14px',
-          'font-weight': '600',
-          'line-height': '1',
-          'touch-action': 'manipulation',
-        });
-        return button;
-      };
-
-      const like = createAction(
-        'Like',
-        '<path d="M7 10v11H3V10h4Zm0 9h10.2a2 2 0 0 0 1.9-1.4l1.7-5.5A2 2 0 0 0 18.9 9H14l.7-3.2A2.8 2.8 0 0 0 12 2.5L7 10Z"/>'
-      );
-      const reply = createAction(
-        'Reply',
-        '<path d="M9 17 4 12l5-5v3h5a6 6 0 0 1 6 6v3a7 7 0 0 0-6-6H9v4Z"/>'
-      );
-
-      const syncLikeState = () => {
-        const nativeLike = findNativeCommentAction(comment, likeSelectors);
-        const pressed = Boolean(
-          nativeLike?.getAttribute('aria-pressed') === 'true' ||
-          nativeLike?.closest('[aria-pressed="true"]')
-        );
-        like.dataset.pressed = String(pressed);
-        like.querySelector('span').textContent = pressed ? 'Liked' : 'Like';
-        like.style.setProperty(
-          'color',
-          pressed ? '#ff0033' : 'inherit',
-          'important'
-        );
-      };
-
-      like.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        findNativeCommentAction(comment, likeSelectors)?.click();
-        setTimeout(syncLikeState, 50);
-        setTimeout(syncLikeState, 350);
-      });
-
-      reply.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const nativeReply = findNativeCommentAction(comment, replySelectors);
-        nativeReply?.click();
-        setTimeout(() => {
-          const editor = comment.querySelector(
-            'ytd-commentbox textarea, #contenteditable-root, [contenteditable="true"]'
-          );
-          editor?.focus();
-          editor?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }, 120);
-      });
-
-      actions.append(like, reply);
-      const actionHost =
-        comment.querySelector('#body, #main, #content') || comment;
-      actionHost.appendChild(actions);
-      syncLikeState();
+      comment.removeAttribute('data-vm-comment-enhanced');
     }
+    root.querySelectorAll?.('.vm-yt-comment-actions').forEach((actions) => {
+      actions.remove();
+    });
   }
 
   function ensureViewport() {
@@ -6194,21 +7535,64 @@
   function isUsableWatchMount(node) {
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
+    const watch = node.closest('ytd-watch-flexy');
+    if (watch && !isVisibleWatchRoot(watch)) return false;
     if (node.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
     const style = getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    return true;
+  }
+
+  function watchIdFromLocation() {
+    try {
+      return new URL(location.href).searchParams.get('v') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function isVisibleWatchRoot(watch) {
+    if (!(watch instanceof Element) || !watch.isConnected) return false;
+    if (watch.hasAttribute('hidden')) return false;
+    const style = getComputedStyle(watch);
     if (style.display === 'none') return false;
     return true;
   }
 
+  function findVisibleWatchRoot() {
+    const wanted = watchIdFromLocation();
+    const nodes = [...document.querySelectorAll('ytd-watch-flexy')].filter(
+      isVisibleWatchRoot
+    );
+    if (wanted) {
+      const match = nodes.find((node) => node.getAttribute('video-id') === wanted);
+      if (match) return match;
+    }
+    return nodes[nodes.length - 1] || null;
+  }
+
+  function findActivePlayerElement() {
+    const watch = findVisibleWatchRoot();
+    const player = watch?.querySelector('#movie_player, .html5-video-player');
+    if (player instanceof HTMLElement) return player;
+    const video =
+      state.video instanceof HTMLVideoElement && state.video.isConnected
+        ? state.video
+        : null;
+    return video?.closest('#movie_player, .html5-video-player') || null;
+  }
+
   function findWatchTitleAnchor() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
       'ytd-watch-metadata #title',
       'ytd-video-primary-info-renderer #title',
-      'ytd-watch-flexy ytd-watch-metadata h1',
-      'ytd-watch-flexy #below h1',
+      'ytd-watch-metadata h1',
+      '#below h1',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (!isUsableWatchMount(candidate)) continue;
         return candidate.closest('#title') || candidate;
       }
@@ -6217,12 +7601,14 @@
   }
 
   function findWatchMetadataHost() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy ytd-watch-metadata',
-      'ytd-watch-flexy ytd-video-primary-info-renderer',
+      'ytd-watch-metadata',
+      'ytd-video-primary-info-renderer',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (isUsableWatchMount(candidate)) return candidate;
       }
     }
@@ -6230,40 +7616,43 @@
   }
 
   function findWatchBelowHost() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy #below',
-      'ytd-watch-flexy #primary-inner',
+      '#below',
+      '#primary-inner',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (isUsableWatchMount(candidate)) return candidate;
     }
     return null;
   }
 
   function findVisibleWatchPlayerHost() {
-    const watch = document.querySelector('ytd-watch-flexy');
-    if (!(watch instanceof Element)) return null;
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
     const fullBleed =
       watch.hasAttribute('full-bleed-player') ||
       watch.hasAttribute('theater');
     const selectors = fullBleed
       ? [
-          'ytd-watch-flexy #player-full-bleed-container',
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
+          '#player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
         ]
       : [
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
-          'ytd-watch-flexy #player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
+          '#player-full-bleed-container',
         ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (!(candidate instanceof Element) || !candidate.isConnected) continue;
       if (candidate.closest(COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
       if (candidate.closest('[hidden]')) continue;
-      if (getComputedStyle(candidate).display === 'none') continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
       return candidate;
     }
     return null;
@@ -6323,6 +7712,28 @@
     return false;
   }
 
+  /*
+   * WHAT: Places the control strip under the watch title, or the next available watch slot.
+   * IDEALOGY: The strip stays in the title and metadata block, using the first real watch anchor instead of YouTube's player overlay.
+   * FLOW:
+   *   toolbar and watch anchors --> title, metadata, below, player, or watch --> insert --> strip is in the page
+   * HOW: Inserts after the title when one exists. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
+   * EVENT LOG: Called from ensurePlayerControlsToolbar. No event of its own.
+   */
+  function raisePlayerControlsStack(toolbar) {
+    if (!(toolbar instanceof HTMLElement)) return;
+    toolbar.style.setProperty('position', 'relative', 'important');
+    toolbar.style.setProperty('z-index', '2147483646', 'important');
+    toolbar.style.setProperty('overflow', 'visible', 'important');
+    const parent = toolbar.parentElement;
+    if (!(parent instanceof HTMLElement) || parent === document.body) return;
+    if (parent.dataset.fypControlsRaised === 'true') return;
+    parent.dataset.fypControlsRaised = 'true';
+    parent.style.setProperty('position', 'relative', 'important');
+    parent.style.setProperty('z-index', '2147483645', 'important');
+    parent.style.setProperty('overflow', 'visible', 'important');
+  }
+
   function mountPlayerControlsToolbar(
     toolbar,
     title,
@@ -6354,23 +7765,32 @@
     return false;
   }
 
+  /*
+   * WHAT: Creates the watch control strip and keeps it in the title block.
+   * IDEALOGY: One toolbar id owns the strip. Off a watch page it is removed so other pages do not keep player buttons.
+   * FLOW:
+   *   /watch with a visible watch root --> create or reuse the toolbar --> mount if misplaced --> sync the buttons
+   * HOW: Removes the toolbar only when the path is not /watch. A missing watch root during a video change is left alone, because YouTube hides the old page before the new one exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, moves it when it is on the wrong video or inside the collapsed player, and syncs the buttons.
+   * EVENT LOG: Called from scanPage and from the toolbar retry schedule after yt-navigate-finish, popstate, and pageshow.
+   */
   function ensurePlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
       return;
     }
 
+    const watch = findVisibleWatchRoot();
+    if (!watch) return;
     const title = findWatchTitleAnchor();
     const metadata = findWatchMetadataHost();
     const below = findWatchBelowHost();
     const playerHost = findVisibleWatchPlayerHost();
-    const watch = document.querySelector('ytd-watch-flexy');
     const watchChromeExists =
       title instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
-      watch instanceof Element;
+      isVisibleWatchRoot(watch);
 
     if (!watchChromeExists) return;
 
@@ -6385,19 +7805,15 @@
       toolbar.dataset.fypControlsLayout = PLAYER_CONTROLS_LAYOUT_VERSION;
       toolbar.setAttribute('role', 'toolbar');
       toolbar.setAttribute('aria-label', 'Video player controls');
-      toolbar.innerHTML = playerControlsMarkup();
+      toolbar.replaceChildren(...createPlayerControlButtons());
     }
 
-    if (
-      !toolbarIsCorrectlyPlaced(
-        toolbar,
-        title,
-        metadata,
-        below,
-        playerHost,
-        watch
-      )
-    ) {
+    const onThisWatch =
+      toolbar.isConnected &&
+      toolbar.closest('ytd-watch-flexy') === watch &&
+      !toolbar.closest(COLLAPSED_PLAYER_SHELL_SELECTOR);
+    const settledOnTitle = toolbar.dataset.fypControlsAnchor === 'title';
+    if (!onThisWatch || (!settledOnTitle && title instanceof Element)) {
       mountPlayerControlsToolbar(
         toolbar,
         title,
@@ -6406,12 +7822,18 @@
         playerHost,
         watch
       );
+      if (title instanceof Element && toolbar.previousElementSibling === title) {
+        toolbar.dataset.fypControlsAnchor = 'title';
+      } else {
+        delete toolbar.dataset.fypControlsAnchor;
+      }
     }
+    raisePlayerControlsStack(toolbar);
     syncCustomPlayerControls();
   }
 
   const PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
-    0, 60, 160, 400, 900, 1800, 3500,
+    0, 60, 160, 400, 900, 1800, 3500, 6000, 10000,
   ]);
   let playerControlsToolbarScheduleToken = 0;
 
@@ -6500,10 +7922,21 @@
 
   let lastPageScanAt = 0;
 
+  /*
+   * WHAT: Refreshes the phone shell, search layout, controls, and attached video after the page changes.
+   * IDEALOGY: YouTube swaps watch DOM without a full load, so one scan reapplies the shell instead of patching each Polymer render.
+   * FLOW:
+   *   DOM ready or mutation --> scan --> shell, guide, controls, video --> page matches the current route
+   * HOW: Records the scan time and sends Shorts or Playables routes home. Then it applies the shell, search layout, guide button, scroll restore, upload hide, and miniplayer dismiss, mounts the control strip, and attaches the current watch video.
+   * EVENT LOG: DOMContentLoaded, the document MutationObserver, and an immediate call when the document is already loaded.
+   */
   function scanPage() {
     lastPageScanAt = Date.now();
     ensureViewport();
-    if (location.pathname.startsWith('/shorts')) {
+    if (
+      location.pathname.startsWith('/shorts') ||
+      location.pathname.startsWith('/playables')
+    ) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
     }
@@ -6520,7 +7953,6 @@
     updateMediaSessionMetadata();
     hideAskGeminiControls();
     arrangeWatchComments();
-    enhanceComments();
     removeAdCards();
     const video = findVideo();
     if (video) attachVideo(video);
@@ -6546,9 +7978,15 @@
     restoreScrollAfterGuideClose,
     true
   );
+  nativeDocumentAddEventListener('yt-navigate-start', () => {
+    if (location.pathname === '/watch') schedulePlayerControlsToolbar();
+  }, true);
   nativeDocumentAddEventListener('yt-navigate-finish', () => {
     if (redirectChannelRootToVideos()) return;
-    if (location.pathname.startsWith('/shorts')) {
+    if (
+      location.pathname.startsWith('/shorts') ||
+      location.pathname.startsWith('/playables')
+    ) {
       location.replace(`https://${BACKEND_HOST}/?app=desktop&persist_app=1`);
       return;
     }
@@ -6563,7 +8001,6 @@
     schedulePlayerControlsToolbar();
     closeMobileSearch();
     arrangeWatchComments();
-    enhanceComments();
     if (location.pathname === '/watch') {
       void refreshWatchDislikeCount({ force: true });
     }
@@ -6611,8 +8048,20 @@
     passive: true,
   });
   nativeDocumentAddEventListener('click', blockShortsNavigation, true);
+  nativeDocumentAddEventListener('pointerdown', blockShortsNavigation, {
+    capture: true,
+    passive: false,
+  });
+  nativeDocumentAddEventListener('touchstart', blockShortsNavigation, {
+    capture: true,
+    passive: false,
+  });
   nativeDocumentAddEventListener('click', redirectChannelLinkToVideos, true);
   nativeDocumentAddEventListener('click', handleMobileSearchClick, true);
+  nativeDocumentAddEventListener('touchstart', handleMobileSearchClick, {
+    capture: true,
+    passive: false,
+  });
   nativeDocumentAddEventListener(
     'submit',
     (event) => {
@@ -6654,6 +8103,7 @@
   }, true);
 
   injectStyle();
+  installShortsRemovalListener();
   applyMobileShell();
   schedulePlayerControlsToolbar();
 

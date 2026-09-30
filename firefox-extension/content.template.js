@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.1.1';
+  const EXPECTED_PAGE_VERSION = '3.2.15';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -51,6 +51,55 @@
     'small',
     'tiny',
   ]);
+  const FALLBACK_SHORTS_REMOVAL_SELECTOR = [
+    'a[href^="/shorts"]',
+    'a[href*="/shorts/"]',
+    'a[href*="youtube.com/shorts/"]',
+    'a[href^="/playables"]',
+    'a[href*="/playables/"]',
+    'a[href*="youtube.com/playables"]',
+    'button[aria-label="Shorts"]',
+    'button[title="Shorts"]',
+    '[aria-label="Shorts"]',
+    '[title="Shorts"]',
+    '[aria-label*="Playables" i]',
+    '[title*="Playables" i]',
+    '[is-shorts]',
+    '[is-playables]',
+    '[is-playable]',
+    'ytd-reel-shelf-renderer',
+    'ytm-reel-shelf-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'yt-playable-game-renderer',
+    'ytd-game-card-renderer',
+    'ytd-playable-renderer',
+    'ytd-playables-shelf-renderer',
+    'yt-playables-shelf-renderer',
+  ].join(',');
+  const FALLBACK_SHORTS_CONTAINER_SELECTOR = [
+    'ytm-pivot-bar-item-renderer',
+    'ytd-guide-entry-renderer',
+    'ytd-mini-guide-entry-renderer',
+    'yt-tab-shape',
+    '[role="tab"]',
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-grid-video-renderer',
+    'ytd-rich-shelf-renderer',
+    'ytd-rich-section-renderer',
+    'ytd-reel-shelf-renderer',
+    'ytd-reel-item-renderer',
+    'ytm-reel-item-renderer',
+    'ytm-shorts-lockup-view-model',
+    'ytm-shorts-lockup-view-model-v2',
+    'yt-lockup-view-model',
+    'tp-yt-paper-item',
+    'grid-shelf-view-model',
+  ].join(',');
+  let fallbackShortsObserver = null;
   let fallbackUiQueued = false;
   let lastFallbackMediaSessionMetadataKey = '';
   let fallbackMediaSessionHandlersInstalled = false;
@@ -107,6 +156,14 @@
     );
   }
 
+  /*
+   * WHAT: Records this tab as the lock-screen owner for the current watch video.
+   * IDEALOGY: Several tabs can share a watch page, so one localStorage lease decides the owner. A hidden tab does not take that lease from a tab that still holds it.
+   * FLOW:
+   *   watch video not ended --> no live foreign owner while hidden --> write the lease --> this tab owns the session
+   * HOW: Returns false off a watch page, without a video, or when the video has ended. It also returns false when another tab's lease is still valid and this document is hidden. Otherwise it stores this tab id, the video id, and an expiry, or keeps a local owner flag if storage throws.
+   * EVENT LOG: Called from the fallback play listener and prepareFallbackBackgroundPlayback. Uses localStorage.
+   */
   function claimFallbackMediaSessionOwnership(video) {
     if (
       location.pathname !== '/watch' ||
@@ -161,23 +218,135 @@
   }
 
   const PLAYER_CONTROL_ICONS = Object.freeze({
-    rewind: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>',
-    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>',
-    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 4h4v16H6zm8 0h4v16h-4z"></path></svg>',
-    forward: '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>',
-    pip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><rect width="10" height="7" x="11" y="14" rx="1"></rect></svg>',
-    fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>',
+    pause:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"></path><path fill="#fff" d="M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"></path></svg>',
+    play:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h16v16H0z" fill="none"></path><path fill="#fff" d="M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z"></path></svg>',
+    rewind:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"></path><path fill="currentColor" d="M455.979 424.271A24.053 24.053 0 0 0 480 400.251V112.015a24 24 0 0 0-38.285-19.286L264 224.369V112.015a24 24 0 0 0-38.285-19.286L31.155 236.847a24 24 0 0 0 0 38.57l194.56 144.119A24 24 0 0 0 264 400.251V287.9l177.715 131.637a23.92 23.92 0 0 0 14.264 4.734M232 384.37L58.88 256.132L232 127.9ZM448 127.9v256.47L274.88 256.132Z"></path></svg>',
+    forward:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true"><path d="M0 0h512v512H0z" fill="none"></path><path fill="currentColor" d="M32 111.882v288.236A23.979 23.979 0 0 0 70.285 419.4L248 287.763v112.355a23.979 23.979 0 0 0 38.285 19.282l194.56-144.119a24 24 0 0 0 0-38.57L286.285 92.6A24 24 0 0 0 248 111.882v112.355L70.285 92.6A24 24 0 0 0 32 111.882m248 15.881L453.119 256L280 384.237Zm-216 0L237.119 256L64 384.237Z"></path></svg>',
+    pip:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"></path><path fill="currentColor" fill-rule="evenodd" d="M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3zm3-1h12a1 1 0 0 1 1 1v6.268A2 2 0 0 0 18 12h-4a2 2 0 0 0-2 2v4c0 .364.097.706.268 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1" clip-rule="evenodd"></path></svg>',
+    fullscreen:
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M16 3h3a2 2 0 0 1 2 2v3"></path><path d="M8 21H5a2 2 0 0 1-2-2v-3"></path><path d="M16 21h3a2 2 0 0 1 2-2v-3"></path></svg>',
     speed:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>',
     airplay:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="lucide lucide-airplay" aria-hidden="true"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"></path><path d="m12 15 5 6H7Z"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"></path><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path stroke-opacity=".4" d="M4.1043 15.8632C2.8523 15.4715 2 14.3118 2 13L2 6C2 4.3431 3.3431 3 5 3L19 3C20.6569 3 22 4.3431 22 6L22 13C22 14.3118 21.1477 15.4715 19.8957 15.8632"></path><path fill="currentColor" fill-rule="evenodd" d="M13.6 13.4667L17.6 18.8C17.8596 19.1462 18 19.5673 18 20C18 21.1046 17.1046 22 16 22L8 22C6.8954 22 6 21.1046 6 20C6 19.5673 6.1404 19.1462 6.4 18.8L10.4 13.4667C10.7777 12.9631 11.3705 12.6667 12 12.6667C12.6295 12.6667 13.2223 12.9631 13.6 13.4667Z" clip-rule="evenodd" stroke="none"></path></g></svg>',
     collapse:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m18 15-6-6-6 6"></path></svg>',
     search:
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>',
     close:
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   });
+
+  // Trusted Types can reject innerHTML on YouTube pages. Use XML parsing plus
+  // DOM nodes so a rejected icon cannot stop the fallback before video setup.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function cloneSvgNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent;
+      if (!text || !text.trim()) return null;
+      return document.createTextNode(text);
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const clone = document.createElementNS(SVG_NS, node.localName);
+    for (const attr of node.attributes) {
+      clone.setAttribute(attr.name, attr.value);
+    }
+    for (const child of node.childNodes) {
+      const copied = cloneSvgNode(child);
+      if (copied) clone.appendChild(copied);
+    }
+    return clone;
+  }
+
+  function isCurrentColorPaint(value) {
+    return /^currentcolor$/i.test(String(value || '').trim());
+  }
+
+  function isWhitePaint(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === '#fff' || text === '#ffffff';
+  }
+
+  /*
+   * WHAT: Forces player-button icons to stay white on the dark control strip.
+   * IDEALOGY: YouTube's path fill can paint custom icons nearly black, so the paint is set on the SVG itself instead of inheriting YouTube's CSS variables.
+   * FLOW:
+   *   icon built --> walk fill and stroke --> force white paint --> glyph stays visible
+   * HOW: Walks the SVG and its descendants. A currentColor or white fill becomes #fff with an important inline fill, and a none fill stays none. Matching strokes become white. The SVG then gets an important white color plus visible display, overflow, opacity, and visibility.
+   * EVENT LOG: Called from replaceIconContents while a fallback control button is built.
+   */
+  function solidifyPlayerIcon(svg) {
+    const nodes = [svg, ...svg.querySelectorAll('*')];
+    for (const node of nodes) {
+      const fill = node.getAttribute('fill');
+      const stroke = node.getAttribute('stroke');
+      if (isCurrentColorPaint(fill) || isWhitePaint(fill)) {
+        node.setAttribute('fill', '#fff');
+        node.style.setProperty('fill', '#fff', 'important');
+        if (!stroke || stroke === 'none') {
+          node.style.setProperty('stroke', 'none', 'important');
+        }
+      } else if (fill === 'none') {
+        node.style.setProperty('fill', 'none', 'important');
+      }
+      if (isCurrentColorPaint(stroke) || isWhitePaint(stroke)) {
+        node.setAttribute('stroke', '#fff');
+        node.style.setProperty('stroke', '#fff', 'important');
+        if (!isWhitePaint(node.getAttribute('fill'))) {
+          node.style.setProperty('fill', 'none', 'important');
+        }
+      }
+    }
+
+    const strokeHosts = [svg, ...svg.querySelectorAll('[stroke="#fff"]')];
+    for (const host of strokeHosts) {
+      if (host.getAttribute('stroke') !== '#fff') continue;
+      for (const shape of host.querySelectorAll(
+        'path, polyline, circle, line, polygon'
+      )) {
+        if (isWhitePaint(shape.getAttribute('fill'))) continue;
+        if (shape.getAttribute('stroke') === 'none') continue;
+        shape.setAttribute('stroke', '#fff');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+      }
+    }
+
+    svg.style.setProperty('color', '#fff', 'important');
+    svg.style.setProperty('display', 'block', 'important');
+    svg.style.setProperty('overflow', 'visible', 'important');
+    svg.style.setProperty('opacity', '1', 'important');
+    svg.style.setProperty('visibility', 'visible', 'important');
+  }
+
+  function svgElementFromMarkup(markup) {
+    try {
+      const text = String(markup || '').trim();
+      const source = text.startsWith('<svg')
+        ? text
+        : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
+      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
+      const svg = parsed?.documentElement;
+      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
+      return cloneSvgNode(svg);
+    } catch {
+      return null;
+    }
+  }
+
+  function replaceIconContents(element, markup) {
+    if (!(element instanceof Element)) return;
+    const svg = svgElementFromMarkup(markup);
+    if (svg) solidifyPlayerIcon(svg);
+    if (svg) element.replaceChildren(svg);
+    else element.replaceChildren();
+  }
 
   function playerControlButtonMarkup(action, label, icon, extraClass = '') {
     const menuAttributes =
@@ -227,6 +396,243 @@
         PLAYER_CONTROL_ICONS.fullscreen
       ),
     ].join('');
+  }
+
+  const PLAYBACK_GLYPH_PATHS = Object.freeze({
+    play: 'M3 2.803a1 1 0 0 1 1.5-.865l9 5.195a1 1 0 0 1 0 1.733l-9 5.196a1 1 0 0 1-1.5-.866z',
+    pause:
+      'M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm8 0a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z',
+  });
+
+  function isViewBoxRect(shape) {
+    const d = String(shape.getAttribute('d') || '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+    return /^m00h\d+v\d+h0z$/.test(d);
+  }
+
+  function playbackGlyphPath(svg) {
+    if (!(svg instanceof Element)) return null;
+    for (const shape of [...svg.querySelectorAll('path')]) {
+      if (isViewBoxRect(shape)) shape.remove();
+    }
+    const paths = [...svg.querySelectorAll('path')];
+    return (
+      paths.find((path) => path.getAttribute('fill') !== 'none') ||
+      paths[paths.length - 1] ||
+      null
+    );
+  }
+
+  function shapeWantsStroke(shape) {
+    if (isViewBoxRect(shape)) return false;
+    const fill = String(shape.getAttribute('fill') || '').trim();
+    if (isCurrentColorPaint(fill) || isWhitePaint(fill)) return false;
+    if (fill && fill !== 'none') return false;
+    let node = shape;
+    while (node) {
+      const stroke = node.getAttribute && node.getAttribute('stroke');
+      if (stroke && stroke !== 'none') return true;
+      if (node.getAttribute && node.getAttribute('stroke-opacity')) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
+  function paintPlayerControlIcon(button) {
+    if (!(button instanceof HTMLElement)) return;
+    for (const [name, value] of [
+      ['display', 'inline-flex'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['flex', '0 0 3.25rem'],
+      ['width', '3.25rem'],
+      ['min-width', '3.25rem'],
+      ['max-width', '3.25rem'],
+      ['height', '3.25rem'],
+      ['align-items', 'center'],
+      ['justify-content', 'center'],
+      ['color', '#fff'],
+      ['-webkit-text-fill-color', '#fff'],
+      ['overflow', 'visible'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['background', 'transparent'],
+    ]) {
+      button.style.setProperty(name, value, 'important');
+    }
+    const svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) return;
+    svg.removeAttribute('hidden');
+    for (const [name, value] of [
+      ['display', 'block'],
+      ['position', 'relative'],
+      ['z-index', '2147483646'],
+      ['width', '2rem'],
+      ['height', '2rem'],
+      ['overflow', 'visible'],
+      ['visibility', 'visible'],
+      ['opacity', '1'],
+      ['color', '#fff'],
+      ['flex', '0 0 auto'],
+    ]) {
+      svg.style.setProperty(name, value, 'important');
+    }
+    for (const shape of svg.querySelectorAll(
+      'path, polygon, polyline, circle, line, rect'
+    )) {
+      if (isViewBoxRect(shape)) {
+        shape.remove();
+        continue;
+      }
+      if (shapeWantsStroke(shape)) {
+        shape.setAttribute('stroke', '#fff');
+        shape.setAttribute('fill', 'none');
+        shape.style.setProperty('stroke', '#fff', 'important');
+        shape.style.setProperty('fill', 'none', 'important');
+        shape.style.setProperty('stroke-width', '2', 'important');
+        continue;
+      }
+      shape.setAttribute('fill', '#fff');
+      shape.style.setProperty('fill', '#fff', 'important');
+      shape.style.setProperty('stroke', 'none', 'important');
+    }
+  }
+
+  /*
+   * WHAT: Shows a play triangle or pause bars on the playback button.
+   * IDEALOGY: One glyph path is swapped in place so the button does not rebuild markup and an extra icon cannot pile up in the strip.
+   * FLOW:
+   *   paused or playing --> keep a single svg --> set the play or pause path --> button shows that glyph
+   * HOW: Stores paused or playing on the button and removes extra SVG nodes. If none exists it builds the play icon, then sets the filled path to the play or pause shape and paints that path white. The remaining SVG is shown.
+   * EVENT LOG: Called from createPlayerControlButton and syncFallbackPlayerControls. No media event of its own.
+   */
+  function setPlaybackGlyph(button, paused) {
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.dataset.fypPlaybackState = paused ? 'paused' : 'playing';
+    for (const extra of [...button.querySelectorAll('svg')].slice(1)) {
+      extra.remove();
+    }
+    let svg = button.querySelector('svg');
+    if (!(svg instanceof Element)) {
+      replaceIconContents(button, PLAYER_CONTROL_ICONS.play);
+      svg = button.querySelector('svg');
+    }
+    const glyph = playbackGlyphPath(svg);
+    if (glyph) {
+      glyph.setAttribute(
+        'd',
+        paused ? PLAYBACK_GLYPH_PATHS.play : PLAYBACK_GLYPH_PATHS.pause
+      );
+      glyph.setAttribute('fill', '#fff');
+      glyph.style.setProperty('fill', '#fff', 'important');
+      glyph.style.setProperty('stroke', 'none', 'important');
+    }
+    if (svg instanceof Element) {
+      svg.removeAttribute('hidden');
+      svg.style.setProperty('display', 'block', 'important');
+      svg.style.setProperty('visibility', 'visible', 'important');
+      svg.style.setProperty('opacity', '1', 'important');
+    }
+    paintPlayerControlIcon(button);
+  }
+
+  function videoInSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    return (
+      document.pictureInPictureElement === video ||
+      video.webkitPresentationMode === 'picture-in-picture'
+    );
+  }
+
+  /*
+   * WHAT: Moves the video into WebKit picture-in-picture when the browser allows it.
+   * IDEALOGY: PiP is an explicit strip action. Ordinary playback does not call this, so starting a video cannot switch the page into PiP by itself.
+   * FLOW:
+   *   PiP tap while inline --> allow PiP --> webkitSetPresentationMode --> video is in picture-in-picture
+   * HOW: Clears disablepictureinpicture, then returns false when presentation mode is missing or unsupported. It asks for picture-in-picture and returns whether that mode is now active.
+   * EVENT LOG: webkitSetPresentationMode and webkitSupportsPresentationMode. Called from the pip branch of runFallbackPlayerControlAction.
+   */
+  function enterSystemMiniPlayer(video) {
+    if (!(video instanceof HTMLVideoElement)) return false;
+    video.removeAttribute('disablepictureinpicture');
+    try {
+      video.disablePictureInPicture = false;
+    } catch {}
+    if (typeof video.webkitSetPresentationMode !== 'function') return false;
+    const supports =
+      typeof video.webkitSupportsPresentationMode !== 'function' ||
+      video.webkitSupportsPresentationMode('picture-in-picture');
+    if (!supports) return false;
+    try {
+      video.webkitSetPresentationMode('picture-in-picture');
+    } catch {
+      return false;
+    }
+    return video.webkitPresentationMode === 'picture-in-picture';
+  }
+
+  function leaveSystemMiniPlayer(video) {
+    if (
+      video instanceof HTMLVideoElement &&
+      video.webkitPresentationMode === 'picture-in-picture' &&
+      typeof video.webkitSetPresentationMode === 'function'
+    ) {
+      try {
+        video.webkitSetPresentationMode('inline');
+      } catch {}
+    }
+  }
+
+  /*
+   * WHAT: Builds one control-strip button with an accessible name and a painted icon.
+   * IDEALOGY: Buttons are DOM nodes so a rejected innerHTML write cannot stop the fallback strip from appearing.
+   * FLOW:
+   *   action and label --> button element --> play glyph or painted icon --> button ready to mount
+   * HOW: Creates a button with the player-control class, action data attribute, label, title, and aria-pressed. Speed and quality buttons also advertise a menu. Play-pause starts on the play glyph; every other action fills the button through replaceIconContents.
+   * EVENT LOG: Called from createPlayerControlButtons. Fallback pointer capture later reads data-fyp-player-action.
+   */
+  function createPlayerControlButton(action, label, icon, extraClass = '') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = extraClass
+      ? `fyp-player-control ${extraClass}`
+      : 'fyp-player-control';
+    button.dataset.fypPlayerAction = action;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.setAttribute('aria-pressed', 'false');
+    if (action === 'speed' || action === 'quality') {
+      button.setAttribute('aria-haspopup', 'menu');
+      button.setAttribute('aria-expanded', 'false');
+    }
+    if (action === 'play-pause') setPlaybackGlyph(button, true);
+    else {
+      replaceIconContents(button, icon);
+      paintPlayerControlIcon(button);
+    }
+    return button;
+  }
+
+  /*
+   * WHAT: Builds the six fallback control-strip buttons in one row.
+   * IDEALOGY: The strip is assembled in one place so rewind, play, skip, PiP, AirPlay, and fullscreen stay together instead of borrowing YouTube's player chrome.
+   * FLOW:
+   *   toolbar create --> rewind, play, forward, PiP, AirPlay, fullscreen --> one row returned
+   * HOW: Returns those six buttons in that order. Each button comes from createPlayerControlButton and paints its own white icon.
+   * EVENT LOG: Called from ensureFallbackPlayerControlsToolbar when the toolbar is missing or its layout id changed.
+   */
+  function createPlayerControlButtons() {
+    return [
+      ['rewind', 'Back 10 seconds', PLAYER_CONTROL_ICONS.rewind],
+      ['play-pause', 'Play', PLAYER_CONTROL_ICONS.play],
+      ['forward', 'Forward 10 seconds', PLAYER_CONTROL_ICONS.forward],
+      ['pip', 'Picture in Picture', PLAYER_CONTROL_ICONS.pip],
+      ['airplay', 'AirPlay', PLAYER_CONTROL_ICONS.airplay],
+      ['fullscreen', 'Fullscreen', PLAYER_CONTROL_ICONS.fullscreen],
+    ].map(([action, label, icon]) =>
+      createPlayerControlButton(action, label, icon)
+    );
   }
 
   function fallbackIsHidden() {
@@ -371,6 +777,14 @@
     result?.catch?.(() => {});
   }
 
+  /*
+   * WHAT: Restarts playback from the isolated-world fallback while the page script is not ready.
+   * IDEALOGY: The page script owns recovery once it is alive, so this returns immediately in that case and does not fight its media-session handlers.
+   * FLOW:
+   *   page script absent --> playback wanted --> play once --> retry while hidden
+   * HOW: Returns when the page runtime is ready. Otherwise it keeps the current or first video, marks playback wanted, plays once, and retries at 80, 250, 750, and 1500 milliseconds only while the document stays hidden.
+   * EVENT LOG: Called from the fallback pause listener and prepareFallbackBackgroundPlayback. Uses HTMLMediaElement.play through fallbackSafePlay.
+   */
   function recoverFallbackPlayback() {
     // Page runtime owns Media Session and background recovery when ready.
     if (pageRuntimeReady()) return;
@@ -395,6 +809,14 @@
     }
   }
 
+  /*
+   * WHAT: Remembers one watch video and listens for play and pause until the page script takes over.
+   * IDEALOGY: The fallback attaches once per video so it can keep background audio only while the page runtime is absent.
+   * FLOW:
+   *   video element --> store it --> play claims the session --> a hidden pause recovers
+   * HOW: Stores the video and returns if listeners were already added. On play, while the page script is absent, it marks playback wanted, claims the media session, marks the video inline, and syncs the strip. On an unwanted pause while hidden, it recovers playback.
+   * EVENT LOG: video play and pause listeners. play and pause also sync the strip when the page runtime is already ready.
+   */
   function attachFallbackVideo(video) {
     if (!(video instanceof HTMLVideoElement)) return;
     fallbackPlaybackState.video = video;
@@ -442,6 +864,14 @@
     );
   }
 
+  /*
+   * WHAT: Prepares background playback from the content script when the page is leaving the screen.
+   * IDEALOGY: Once the page script is running, this returns so the isolated world does not also write media-session handlers.
+   * FLOW:
+   *   page hides and page script is absent --> attach the video --> claim the session if playing --> recover if playback is still wanted
+   * HOW: Returns when the page runtime is ready. Otherwise it attaches the current or first video, claims the session when that video is playing past the user-pause window, and sets play and pause media-session handlers before recovering.
+   * EVENT LOG: visibilitychange, webkitvisibilitychange, freeze, blur, and pagehide. Uses navigator.mediaSession.setActionHandler.
+   */
   function prepareFallbackBackgroundPlayback() {
     // When page.js is alive, do not steal Media Session handlers or recover
     // playback from the isolated world — that fights Lock Screen / Dynamic
@@ -489,8 +919,17 @@
     }
   }
 
+  /*
+   * WHAT: Marks a video so the fallback keeps it inline and still allows AirPlay.
+   * IDEALOGY: The content script sets playsinline on the element itself because it cannot rely on the page-world play patch already being installed.
+   * FLOW:
+   *   video node --> set playsinline and AirPlay --> clear the PiP disable flag --> video can start inline
+   * HOW: Sets the inline marker, playsinline, webkit-playsinline, and x-webkit-airplay allow. It also assigns playsInline and webkitPlaysInline and removes disablepictureinpicture when those property writes succeed.
+   * EVENT LOG: Called from markVideoTree, the document play listener in installDomFallbacks, and fallbackSafePlay.
+   */
   function markVideoInline(video) {
     if (!video || String(video.tagName).toLowerCase() !== 'video') return;
+    video.setAttribute('data-fyp-inline-playback', 'true');
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
     video.setAttribute('x-webkit-airplay', 'allow');
@@ -521,13 +960,37 @@
       fallbackPlaybackState.video.isConnected
         ? fallbackPlaybackState.video
         : null;
+    const activeWatch = findFallbackVisibleWatchRoot();
+    const watchVideo = activeWatch?.querySelector(
+      '#movie_player video.html5-main-video:not([data-no-fullscreen]), ' +
+        '#player-container video.html5-main-video:not([data-no-fullscreen]), ' +
+        'ytd-player#ytd-player video.html5-main-video:not([data-no-fullscreen])'
+    );
+    const routedVideos = activeWatch
+      ? [...activeWatch.querySelectorAll('video')]
+      : [...document.querySelectorAll('video')].filter(
+          (video) => !video.closest('ytd-watch-flexy')
+        );
     const video =
-      stateVideo || document.querySelector('video.html5-main-video, video');
+      stateVideo ||
+      watchVideo ||
+      routedVideos.find((candidate) =>
+        candidate.classList.contains('html5-main-video')
+      ) ||
+      routedVideos[0];
     if (!(video instanceof HTMLVideoElement)) return null;
     if (shouldAttach) attachFallbackVideo(video);
     return video;
   }
 
+  /*
+   * WHAT: Updates the fallback play, PiP, and fullscreen buttons to match the current video.
+   * IDEALOGY: The fallback strip reads the current video so the glyph stays correct without mirroring YouTube's hidden player buttons.
+   * FLOW:
+   *   toolbar present --> read the video --> paint play or pause --> mark PiP and fullscreen pressed
+   * HOW: Finds the toolbar and the current video without treating a missing toolbar as an error. The play button gets the matching glyph, Play or Pause label, and pressed state. PiP and fullscreen pressed states follow picture-in-picture and fullscreen on the document or video.
+   * EVENT LOG: Called from fallback play, pause, player actions, and the 1200ms fallback interval.
+   */
   function syncFallbackPlayerControls() {
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (!(toolbar instanceof HTMLElement)) return;
@@ -541,10 +1004,8 @@
       const playbackState = paused ? 'paused' : 'playing';
       if (playButton.dataset.fypPlaybackState !== playbackState) {
         playButton.dataset.fypPlaybackState = playbackState;
-        playButton.innerHTML = paused
-          ? PLAYER_CONTROL_ICONS.play
-          : PLAYER_CONTROL_ICONS.pause;
       }
+      setPlaybackGlyph(playButton, paused);
       playButton.setAttribute('aria-label', label);
       playButton.title = label;
       playButton.setAttribute('aria-pressed', String(!paused));
@@ -566,6 +1027,10 @@
           video?.webkitDisplayingFullscreen
       );
       fullscreenButton.setAttribute('aria-pressed', String(active));
+    }
+    for (const button of toolbar.querySelectorAll('.fyp-player-control')) {
+      if (button === playButton) continue;
+      paintPlayerControlIcon(button);
     }
   }
 
@@ -619,7 +1084,7 @@
     button.dataset.fypPlayerOption = 'menu-collapse';
     button.setAttribute('aria-label', 'Collapse menu');
     button.title = 'Collapse menu';
-    button.innerHTML = PLAYER_CONTROL_ICONS.collapse;
+    replaceIconContents(button, PLAYER_CONTROL_ICONS.collapse);
     menu.appendChild(button);
     return button;
   }
@@ -686,7 +1151,7 @@
   }
 
   function fallbackYouTubeCaptionTrackList() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.getOption !== 'function') return [];
     try {
       const tracks = player.getOption('captions', 'tracklist');
@@ -697,7 +1162,7 @@
   }
 
   function selectFallbackYouTubeCaptionTrack(selectedTrack) {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.setOption !== 'function') return false;
     try {
       player.loadModule?.('captions');
@@ -753,7 +1218,7 @@
   }
 
   function currentFallbackYouTubeCaptionTrack() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || typeof player.getOption !== 'function') return null;
     try {
       const track = player.getOption('captions', 'track');
@@ -788,7 +1253,7 @@
   }
 
   function fallbackYouTubeQualityOptions() {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player) {
       return FALLBACK_QUALITY_LEVELS.map((quality) => ({
         quality,
@@ -852,7 +1317,7 @@
     if (video && fallbackSelectedQualityByVideo.has(video)) {
       return fallbackSelectedQualityByVideo.get(video);
     }
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     try {
       return (
         player?.getPlaybackQuality?.() ||
@@ -865,7 +1330,7 @@
   }
 
   function applyFallbackYouTubeQuality(quality) {
-    const player = document.querySelector('#movie_player');
+    const player = findFallbackActivePlayer();
     if (!player || !quality) return;
     try {
       player.setPlaybackQualityRange?.(quality, quality);
@@ -939,7 +1404,7 @@
     } else if (action === 'captions-off') {
       const applyCaptionsOff = () => {
         try {
-          const player = document.querySelector('#movie_player');
+          const player = findFallbackActivePlayer();
           player?.loadModule?.('captions');
           player?.setOption?.('captions', 'track', {});
         } catch {}
@@ -990,7 +1455,7 @@
         const applyPlaybackRate = () => {
           video.playbackRate = speed;
           try {
-            document.querySelector('#movie_player')?.setPlaybackRate?.(speed);
+            findFallbackActivePlayer()?.setPlaybackRate?.(speed);
           } catch {}
         };
         applyPlaybackRate();
@@ -1035,10 +1500,18 @@
     setTimeout(syncFallbackPlayerControls, 250);
   }
 
+  /*
+   * WHAT: Runs a fallback strip action: seek, play or pause, a menu, AirPlay, PiP, or fullscreen.
+   * IDEALOGY: The fallback strip drives the current video directly. Actions other than play and PiP try to keep playback going so the tap does not look like a pause.
+   * FLOW:
+   *   strip tap --> current video --> seek, play, menu, AirPlay, PiP, or fullscreen --> buttons sync
+   * HOW: Seeks ten seconds, or plays and pauses with a short user-pause window. Speed and quality open their menus. AirPlay allows x-webkit-airplay and shows the target picker. PiP enters or leaves the system mini player, with requestPictureInPicture as backup. Fullscreen toggles the document or video.
+   * EVENT LOG: Called from the fallback pointer capture handler. Uses play, pause, webkitShowPlaybackTargetPicker, webkitSetPresentationMode, requestPictureInPicture, and requestFullscreen.
+   */
   async function runFallbackPlayerControlAction(action, sourceButton) {
     const video = fallbackVideo();
     if (!(video instanceof HTMLVideoElement)) return;
-    const preservePlayback = action !== 'play-pause' && !video.paused;
+    const preservePlayback = action !== 'play-pause' && action !== 'pip' && !video.paused;
     if (action === 'rewind' || action === 'forward') {
       const offset = action === 'rewind' ? -10 : 10;
       const duration = Number.isFinite(video.duration)
@@ -1079,20 +1552,26 @@
         video.webkitShowPlaybackTargetPicker();
       }
     } else if (action === 'pip') {
-      video.removeAttribute('disablepictureinpicture');
-      try {
-        video.disablePictureInPicture = false;
-      } catch {}
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture?.();
-      } else if (typeof video.requestPictureInPicture === 'function') {
-        await video.requestPictureInPicture();
-      } else if (typeof video.webkitSetPresentationMode === 'function') {
-        const mode =
-          video.webkitPresentationMode === 'picture-in-picture'
-            ? 'inline'
-            : 'picture-in-picture';
-        video.webkitSetPresentationMode(mode);
+      if (video.paused && !video.ended) {
+        fallbackPlaybackState.wantsPlayback = true;
+        fallbackPlaybackState.userPauseUntil = 0;
+        try {
+          video.play();
+        } catch {}
+      }
+      if (videoInSystemMiniPlayer(video)) {
+        leaveSystemMiniPlayer(video);
+        if (document.pictureInPictureElement === video) {
+          try {
+            await document.exitPictureInPicture();
+          } catch {}
+        }
+      } else if (!enterSystemMiniPlayer(video)) {
+        if (typeof video.requestPictureInPicture === 'function') {
+          try {
+            await video.requestPictureInPicture();
+          } catch {}
+        }
       }
     } else if (action === 'fullscreen') {
       const player =
@@ -1210,7 +1689,9 @@
 
     const button = target.closest('[data-fyp-player-action]');
     if (!(button instanceof HTMLButtonElement)) return;
-    if (event.cancelable) event.preventDefault();
+    if (button.dataset.fypPlayerAction !== 'pip' && event.cancelable) {
+      event.preventDefault();
+    }
     event.stopImmediatePropagation();
     if (!acceptSingleFallbackPlayerControlAction(button)) return;
     void runFallbackPlayerControlAction(
@@ -1268,6 +1749,14 @@
     });
   }
 
+  /*
+   * WHAT: Skips a playing ad from the content-script fallback by clicking skip or moving that ad toward its end.
+   * IDEALOGY: This runs only as a fallback sweep. It leaves the video alone once the player is no longer showing a short ad.
+   * FLOW:
+   *   interval --> click skip buttons --> short ad still present --> seek or raise its rate
+   * HOW: Clicks the known skip buttons. If the player is not showing a short ad, it restores any raised playback rate and returns. Otherwise it seeks a short ad to its duration, or raises the playback rate when that seek does not apply.
+   * EVENT LOG: The 300ms interval inside installDomFallbacks. Uses button click, currentTime, and playbackRate.
+   */
   function skipFallbackPlayerAd() {
     document
       .querySelectorAll(FALLBACK_SKIP_AD_SELECTOR)
@@ -1352,6 +1841,14 @@
     });
   }
 
+  /*
+   * WHAT: Unlocks page scrolling after the hamburger drawer has closed, while the page script is absent.
+   * IDEALOGY: The page script owns this once it is ready. Until then the fallback clears leftover overflow without writing the drawer's opened state.
+   * FLOW:
+   *   guide close --> page script ready? stop --> drawer still open? stop --> remove overflow hidden
+   * HOW: Returns when the page runtime is ready, or while the guide is busy or another overlay dialog is open. Otherwise it removes inline overflow hidden from html, body, and the app nodes, and clears aria-hidden on ytd-app.
+   * EVENT LOG: yt-guide-close, iron-overlay-closed, and the fallback intervals inside installDomFallbacks.
+   */
   function restoreFallbackScrollAfterGuideClose() {
     if (pageRuntimeReady()) return;
     /*
@@ -1383,6 +1880,14 @@
     }
   }
 
+  /*
+   * WHAT: Removes an ad-block warning dialog and resumes a paused watch video that is already ready.
+   * IDEALOGY: The warning is a page dialog, so it is removed only when its text matches that warning. The guide drawer keeps its own close path.
+   * FLOW:
+   *   interval --> matching warning text --> remove the dialog and leftover backdrop --> play if the watch video was paused and ready
+   * HOW: Checks enforcement, error, and dialog nodes and removes one whose text matches the ad-block warning. After a removal it clears orphan backdrops, restores scroll, and plays a paused watch video that already has data.
+   * EVENT LOG: The 300ms interval inside installDomFallbacks. Uses fallbackSafePlay.
+   */
   function dismissFallbackAdBlockEnforcement(root = document) {
     let removed = false;
     const candidates = root.querySelectorAll?.(
@@ -1414,14 +1919,16 @@
   }
 
   function findFallbackWatchTitleAnchor() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
       'ytd-watch-metadata #title',
       'ytd-video-primary-info-renderer #title',
-      'ytd-watch-flexy ytd-watch-metadata h1',
-      'ytd-watch-flexy #below h1',
+      'ytd-watch-metadata h1',
+      '#below h1',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (!isFallbackUsableWatchMount(candidate)) continue;
         return candidate.closest('#title') || candidate;
       }
@@ -1430,12 +1937,14 @@
   }
 
   function findFallbackWatchMetadataHost() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy ytd-watch-metadata',
-      'ytd-watch-flexy ytd-video-primary-info-renderer',
+      'ytd-watch-metadata',
+      'ytd-video-primary-info-renderer',
     ];
     for (const selector of selectors) {
-      for (const candidate of document.querySelectorAll(selector)) {
+      for (const candidate of watch.querySelectorAll(selector)) {
         if (isFallbackUsableWatchMount(candidate)) return candidate;
       }
     }
@@ -1456,47 +1965,86 @@
   function isFallbackUsableWatchMount(node) {
     if (!(node instanceof Element) || !node.isConnected) return false;
     if (node.closest('[hidden]')) return false;
+    const watch = node.closest('ytd-watch-flexy');
+    if (watch && !isFallbackVisibleWatchRoot(watch)) return false;
     if (node.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) return false;
     const style = getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    return true;
+  }
+
+  function fallbackWatchIdFromLocation() {
+    try {
+      return new URL(location.href).searchParams.get('v') || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function isFallbackVisibleWatchRoot(watch) {
+    if (!(watch instanceof Element) || !watch.isConnected) return false;
+    if (watch.hasAttribute('hidden')) return false;
+    const style = getComputedStyle(watch);
     if (style.display === 'none') return false;
     return true;
   }
 
+  function findFallbackVisibleWatchRoot() {
+    const wanted = fallbackWatchIdFromLocation();
+    const nodes = [...document.querySelectorAll('ytd-watch-flexy')].filter(
+      isFallbackVisibleWatchRoot
+    );
+    if (wanted) {
+      const match = nodes.find((node) => node.getAttribute('video-id') === wanted);
+      if (match) return match;
+    }
+    return nodes[nodes.length - 1] || null;
+  }
+
+  function findFallbackActivePlayer() {
+    const watch = findFallbackVisibleWatchRoot();
+    const player = watch?.querySelector('#movie_player, .html5-video-player');
+    return player instanceof HTMLElement ? player : null;
+  }
+
   function findFallbackWatchBelowHost() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const selectors = [
-      'ytd-watch-flexy #below',
-      'ytd-watch-flexy #primary-inner',
+      '#below',
+      '#primary-inner',
     ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (isFallbackUsableWatchMount(candidate)) return candidate;
     }
     return null;
   }
 
   function findFallbackVisibleWatchPlayerHost() {
-    const watch = document.querySelector('ytd-watch-flexy');
-    if (!(watch instanceof Element)) return null;
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
     const fullBleed =
       watch.hasAttribute('full-bleed-player') ||
       watch.hasAttribute('theater');
     const selectors = fullBleed
       ? [
-          'ytd-watch-flexy #player-full-bleed-container',
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
+          '#player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
         ]
       : [
-          'ytd-watch-flexy #player-container-outer',
-          'ytd-watch-flexy #player',
-          'ytd-watch-flexy #player-full-bleed-container',
+          '#player-container-outer',
+          '#player',
+          '#player-full-bleed-container',
         ];
     for (const selector of selectors) {
-      const candidate = document.querySelector(selector);
+      const candidate = watch.querySelector(selector);
       if (!(candidate instanceof Element) || !candidate.isConnected) continue;
       if (candidate.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR)) continue;
       if (candidate.closest('[hidden]')) continue;
-      if (getComputedStyle(candidate).display === 'none') continue;
+      const style = getComputedStyle(candidate);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
       return candidate;
     }
     return null;
@@ -1555,6 +2103,28 @@
     return false;
   }
 
+  /*
+   * WHAT: Places the fallback control strip under the watch title, or the next available watch slot.
+   * IDEALOGY: The strip stays in the title and metadata block, using the first real watch anchor instead of YouTube's player overlay.
+   * FLOW:
+   *   toolbar and watch anchors --> title, metadata, below, player, or watch --> insert --> strip is in the page
+   * HOW: Inserts after the title when one exists. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
+   * EVENT LOG: Called from ensureFallbackPlayerControlsToolbar. No event of its own.
+   */
+  function raisePlayerControlsStack(toolbar) {
+    if (!(toolbar instanceof HTMLElement)) return;
+    toolbar.style.setProperty('position', 'relative', 'important');
+    toolbar.style.setProperty('z-index', '2147483646', 'important');
+    toolbar.style.setProperty('overflow', 'visible', 'important');
+    const parent = toolbar.parentElement;
+    if (!(parent instanceof HTMLElement) || parent === document.body) return;
+    if (parent.dataset.fypControlsRaised === 'true') return;
+    parent.dataset.fypControlsRaised = 'true';
+    parent.style.setProperty('position', 'relative', 'important');
+    parent.style.setProperty('z-index', '2147483645', 'important');
+    parent.style.setProperty('overflow', 'visible', 'important');
+  }
+
   function mountFallbackPlayerControlsToolbar(
     toolbar,
     title,
@@ -1586,22 +2156,31 @@
     return false;
   }
 
+  /*
+   * WHAT: Creates the fallback watch control strip and keeps it in the title block.
+   * IDEALOGY: One toolbar id owns the strip. Off a watch page it is removed so other pages do not keep player buttons.
+   * FLOW:
+   *   /watch with a visible watch root --> create or reuse the toolbar --> mount if misplaced --> sync the buttons
+   * HOW: Removes the toolbar when the path is not /watch or no visible watch root exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, mounts it when placement is wrong, and syncs the buttons.
+   * EVENT LOG: Called from scheduleFallbackPlayerControlsToolbar and the 1200ms fallback interval, including after yt-navigate-finish, popstate, and pageshow.
+   */
   function ensureFallbackPlayerControlsToolbar() {
     if (location.pathname !== '/watch') {
       document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID)?.remove();
       return;
     }
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return;
     const title = findFallbackWatchTitleAnchor();
     const metadata = findFallbackWatchMetadataHost();
     const below = findFallbackWatchBelowHost();
     const playerHost = findFallbackVisibleWatchPlayerHost();
-    const watch = document.querySelector('ytd-watch-flexy');
     const watchChromeExists =
       title instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
-      watch instanceof Element;
+      isFallbackVisibleWatchRoot(watch);
     if (!watchChromeExists) return;
 
     let toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
@@ -1615,18 +2194,14 @@
       toolbar.dataset.fypControlsLayout = PLAYER_CONTROLS_LAYOUT_VERSION;
       toolbar.setAttribute('role', 'toolbar');
       toolbar.setAttribute('aria-label', 'Video player controls');
-      toolbar.innerHTML = playerControlsMarkup();
+      toolbar.replaceChildren(...createPlayerControlButtons());
     }
-    if (
-      !fallbackToolbarIsCorrectlyPlaced(
-        toolbar,
-        title,
-        metadata,
-        below,
-        playerHost,
-        watch
-      )
-    ) {
+    const onThisWatch =
+      toolbar.isConnected &&
+      toolbar.closest('ytd-watch-flexy') === watch &&
+      !toolbar.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR);
+    const settledOnTitle = toolbar.dataset.fypControlsAnchor === 'title';
+    if (!onThisWatch || (!settledOnTitle && title instanceof Element)) {
       mountFallbackPlayerControlsToolbar(
         toolbar,
         title,
@@ -1635,12 +2210,18 @@
         playerHost,
         watch
       );
+      if (title instanceof Element && toolbar.previousElementSibling === title) {
+        toolbar.dataset.fypControlsAnchor = 'title';
+      } else {
+        delete toolbar.dataset.fypControlsAnchor;
+      }
     }
+    raisePlayerControlsStack(toolbar);
     syncFallbackPlayerControls();
   }
 
   const FALLBACK_PLAYER_CONTROLS_TOOLBAR_RETRY_MS = Object.freeze([
-    0, 60, 160, 400, 900, 1800, 3500,
+    0, 60, 160, 400, 900, 1800, 3500, 6000, 10000,
   ]);
   let fallbackPlayerControlsToolbarScheduleToken = 0;
 
@@ -1655,7 +2236,12 @@
   }
 
   function redirectShorts() {
-    if (!location.pathname.startsWith('/shorts')) return false;
+    if (
+      !location.pathname.startsWith('/shorts') &&
+      !location.pathname.startsWith('/playables')
+    ) {
+      return false;
+    }
     location.replace('https://www.youtube.com/?app=desktop&persist_app=1');
     return true;
   }
@@ -1720,9 +2306,164 @@
     }
   }
 
+  function isFallbackShortsOrPlayablesHref(href) {
+    return /(?:^|\/)(?:shorts|playables)(?:\/|$|\?)/i.test(String(href || ''));
+  }
+
+  function concealFallbackShortsElement(element) {
+    if (!(element instanceof Element)) return;
+    if (element.dataset.fypShortsHidden === 'true') return;
+    for (const [property, value] of Object.entries({
+      display: 'none',
+      visibility: 'hidden',
+      'pointer-events': 'none',
+      height: '0',
+      margin: '0',
+      padding: '0',
+      overflow: 'hidden',
+    })) {
+      element.style.setProperty(property, value, 'important');
+    }
+    element.setAttribute('aria-hidden', 'true');
+    element.hidden = true;
+    element.dataset.fypShortsHidden = 'true';
+  }
+
+  /*
+   * WHAT: Hides Shorts, Playables, and shelves that lead to them from the content-script fallback.
+   * IDEALOGY: Those items are removed in the isolated world as well, so a late page script is not the only thing keeping them off the page.
+   * FLOW:
+   *   a node or the document --> collect shorts nodes, guide entries, and shelves --> hide the container
+   * HOW: Collects nodes matching the shorts selector, guide entries whose link or label is Shorts, Playables, or a short mini-games label, and matching shelves. Each hit is hidden at its container.
+   * EVENT LOG: Called by installFallbackShortsObserver on mutation, yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
+  function removeFallbackShorts(root = document) {
+    const candidates = new Set();
+    const collect = (node) => {
+      if (!(node instanceof Element)) return;
+      if (node.matches(FALLBACK_SHORTS_REMOVAL_SELECTOR)) candidates.add(node);
+      node.querySelectorAll?.(FALLBACK_SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+        candidates.add(element);
+      });
+
+      const entrySelector =
+        'ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer, ' +
+        'ytm-pivot-bar-item-renderer, tp-yt-paper-item, yt-list-item-view-model';
+      const entries = [];
+      if (node.matches(entrySelector)) entries.push(node);
+      entries.push(...(node.querySelectorAll?.(entrySelector) || []));
+      for (const entry of entries) {
+        const href = [...(entry.querySelectorAll?.('a[href]') || [])]
+          .map((link) => link.getAttribute('href') || link.href)
+          .join(' ');
+        const label = [
+          entry.getAttribute('title'),
+          entry.getAttribute('aria-label'),
+          entry.textContent,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (
+          isFallbackShortsOrPlayablesHref(href) ||
+          /^(shorts|playables)\b/i.test(label) ||
+          (/mini[\s-]?games/i.test(label) && label.length < 48)
+        ) {
+          candidates.add(entry);
+        }
+      }
+
+      node.querySelectorAll?.(
+        'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+      ).forEach((shelf) => {
+        const heading = (
+          shelf.querySelector?.(
+            '#title, #title-text, .title, yt-formatted-string, h2, [id*="title"]'
+          )?.textContent || ''
+        ).trim();
+        const ariaLabel = shelf.getAttribute?.('aria-label') || '';
+        const hasShortsHref = [...(shelf.querySelectorAll?.('a[href]') || [])].some(
+          (link) => isFallbackShortsOrPlayablesHref(link.getAttribute('href') || link.href)
+        );
+        if (
+          hasShortsHref ||
+          /shorts|playables|mini[\s-]?games/i.test(heading) ||
+          /shorts|playables|mini[\s-]?games/i.test(ariaLabel)
+        ) {
+          candidates.add(shelf);
+        }
+      });
+    };
+
+    if (root instanceof Element) collect(root);
+    root.querySelectorAll?.(FALLBACK_SHORTS_REMOVAL_SELECTOR).forEach((element) => {
+      candidates.add(element);
+    });
+    root.querySelectorAll?.(
+      'ytd-rich-shelf-renderer, ytd-rich-section-renderer, grid-shelf-view-model'
+    ).forEach((shelf) => collect(shelf));
+
+    for (const candidate of candidates) {
+      const item =
+        candidate.closest(FALLBACK_SHORTS_CONTAINER_SELECTOR) || candidate;
+      concealFallbackShortsElement(item);
+    }
+  }
+
+  function blockFallbackShortsNavigation(event) {
+    const link = event.target?.closest?.('a[href]');
+    if (!link || !isFallbackShortsOrPlayablesHref(link.getAttribute('href') || link.href)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign('https://www.youtube.com/?app=desktop&persist_app=1');
+  }
+
+  /*
+   * WHAT: Keeps Shorts hidden as YouTube adds shelves, before and beside the page script.
+   * IDEALOGY: One observer owns fallback shorts removal so each new shelf is hidden without a second full-page sweep fighting the first.
+   * FLOW:
+   *   fallback startup --> hide current shorts --> watch added nodes --> hide again on navigation
+   * HOW: Returns if the observer already exists. Otherwise it hides shorts once, watches the document for added elements, and hides shorts inside each added root. Navigation and page-show events hide shorts on the whole document again.
+   * EVENT LOG: MutationObserver, yt-navigate-start, yt-navigate-finish, popstate, and pageshow.
+   */
+  function installFallbackShortsObserver() {
+    if (fallbackShortsObserver) return;
+    removeFallbackShorts(document);
+    fallbackShortsObserver = new MutationObserver((mutations) => {
+      const roots = new Set();
+      for (const mutation of mutations) {
+        if (mutation.target instanceof Element) roots.add(mutation.target);
+        for (const node of mutation.addedNodes) {
+          if (node instanceof Element) roots.add(node);
+        }
+      }
+      for (const root of roots) removeFallbackShorts(root);
+    });
+    fallbackShortsObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+    document.addEventListener('yt-navigate-start', () => removeFallbackShorts(document), true);
+    document.addEventListener('yt-navigate-finish', () => removeFallbackShorts(document), true);
+    window.addEventListener('popstate', () => removeFallbackShorts(document), true);
+    window.addEventListener('pageshow', () => removeFallbackShorts(document), true);
+  }
+
+  /*
+   * WHAT: Starts the content-script fallback for inline video, the control strip, shorts, ads, and background audio.
+   * IDEALOGY: This runs in the isolated world until the page script is ready, then the intervals and video observer step aside so they do not fight that script.
+   * FLOW:
+   *   content script start --> redirect shorts and mark videos inline --> listen for hide, navigation, and taps --> fallback strip and recovery stay up
+   * HOW: Returns immediately when a channel root redirects to its videos tab. Otherwise it redirects Shorts, starts the shorts observer, marks existing videos inline, and schedules the control strip. It watches added videos, listens for play and strip taps, prepares background playback when the page hides, and runs intervals for the strip, guide scroll, ad skip, and the ad-block dialog while the page script is absent. A fallback stylesheet is injected once if that style id is missing.
+   * EVENT LOG: MutationObserver, play, pointer and click capture, visibilitychange, webkitvisibilitychange, freeze, yt-navigate-finish, pageshow, popstate, blur, pagehide, storage, yt-guide-close, and iron-overlay-closed.
+   */
   function installDomFallbacks() {
     if (redirectChannelRootToVideos()) return;
     redirectShorts();
+    installFallbackShortsObserver();
     markVideoTree(document);
     markFallbackHistoryFeedBrowse();
     scheduleFallbackPlayerControlsToolbar();
@@ -1871,17 +2612,15 @@
       true
     );
 
-    document.addEventListener(
-      'click',
-      (event) => {
-        const link = event.target?.closest?.('a[href*="/shorts"]');
-        if (!link) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        location.assign('https://www.youtube.com/?app=desktop&persist_app=1');
-      },
-      true
-    );
+    document.addEventListener('click', blockFallbackShortsNavigation, true);
+    document.addEventListener('pointerdown', blockFallbackShortsNavigation, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener('touchstart', blockFallbackShortsNavigation, {
+      capture: true,
+      passive: false,
+    });
     document.addEventListener('click', redirectChannelLinkToVideos, true);
 
     const installFallbackStyle = () => {
@@ -1893,17 +2632,65 @@
         ytd-mini-guide-renderer,
         ytd-mini-guide-entry-renderer,
         ytd-guide-entry-renderer:has(a[href^="/shorts"]),
+        ytd-guide-entry-renderer:has(a[href*="/playables"]),
+        ytd-guide-entry-renderer:has(a[title*="Playables" i]),
+        ytd-mini-guide-entry-renderer:has(a[href*="/playables"]),
+        tp-yt-paper-item:has(a[href^="/shorts"]),
+        tp-yt-paper-item:has(a[href*="/playables"]),
         ytd-rich-shelf-renderer:has(a[href*="/shorts"]),
+        ytd-rich-shelf-renderer:has(a[href*="/playables"]),
+        ytd-rich-shelf-renderer:has([title*="Playables" i]),
+        ytd-rich-shelf-renderer:has([aria-label*="Playables" i]),
         ytd-reel-shelf-renderer,
+        ytd-rich-section-renderer:has(a[href*="/shorts"]),
+        ytd-rich-section-renderer:has(a[href*="/playables"]),
+        ytd-rich-section-renderer:has([title*="Playables" i]),
+        ytd-rich-section-renderer:has([aria-label*="Playables" i]),
         ytm-reel-shelf-renderer,
         ytm-shorts-lockup-view-model,
         ytm-shorts-lockup-view-model-v2,
         ytd-rich-item-renderer:has(a[href*="/shorts"]),
+        ytd-rich-item-renderer:has(a[href*="/playables"]),
         yt-lockup-view-model:has(a[href*="/shorts"]),
+        yt-lockup-view-model:has(a[href*="/playables"]),
+        grid-shelf-view-model:has(a[href*="/shorts"]),
+        grid-shelf-view-model:has(a[href*="/playables"]),
+        grid-shelf-view-model:has([title*="Playables" i]),
+        grid-shelf-view-model:has([aria-label*="Playables" i]),
+        yt-playable-game-renderer,
+        ytd-game-card-renderer,
+        ytd-playable-renderer,
+        ytd-playables-shelf-renderer,
+        yt-playables-shelf-renderer,
+        yt-chip-cloud-chip-renderer:has(yt-formatted-string[title*="Playables" i]),
+        yt-chip-cloud-chip-renderer:has([title*="Playables" i]),
         a[href^="/shorts"],
         a[href*="youtube.com/shorts/"],
-        [is-shorts] {
+        a[href^="/playables"],
+        a[href*="youtube.com/playables"],
+        [is-shorts],
+        [is-playables],
+        [is-playable] {
           display: none !important;
+        }
+
+        tp-yt-app-drawer#guide {
+          touch-action: pan-y !important;
+        }
+        tp-yt-app-drawer#guide #contentContainer {
+          touch-action: pan-y !important;
+          overscroll-behavior: contain !important;
+          overscroll-behavior-y: contain !important;
+        }
+        tp-yt-app-drawer#guide ytd-guide-renderer,
+        tp-yt-app-drawer#guide #guide-wrapper,
+        tp-yt-app-drawer#guide #guide-inner-content,
+        tp-yt-app-drawer#guide #sections,
+        tp-yt-app-drawer#guide #items {
+          touch-action: pan-y !important;
+          overscroll-behavior: contain !important;
+          overscroll-behavior-y: contain !important;
+          -webkit-overflow-scrolling: touch !important;
         }
 
         tp-yt-app-drawer#guide:not([opened]):not([opening]):not([peeking]) #scrim,
@@ -2171,22 +2958,27 @@
         #${PLAYER_CONTROLS_TOOLBAR_ID} {
           box-sizing: border-box !important;
           position: relative !important;
-          z-index: 5 !important;
+          z-index: 2147483646 !important;
           display: flex !important;
           visibility: visible !important;
           opacity: 1 !important;
-          flex-wrap: wrap !important;
+          pointer-events: auto !important;
+          isolation: isolate !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          min-height: 4rem !important;
           margin: clamp(.5rem, 2.4vw, .8rem) auto !important;
           padding: clamp(.45rem, 2vw, .7rem) !important;
-          gap: clamp(.35rem, 1.8vw, .65rem) !important;
+          gap: .35rem !important;
           justify-content: center !important;
           align-items: center !important;
-          border: 1px solid rgba(255, 255, 255, .14) !important;
+          color: #fff !important;
+          border: 1px solid rgba(255, 255, 255, .2) !important;
           border-radius: clamp(.85rem, 4vw, 1.2rem) !important;
-          background: rgba(255, 255, 255, .08) !important;
+          background: #111 !important;
           backdrop-filter: blur(12px) !important;
           -webkit-backdrop-filter: blur(12px) !important;
           overflow: visible !important;
@@ -2198,26 +2990,36 @@
           display: inline-flex !important;
           visibility: visible !important;
           opacity: 1 !important;
-          flex: 0 0 auto !important;
-          width: clamp(2.9rem, 13vw, 3.45rem) !important;
-          min-width: 2.9rem !important;
-          height: clamp(2.75rem, 12vw, 3.25rem) !important;
+          flex: 0 0 3.25rem !important;
+          position: relative !important;
+          z-index: 2147483646 !important;
+          width: 3.25rem !important;
+          min-width: 3.25rem !important;
+          max-width: 3.25rem !important;
+          height: 3.25rem !important;
           margin: 0 !important;
-          padding: clamp(.62rem, 2.6vw, .85rem) !important;
+          padding: 0 !important;
           align-items: center !important;
           justify-content: center !important;
           color: #fff !important;
-          background: rgba(255, 255, 255, .12) !important;
-          border: 1px solid rgba(255, 255, 255, .12) !important;
-          border-radius: 999px !important;
+          -webkit-text-fill-color: #fff !important;
+          background: transparent !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          overflow: visible !important;
           touch-action: manipulation !important;
+          -webkit-tap-highlight-color: transparent !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
           .fyp-player-control[data-fyp-player-action='play-pause'] {
-          color: #0f0f0f !important;
-          background: #fff !important;
-          border-color: #fff !important;
+          display: inline-flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          color: #fff !important;
+          -webkit-text-fill-color: #fff !important;
+          background: transparent !important;
+          border: 0 !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
@@ -2225,26 +3027,67 @@
             [data-fyp-player-action='play-pause']
           ) {
           color: #fff !important;
-          background: #ff0033 !important;
-          border-color: #ff0033 !important;
+          -webkit-text-fill-color: #fff !important;
+          background: transparent !important;
+          border: 0 !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg {
           display: block !important;
-          width: 100% !important;
-          height: 100% !important;
-          max-width: clamp(1.25rem, 5.6vw, 1.6rem) !important;
-          max-height: clamp(1.25rem, 5.6vw, 1.6rem) !important;
-          fill: none !important;
-          stroke: currentColor !important;
-          stroke-width: 2 !important;
-          stroke-linecap: round !important;
-          stroke-linejoin: round !important;
+          position: relative !important;
+          z-index: 2147483646 !important;
+          flex: 0 0 auto !important;
+          width: 2rem !important;
+          height: 2rem !important;
+          max-width: none !important;
+          max-height: none !important;
+          overflow: visible !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          color: #fff !important;
+          forced-color-adjust: none !important;
+          pointer-events: none !important;
         }
 
         #${PLAYER_CONTROLS_TOOLBAR_ID}
-          .fyp-player-control[data-fyp-player-action='play-pause'] svg {
-          fill: currentColor !important;
+          .fyp-player-control[data-fyp-player-action='play-pause']
+          > svg
+          ~ svg {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          width: 0 !important;
+          height: 0 !important;
+          position: absolute !important;
+          pointer-events: none !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='none']:not([stroke='#fff']) {
+          fill: none !important;
+          stroke: none !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'],
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'],
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='currentColor'],
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg [stroke='#fff'] {
+          stroke: #fff !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] path:not([fill='#fff']):not([fill='currentColor']):not([fill='currentcolor']),
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] polyline:not([fill='#fff']),
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] polyline:not([fill='#fff']),
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='currentColor'] circle:not([fill='#fff']),
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg[stroke='#fff'] circle:not([fill='#fff']) {
+          fill: none !important;
+          stroke: #fff !important;
+        }
+
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentColor'],
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='currentcolor'],
+        #${PLAYER_CONTROLS_TOOLBAR_ID} .fyp-player-control svg path[fill='#fff'] {
+          fill: #fff !important;
           stroke: none !important;
         }
 
@@ -2375,7 +3218,7 @@
           pointer-events: none !important;
         }
 
-        /* Mirror page.js 2.2.3: leave native search alone; hide Ask/voice only. */
+        /* Mirror page.js: leave native search alone; hide Ask/voice only. */
         ytd-masthead #voice-search-button,
         ytd-masthead button[aria-label*='Search with your voice' i],
         ytd-masthead button[aria-label*='Voice search' i],
@@ -2388,6 +3231,52 @@
         [aria-label*='Ask Gemini' i] {
           display: none !important;
           visibility: hidden !important;
+          pointer-events: none !important;
+        }
+
+        /* Force-hide back button completely */
+        #fyp-search-back-button,
+        [data-fyp-mobile-search-open='true'] #fyp-search-back-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #fyp-search-back-button,
+        body[data-fyp-search-active='true'] #fyp-search-back-button {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        /* Force-hide hamburger menu & drawer during search */
+        html[data-fyp-search-active='true'] #start,
+        html[data-fyp-search-active='true'] #guide-button,
+        html[data-fyp-search-active='true'] #guide-button-icon,
+        html[data-fyp-search-active='true'] button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        html[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        html[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        html[data-fyp-search-active='true'] #guide,
+        body[data-fyp-search-active='true'] #start,
+        body[data-fyp-search-active='true'] #guide-button,
+        body[data-fyp-search-active='true'] #guide-button-icon,
+        body[data-fyp-search-active='true'] button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] ytd-masthead #guide-button,
+        body[data-fyp-search-active='true'] ytd-masthead button[aria-label='Guide'],
+        body[data-fyp-search-active='true'] tp-yt-app-drawer#guide,
+        body[data-fyp-search-active='true'] #guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #start,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #end,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #guide-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] #guide-button-icon,
+        ytd-masthead[data-fyp-mobile-search-open='true'] button[aria-label='Guide'],
+        ytd-masthead[data-fyp-mobile-search-open='true'] yt-icon-button#guide-button,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ #guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ tp-yt-app-drawer#guide,
+        ytd-masthead[data-fyp-mobile-search-open='true'] ~ ytd-mini-guide-renderer {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
           pointer-events: none !important;
         }
       `;
@@ -2404,6 +3293,8 @@
   }
 
   installDomFallbacks();
+
+  /* __EMBEDDED_PAGE_SOURCE_DECLARATION__ */
 
   const src = api.runtime.getURL('page.js');
 
@@ -2443,9 +3334,15 @@
     document.getElementById(PAGE_SCRIPT_ID)?.remove();
 
     try {
-      const response = await fetch(src);
-      if (!response.ok) throw new Error(`page.js returned ${response.status}`);
-      const code = await response.text();
+      let code =
+        typeof __fyp_embedded_page_code === 'string' && __fyp_embedded_page_code
+          ? __fyp_embedded_page_code
+          : null;
+      if (!code) {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error(`page.js returned ${response.status}`);
+        code = await response.text();
+      }
       const script = document.createElement('script');
       script.id = PAGE_SCRIPT_ID;
       const nonceSource = document.querySelector('script[nonce]');
@@ -2460,19 +3357,21 @@
     }
   }
 
+  // FORCE INJECTION: Inject immediately at document_start without waiting
+  if (!pageRuntimeReady()) injectWithText();
+
   if (!injectWithSrc()) {
     const observer = new MutationObserver(() => {
+      if (!pageRuntimeReady()) injectWithText();
       if (injectWithSrc()) observer.disconnect();
     });
     observer.observe(document, { childList: true, subtree: true });
   }
 
   // A tag can exist without executing in Orion. Verify a PAGE-world handshake.
-  setTimeout(() => {
-    if (!pageRuntimeReady()) injectWithText();
-  }, 200);
-
-  setTimeout(() => {
-    if (!pageRuntimeReady()) injectWithText();
-  }, 1200);
+  for (const delay of [0, 20, 50, 100, 200, 500, 1200]) {
+    setTimeout(() => {
+      if (!pageRuntimeReady()) injectWithText();
+    }, delay);
+  }
 })();

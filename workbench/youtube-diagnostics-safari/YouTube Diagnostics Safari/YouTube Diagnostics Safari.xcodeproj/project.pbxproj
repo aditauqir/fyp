@@ -1,0 +1,615 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B4AAA160306C0AA70014AC53 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AAA15F306C0AA70014AC53 /* AppDelegate.swift */; };
+		B4AAA164306C0AA70014AC53 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA162306C0AA70014AC53 /* Main.html */; };
+		B4AAA166306C0AA70014AC53 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA165306C0AA70014AC53 /* Icon.png */; };
+		B4AAA168306C0AA70014AC53 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA167306C0AA70014AC53 /* Style.css */; };
+		B4AAA16A306C0AA70014AC53 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA169306C0AA70014AC53 /* Script.js */; };
+		B4AAA16C306C0AA70014AC53 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AAA16B306C0AA70014AC53 /* ViewController.swift */; };
+		B4AAA16F306C0AA70014AC53 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA16D306C0AA70014AC53 /* Main.storyboard */; };
+		B4AAA171306C0AA80014AC53 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA170306C0AA80014AC53 /* Assets.xcassets */; };
+		B4AAA178306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B4AAA177306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B4AAA17D306C0AA80014AC53 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AAA17C306C0AA80014AC53 /* SafariWebExtensionHandler.swift */; };
+		B4AAA191306C0AA90014AC53 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA189306C0AA90014AC53 /* popup.js */; };
+		B4AAA192306C0AA90014AC53 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18A306C0AA90014AC53 /* background.js */; };
+		B4AAA193306C0AA90014AC53 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18B306C0AA90014AC53 /* popup.html */; };
+		B4AAA194306C0AA90014AC53 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18C306C0AA90014AC53 /* README.md */; };
+		B4AAA195306C0AA90014AC53 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18D306C0AA90014AC53 /* manifest.json */; };
+		B4AAA196306C0AA90014AC53 /* page-hook.js in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18E306C0AA90014AC53 /* page-hook.js */; };
+		B4AAA197306C0AA90014AC53 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA18F306C0AA90014AC53 /* popup.css */; };
+		B4AAA198306C0AA90014AC53 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = B4AAA190306C0AA90014AC53 /* content.js */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B4AAA179306C0AA80014AC53 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B4AAA154306C0AA70014AC53 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B4AAA176306C0AA80014AC53;
+			remoteInfo = "YouTube Diagnostics Safari Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B4AAA184306C0AA80014AC53 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				B4AAA178306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		B4AAA15C306C0AA70014AC53 /* YouTube Diagnostics Safari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "YouTube Diagnostics Safari.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4AAA15F306C0AA70014AC53 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B4AAA163306C0AA70014AC53 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		B4AAA165306C0AA70014AC53 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		B4AAA167306C0AA70014AC53 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		B4AAA169306C0AA70014AC53 /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		B4AAA16B306C0AA70014AC53 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		B4AAA16E306C0AA70014AC53 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		B4AAA170306C0AA80014AC53 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B4AAA172306C0AA80014AC53 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B4AAA177306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "YouTube Diagnostics Safari Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4AAA17C306C0AA80014AC53 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		B4AAA17E306C0AA80014AC53 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B4AAA189306C0AA90014AC53 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = popup.js; path = Resources/popup.js; sourceTree = "<group>"; };
+		B4AAA18A306C0AA90014AC53 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = Resources/background.js; sourceTree = "<group>"; };
+		B4AAA18B306C0AA90014AC53 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = Resources/popup.html; sourceTree = "<group>"; };
+		B4AAA18C306C0AA90014AC53 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = Resources/README.md; sourceTree = "<group>"; };
+		B4AAA18D306C0AA90014AC53 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		B4AAA18E306C0AA90014AC53 /* page-hook.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "page-hook.js"; path = "Resources/page-hook.js"; sourceTree = "<group>"; };
+		B4AAA18F306C0AA90014AC53 /* popup.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = popup.css; path = Resources/popup.css; sourceTree = "<group>"; };
+		B4AAA190306C0AA90014AC53 /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = content.js; path = Resources/content.js; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B4AAA159306C0AA70014AC53 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		B4AAA174306C0AA80014AC53 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B4AAA153306C0AA70014AC53 = {
+			isa = PBXGroup;
+			children = (
+				B4AAA15E306C0AA70014AC53 /* YouTube Diagnostics Safari */,
+				B4AAA17B306C0AA80014AC53 /* YouTube Diagnostics Safari Extension */,
+				B4AAA15D306C0AA70014AC53 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B4AAA15D306C0AA70014AC53 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B4AAA15C306C0AA70014AC53 /* YouTube Diagnostics Safari.app */,
+				B4AAA177306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B4AAA15E306C0AA70014AC53 /* YouTube Diagnostics Safari */ = {
+			isa = PBXGroup;
+			children = (
+				B4AAA15F306C0AA70014AC53 /* AppDelegate.swift */,
+				B4AAA16B306C0AA70014AC53 /* ViewController.swift */,
+				B4AAA16D306C0AA70014AC53 /* Main.storyboard */,
+				B4AAA170306C0AA80014AC53 /* Assets.xcassets */,
+				B4AAA172306C0AA80014AC53 /* Info.plist */,
+				B4AAA161306C0AA70014AC53 /* Resources */,
+			);
+			path = "YouTube Diagnostics Safari";
+			sourceTree = "<group>";
+		};
+		B4AAA161306C0AA70014AC53 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B4AAA162306C0AA70014AC53 /* Main.html */,
+				B4AAA165306C0AA70014AC53 /* Icon.png */,
+				B4AAA167306C0AA70014AC53 /* Style.css */,
+				B4AAA169306C0AA70014AC53 /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B4AAA17B306C0AA80014AC53 /* YouTube Diagnostics Safari Extension */ = {
+			isa = PBXGroup;
+			children = (
+				B4AAA188306C0AA90014AC53 /* Resources */,
+				B4AAA17C306C0AA80014AC53 /* SafariWebExtensionHandler.swift */,
+				B4AAA17E306C0AA80014AC53 /* Info.plist */,
+			);
+			path = "YouTube Diagnostics Safari Extension";
+			sourceTree = "<group>";
+		};
+		B4AAA188306C0AA90014AC53 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B4AAA189306C0AA90014AC53 /* popup.js */,
+				B4AAA18A306C0AA90014AC53 /* background.js */,
+				B4AAA18B306C0AA90014AC53 /* popup.html */,
+				B4AAA18C306C0AA90014AC53 /* README.md */,
+				B4AAA18D306C0AA90014AC53 /* manifest.json */,
+				B4AAA18E306C0AA90014AC53 /* page-hook.js */,
+				B4AAA18F306C0AA90014AC53 /* popup.css */,
+				B4AAA190306C0AA90014AC53 /* content.js */,
+			);
+			name = Resources;
+			path = "YouTube Diagnostics Safari Extension";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B4AAA15B306C0AA70014AC53 /* YouTube Diagnostics Safari */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4AAA185306C0AA80014AC53 /* Build configuration list for PBXNativeTarget "YouTube Diagnostics Safari" */;
+			buildPhases = (
+				B4AAA158306C0AA70014AC53 /* Sources */,
+				B4AAA159306C0AA70014AC53 /* Frameworks */,
+				B4AAA15A306C0AA70014AC53 /* Resources */,
+				B4AAA184306C0AA80014AC53 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B4AAA17A306C0AA80014AC53 /* PBXTargetDependency */,
+			);
+			name = "YouTube Diagnostics Safari";
+			productName = "YouTube Diagnostics Safari";
+			productReference = B4AAA15C306C0AA70014AC53 /* YouTube Diagnostics Safari.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B4AAA176306C0AA80014AC53 /* YouTube Diagnostics Safari Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B4AAA181306C0AA80014AC53 /* Build configuration list for PBXNativeTarget "YouTube Diagnostics Safari Extension" */;
+			buildPhases = (
+				B4AAA173306C0AA80014AC53 /* Sources */,
+				B4AAA174306C0AA80014AC53 /* Frameworks */,
+				B4AAA175306C0AA80014AC53 /* Resources */,
+			);
+			buildRules = (
+			);
+			name = "YouTube Diagnostics Safari Extension";
+			productName = "YouTube Diagnostics Safari Extension";
+			productReference = B4AAA177306C0AA80014AC53 /* YouTube Diagnostics Safari Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B4AAA154306C0AA70014AC53 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					B4AAA15B306C0AA70014AC53 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					B4AAA176306C0AA80014AC53 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = B4AAA157306C0AA70014AC53 /* Build configuration list for PBXProject "YouTube Diagnostics Safari" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B4AAA153306C0AA70014AC53;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B4AAA15D306C0AA70014AC53 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B4AAA15B306C0AA70014AC53 /* YouTube Diagnostics Safari */,
+				B4AAA176306C0AA80014AC53 /* YouTube Diagnostics Safari Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B4AAA15A306C0AA70014AC53 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				B4AAA166306C0AA70014AC53 /* Icon.png in Resources */,
+				B4AAA16F306C0AA70014AC53 /* Main.storyboard in Resources */,
+				B4AAA16A306C0AA70014AC53 /* Script.js in Resources */,
+				B4AAA164306C0AA70014AC53 /* Main.html in Resources */,
+				B4AAA171306C0AA80014AC53 /* Assets.xcassets in Resources */,
+				B4AAA168306C0AA70014AC53 /* Style.css in Resources */,
+			);
+		};
+		B4AAA175306C0AA80014AC53 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				B4AAA198306C0AA90014AC53 /* content.js in Resources */,
+				B4AAA192306C0AA90014AC53 /* background.js in Resources */,
+				B4AAA197306C0AA90014AC53 /* popup.css in Resources */,
+				B4AAA193306C0AA90014AC53 /* popup.html in Resources */,
+				B4AAA195306C0AA90014AC53 /* manifest.json in Resources */,
+				B4AAA194306C0AA90014AC53 /* README.md in Resources */,
+				B4AAA196306C0AA90014AC53 /* page-hook.js in Resources */,
+				B4AAA191306C0AA90014AC53 /* popup.js in Resources */,
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B4AAA158306C0AA70014AC53 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				B4AAA16C306C0AA70014AC53 /* ViewController.swift in Sources */,
+				B4AAA160306C0AA70014AC53 /* AppDelegate.swift in Sources */,
+			);
+		};
+		B4AAA173306C0AA80014AC53 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				B4AAA17D306C0AA80014AC53 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B4AAA17A306C0AA80014AC53 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B4AAA176306C0AA80014AC53 /* YouTube Diagnostics Safari Extension */;
+			targetProxy = B4AAA179306C0AA80014AC53 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		B4AAA162306C0AA70014AC53 /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B4AAA163306C0AA70014AC53 /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		B4AAA16D306C0AA70014AC53 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B4AAA16E306C0AA70014AC53 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		B4AAA17F306C0AA80014AC53 /* Debug configuration for PBXProject "YouTube Diagnostics Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B4AAA180306C0AA80014AC53 /* Release configuration for PBXProject "YouTube Diagnostics Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		B4AAA182306C0AA80014AC53 /* Debug configuration for PBXNativeTarget "YouTube Diagnostics Safari Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L22992699P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YouTube Diagnostics Safari Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "YouTube Diagnostics Safari Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aditauqir.fyp.YouTube-Diagnostics-Safari.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B4AAA183306C0AA80014AC53 /* Release configuration for PBXNativeTarget "YouTube Diagnostics Safari Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L22992699P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YouTube Diagnostics Safari Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "YouTube Diagnostics Safari Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aditauqir.fyp.YouTube-Diagnostics-Safari.Extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B4AAA186306C0AA80014AC53 /* Debug configuration for PBXNativeTarget "YouTube Diagnostics Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L22992699P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YouTube Diagnostics Safari/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "YouTube Diagnostics Safari";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aditauqir.fyp.YouTube-Diagnostics-Safari";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B4AAA187306C0AA80014AC53 /* Release configuration for PBXNativeTarget "YouTube Diagnostics Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L22992699P;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "YouTube Diagnostics Safari/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "YouTube Diagnostics Safari";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.aditauqir.fyp.YouTube-Diagnostics-Safari";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B4AAA157306C0AA70014AC53 /* Build configuration list for PBXProject "YouTube Diagnostics Safari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4AAA17F306C0AA80014AC53 /* Debug configuration for PBXProject "YouTube Diagnostics Safari" */,
+				B4AAA180306C0AA80014AC53 /* Release configuration for PBXProject "YouTube Diagnostics Safari" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		B4AAA181306C0AA80014AC53 /* Build configuration list for PBXNativeTarget "YouTube Diagnostics Safari Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4AAA182306C0AA80014AC53 /* Debug configuration for PBXNativeTarget "YouTube Diagnostics Safari Extension" */,
+				B4AAA183306C0AA80014AC53 /* Release configuration for PBXNativeTarget "YouTube Diagnostics Safari Extension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		B4AAA185306C0AA80014AC53 /* Build configuration list for PBXNativeTarget "YouTube Diagnostics Safari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4AAA186306C0AA80014AC53 /* Debug configuration for PBXNativeTarget "YouTube Diagnostics Safari" */,
+				B4AAA187306C0AA80014AC53 /* Release configuration for PBXNativeTarget "YouTube Diagnostics Safari" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B4AAA154306C0AA70014AC53 /* Project object */;
+	validationLevel = 1;
+}

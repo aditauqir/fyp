@@ -30,10 +30,19 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function isUsableWatchMount\(/);
+assert.match(source, /function isVisibleWatchRoot\(/);
+assert.match(source, /function findVisibleWatchRoot\(/);
+assert.match(source, /function watchIdFromLocation\(/);
+assert.match(source, /getAttribute\('video-id'\)/);
+assert.doesNotMatch(
+  source,
+  /const watch = findVisibleWatchRoot\(\);\s*if \(!watch\) \{\s*document\.getElementById\(PLAYER_CONTROLS_TOOLBAR_ID\)\?\.remove\(\);/
+);
+assert.match(source, /function findActivePlayerElement\(/);
 assert.match(source, /function findWatchBelowHost\(/);
 assert.match(source, /function findVisibleWatchPlayerHost\(/);
 assert.match(source, /function schedulePlayerControlsToolbar\(/);
@@ -81,7 +90,17 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(source, /lucide lucide-settings/);
 assert.doesNotMatch(source, /playerControlButtonMarkup\(\s*'quality'/);
-assert.match(source, /lucide lucide-airplay/);
+assert.match(source, /stroke-opacity=\"\.4\"/);
+assert.match(source, /M0 0h512v512H0z/);
+assert.match(source, /M3 2\.803a1 1 0 0 1 1\.5-\.865/);
+assert.match(
+  source,
+  /M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z/
+);
+assert.match(source, /function setPlaybackGlyph\(/);
+assert.match(source, /function enterSystemMiniPlayer\(/);
+assert.match(source, /webkitSetPresentationMode\('picture-in-picture'\)/);
+assert.match(source, /M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12/);
 assert.match(source, /webkitShowPlaybackTargetPicker/);
 assert.match(source, /x-webkit-airplay', 'allow'/);
 assert.match(source, /video\.currentTime \+ offset/);
@@ -136,10 +155,51 @@ assert.match(
 );
 assert.doesNotMatch(source, /fypPlayerHoverSimulated/);
 assert.match(source, /playButton\.dataset\.fypPlaybackState !== playbackState/);
-assert.match(source, /M8 5v14l11-7z/);
-assert.match(source, /M6 4h4v16H6zm8 0h4v16h-4z/);
-assert.match(source, /stroke: none/);
-assert.match(source, /clamp\(2\.9rem, 13vw, 3\.45rem\)/);
+assert.match(source, /M3 2\.803a1 1 0 0 1 1\.5-\.865/);
+assert.match(
+  source,
+  /M5 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z/
+);
+assert.match(source, /function setPlaybackGlyph\(/);
+assert.match(source, /function enterSystemMiniPlayer\(/);
+assert.match(source, /webkitSetPresentationMode\('picture-in-picture'\)/);
+assert.match(source, /stroke="none"/);
+assert.match(source, /z-index: 2147483646 !important/);
+assert.match(source, /color: #fff !important/);
+assert.match(source, /-webkit-text-fill-color: #fff !important/);
+assert.match(source, /forced-color-adjust: none/);
+assert.match(source, /background: #111 !important/);
+assert.doesNotMatch(
+  source,
+  /\.fyp-player-control\[data-fyp-player-action='play-pause'\] svg \{[^}]*fill:/
+);
+assert.doesNotMatch(
+  source,
+  /#\$\{PLAYER_CONTROLS_TOOLBAR_ID\} \.fyp-player-control svg \{[^}]*fill: none/
+);
+assert.match(source, /function solidifyPlayerIcon\(/);
+assert.match(source, /const SVG_NS = 'http:\/\/www\.w3\.org\/2000\/svg'/);
+assert.match(source, /createElementNS\(SVG_NS, node\.localName\)/);
+assert.match(source, /playerIcon: true/);
+assert.match(
+  source,
+  /svg path\[fill='currentColor'\][\s\S]*fill: #fff !important/
+);
+assert.match(source, /gap: \.35rem/);
+assert.match(source, /flex-wrap: nowrap !important/);
+assert.match(source, /function paintPlayerControlIcon\(/);
+assert.match(source, /function raisePlayerControlsStack\(/);
+assert.match(source, /z-index: 2147483646 !important/);
+assert.match(source, /width: 3\.25rem !important/);
+assert.match(source, /min-width: 3\.25rem !important/);
+assert.match(source, /height: 3\.25rem !important/);
+assert.match(source, /background: transparent !important;/);
+assert.match(source, /border: 0 !important;/);
+assert.match(source, /border-radius: 0;/);
+assert.match(source, /-webkit-tap-highlight-color: transparent/);
+assert.match(source, /width: 2rem !important/);
+assert.match(source, /height: 2rem !important/);
+assert.match(source, /function isViewBoxRect\(/);
 assert.match(source, /state\.video\.isConnected/);
 assert.match(source, /function updateMediaSessionMetadata\(\)/);
 assert.match(source, /navigator\.mediaSession\.metadata = new MediaMetadata/);

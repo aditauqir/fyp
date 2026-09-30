@@ -1,5 +1,15 @@
 # Patch Notes
 
+## v3.2.15
+
+- Fixed: The watch buttons stay on one row and stay visible when you open another video or refresh the page.
+- Fixed: Rewind, play, forward, miniplayer, AirPlay, and fullscreen paint as icons you can tap.
+- Fixed: Search opens one field with a Search button, and the keyboard comes up with the box.
+- Fixed: Home no longer shows Playables mini-games.
+- Fixed: Scrolling the sidebar no longer closes it early.
+- Notes: Shipped as GitHub Release `v3.2.15`, title `Fyoutube 3.2.15`.
+- Packaging: Numeric version `3.2.15`; recommended Orion installer `3.2.15_release.zip` (Chrome MV3). Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
 ## v3.1.1
 
 - Fixed: Refreshing a watch page keeps the transport strip under the video. 3.1.0 still lost it on Orion iOS reload.

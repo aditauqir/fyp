@@ -11,12 +11,13 @@ const page = fs.readFileSync(
   'utf8'
 );
 
-assert.match(content, /EXPECTED_PAGE_VERSION = '3\.1\.1'/);
+assert.match(content, /EXPECTED_PAGE_VERSION = '\d+\.\d+\.\d+(\.g)?'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
 assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '3\.1\.1'\)/);
+assert.match(page, /setAttribute\('data-fyp-page-ready', '\d+\.\d+\.\d+(\.g)?'\)/);
+assert.match(content, /ytd-rich-shelf-renderer:has\(a\[href\*="\/playables"\]\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
 assert.match(content, /ytd-browse\[page-subtype='history'\]/);
@@ -50,8 +51,11 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v311-reload-mount'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore'/
 );
+assert.match(content, /function isFallbackVisibleWatchRoot\(/);
+assert.match(content, /function findFallbackVisibleWatchRoot\(/);
+assert.match(content, /function findFallbackActivePlayer\(/);
 assert.match(content, /function findFallbackWatchBelowHost\(/);
 assert.match(content, /function findFallbackVisibleWatchPlayerHost\(/);
 assert.match(content, /function scheduleFallbackPlayerControlsToolbar\(/);
@@ -95,7 +99,17 @@ assert.match(content, /action: 'playback-quality'/);
 assert.match(content, /function applyFallbackYouTubeQuality\(/);
 assert.match(content, /function fallbackYouTubeQualityOptions\(/);
 assert.doesNotMatch(content, /lucide lucide-settings/);
-assert.match(content, /lucide lucide-airplay/);
+assert.match(content, /M4\.1043 15\.8632/);
+assert.match(content, /z-index: 2147483646 !important/);
+assert.match(content, /color: #fff !important/);
+assert.match(content, /background: transparent !important/);
+assert.match(content, /background: #111 !important/);
+assert.match(content, /function solidifyPlayerIcon\(/);
+assert.match(
+  content,
+  /svg path\[fill='currentColor'\][\s\S]*fill: #fff !important/
+);
+assert.match(content, /width: 2rem !important/);
 assert.match(content, /webkitShowPlaybackTargetPicker/);
 assert.match(content, /x-webkit-airplay', 'allow'/);
 assert.match(content, /ignoreFallbackPlayerControlActionsUntil = Date\.now\(\) \+ 500/);

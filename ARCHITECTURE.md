@@ -2,8 +2,8 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `3.1.1` (`3.1.1_release.zip`)
-**GitHub Release:** `Fyoutube 3.1.1` (`v3.1.1`)
+**Current shipped version:** `3.2.15` (`3.2.15_release.zip`)
+**GitHub Release:** `Fyoutube 3.2.15` (`v3.2.15`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -17,6 +17,25 @@ The extension is intentionally a hybrid:
 - **Ad blocking:** The page runtime blocks YouTube ad requests, prunes player-ad JSON, hides overlay cards, and skips in-player ads. uBlock Origin is optional.
 
 This is not a replacement YouTube client, proxy, scraper, or embedded player. No separate application backend is hosted by this project.
+
+## Internal Chromium diagnostics workbench
+
+The branch also contains a maintainer-only Chromium MV3 diagnostics tool under [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics). It is separate from the shipped Fyoutube runtime and is not part of the Orion release packages.
+
+The workbench captures page-world console calls, page errors, unhandled rejections, SPA navigation, interaction targets, DOM mutation summaries, and structured element snapshots. **Capture DOM + code** saves the element map into the JSONL session log and downloads the current `document.documentElement.outerHTML` as a separate HTML source artifact. **Pause capture** must be used before opening DevTools or reproducing a crash when the page is unstable; pausing stops new DOM snapshots, mutation accumulation, and page-world diagnostic emission.
+
+The current investigation artifacts are kept in [`workbench/logs`](./workbench/logs):
+
+- `youtube-diagnostics-2026-09-29T04-48-33-682Z.jsonl` — console, error, navigation, mutation, and element records.
+- `youtube-dom-2026-09-29T04-48-31-117Z.html` — captured YouTube DOM/source snapshot.
+
+These files are diagnostic evidence, not source-of-truth product code. The workbench uses Chromium APIs only, starts a clean storage buffer when its storage schema changes, and must never be wired into `youtube-mobile-background.user.js` or generated `page.js`.
+
+## Internal Safari diagnostics workbench
+
+The native macOS Safari companion lives under [`workbench/youtube-diagnostics-safari`](./workbench/youtube-diagnostics-safari). It embeds the same page-world hook, WebKit media lifecycle records, Fyoutube marker checks, and DOM capture UI in a Safari Web Extension host project. Its extension resources use `globalThis.browser || globalThis.chrome` so the same WebExtension logic remains compatible with Safari and Chromium API globals.
+
+Run `workbench/youtube-diagnostics-safari/package-safari.sh` to perform an unsigned Debug build and create a source project archive for local Xcode testing. Safari requires the host app to be signed by Xcode with the user's development team; the unsigned command-line build is a structural verification only.
 
 ```mermaid
 flowchart TD
@@ -57,6 +76,8 @@ flowchart TD
 | Extension action | A real `default_popup` renders a bottom-center panel with three changelog lines and two large buttons; it must not inject an in-page action card. |
 | Ads | Block YouTube ads in page-world fetch/XHR/beacon, prune player-ad JSON, hide overlay cards, and skip in-player ads. uBlock Origin is not required. |
 | Search cards | Restyle only `ytd-search` results. Stack the thumbnail first. Do not restyle Home, subscriptions, or channel browse with search-card rules. |
+| Search entry | Tapping YouTube's masthead search control opens a separate FYP-owned overlay with a slight blur. Ask YouTube and voice search controls stay hidden. |
+| Search submit | Enter or the overlay Search button navigates to `https://www.youtube.com/results?search_query=<query>` using `URLSearchParams`, which produces YouTube's `+` separators for spaces. |
 
 ## Runtime layers
 
@@ -197,6 +218,10 @@ flowchart LR
     C -->|"matching page version"| X["Stop fallback observers and polling"]
 ```
 
+### Watch strip icons
+
+The custom watch row is one line of six buttons: rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. Play/pause is one SVG and one glyph path. Icon files include a full-canvas rectangle that must be removed before paint, or the button becomes a white square and play/pause stack. Glyphs stay white with inline `!important`. The strip stays above later page layers. The symptom table and the repair steps are **Watch-strip icons** in [`HANDOFF.md`](./HANDOFF.md).
+
 ## Mobile shell architecture
 
 The desktop site is already responsive, but its narrow watch layout has desktop minimum widths. At a 390px viewport, YouTube applied a roughly 426.7px minimum to `#primary`, centering the column and clipping about 18px from the left.
@@ -237,6 +262,26 @@ Search-card restyle is search-only. Home must keep its existing feed rules.
 5. Hide AI Summary / Ask chips inside `ytd-search` only. Keep chapter bars.
 6. Hide `ytd-video-meta-block #byline-container` so the channel name appears once in `#channel-info`.
 7. Use named grid areas on `#dismissible`. Flatten `#details` / `#meta` with `display: contents`. Do not put the thumbnail first with `order: -1`.
+
+### Search interaction overlay
+
+The masthead is only a trigger. `handleMobileSearchClick()` recognizes both
+legacy YouTube inputs and the modern `yt-searchbox` host, whose current field
+may be a `textarea`. It does not reuse YouTube's changing form DOM.
+
+1. `ensureMobileSearchElements()` creates one direct `document.body` child:
+   `#fyp-search-overlay` with a centered `#fyp-search-overlay-form`.
+2. The overlay owns focus, backdrop dismissal, Escape dismissal, and submit
+   handling. The background remains visible through a small dark blur layer.
+3. `submitMobileSearch()` trims and normalizes whitespace, then builds the
+   canonical YouTube URL with `new URLSearchParams({ search_query: query })`.
+4. The overlay intentionally uses plain DOM APIs. SolidJS was evaluated for
+   this small stateful surface, but the extension has no package/bundler
+   runtime and its page-world source is embedded into Orion's content bridge.
+   Adding Solid for one input would increase the install/runtime surface
+   without solving a YouTube integration problem. If the extension later gets
+   a multi-screen settings or diagnostics UI, Solid's `render()` plus signals
+   would be a reasonable isolated component boundary.
 
 ## Navigation architecture
 
@@ -290,15 +335,15 @@ Required edit flow:
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
-Shipped package names (GitHub `v3.1.1`):
+Shipped package names (GitHub `v3.2.15`):
 
-- `3.1.1_release.zip` (recommended Orion Chrome MV3 installer)
-- `fyoutube-chrome-3.1.1.zip`
-- `fyoutube-firefox-3.1.1.zip`
-- `fyoutube-orion-3.1.1.zip`
-- `fyoutube-orion-3.1.1.xpi`
+- `3.2.15_release.zip` (recommended Orion Chrome MV3 installer)
+- `fyoutube-chrome-3.2.15.zip`
+- `fyoutube-firefox-3.2.15.zip`
+- `fyoutube-orion-3.2.15.zip`
+- `fyoutube-orion-3.2.15.xpi`
 
-Older `v3.0.4` download URLs stay available.
+Older `v3.1.1` download URLs stay available.
 
 ## Verification contract
 
