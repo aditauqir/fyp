@@ -1,8 +1,7 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current public ship version: `3.2.15` SHIPPED** (GitHub Release `v3.2.15`, title `Fyoutube 3.2.15`; branch `main`). Issue work still happens on `bug-fixes-pr`.
-> **Local branch test build: `3.4.0`** (`3.4.0_release.zip`) on `bug-fixes-pr` — strip mount + inject harden; not GitHub-released.
+> **Current public ship version: `3.4.0` SHIPPED** (GitHub Release `v3.4.0`, title `Fyoutube 3.4.0`; branch `main`). Issue work still happens on `bug-fixes-pr`.
 >
 > **Docs map:** [AGENTS.md](./AGENTS.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
 >
@@ -90,7 +89,7 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.4.0_release.zip                  ← local Orion installer on bug-fixes-pr (gitignored artifact)
+└── 3.4.0_release.zip                  ← shipped Orion installer (gitignored artifact; also on GitHub Release v3.4.0)
 ```
 
 ### Internal Chromium diagnostics workbench
@@ -146,7 +145,7 @@ In `youtube-mobile-background.user.js`:
 
 ## Watch-strip icons — if they vanish, turn into white boxes, or stack
 
-Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled icon paint is **3.2.13** (`icon-strip-v3213-restore`). Public ship is 3.2.15. Local `3.4.0` (`icon-strip-v340-title-row`) hardens mount placement after `#title-row` and page inject reliability. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
+Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled icon paint is **3.2.13** (`icon-strip-v3213-restore`). Public ship is **3.4.0** (`icon-strip-v340-title-row`) — mount after `#title-row` plus page inject reliability. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
 
 The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-controls-toolbar`. Fallback id: `yt-mobile-orion-ext-controls-toolbar`. Source of truth is `youtube-mobile-background.user.js`. Mirror the same paint and layout in `firefox-extension/content.template.js`. Do not hand-edit generated `page.js` or `content.js`.
 
@@ -267,13 +266,23 @@ shape.style.setProperty('stroke', '#fff', 'important'); // stroked icons
   - **Suggestions dropdown unclipped:** Configured `#center` to `overflow: visible !important` so `.ytSearchboxComponentSuggestionsContainer` / `.sbsb_a` drops down cleanly without getting clipped.
   - **Preserved controls:** Form submit button (`[🔍]`) and clear button (`[✕]`) properly styled and positioned on screen.
 
-### 3.4.0 — branch `bug-fixes-pr` (strip remount + inject harden, local package)
-
+### 3.4.0 — public ship (`Fyoutube 3.4.0`)
+- GitHub Release tag `v3.4.0`. Title is `Fyoutube 3.4.0`.
+- Recommended installer: `3.4.0_release.zip` (Chrome MV3).
+- Fixes an issue where the controls disappeared on playing a video.
 - Remounts the watch control strip whenever `toolbarIsCorrectlyPlaced` fails; dropped sticky `settledOnTitle`.
 - Parks the strip after `#title-row` instead of inside `#title`, so Polymer title remounts cannot clip it.
 - Hardened page inject in `content.template.js`: one `ensurePageRuntime()` path (embedded text → blob → src), root wait, retries, navigate reinject, and a watchdog that restores fallback strip work when `data-fyp-page-ready` is missing.
-- Page-world re-entry guard prevents double observer install from inject retries.
-- Local packages only: `3.4.0_release.zip`. Not a GitHub Release.
+
+Direct assets:
+
+- `https://github.com/aditauqir/fyp/releases/download/v3.4.0/3.4.0_release.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.4.0/fyoutube-chrome-3.4.0.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.4.0/fyoutube-firefox-3.4.0.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.4.0/fyoutube-orion-3.4.0.zip`
+- `https://github.com/aditauqir/fyp/releases/download/v3.4.0/fyoutube-orion-3.4.0.xpi`
+
+Older `v3.2.15` download URLs stay available.
 
 ### 3.2.15 — public ship (`Fyoutube 3.2.15`)
 - GitHub Release tag `v3.2.15`. Title is `Fyoutube 3.2.15`.
@@ -567,7 +576,7 @@ After reinstall + hard refresh on Orion:
 1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
 2. Run `node scripts/check-issue-ledger.cjs`.
 3. Report every issue, live GitHub state, and branch state to the user.
-4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.2.15`, tag `v3.2.15`.
+4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`.
 5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
 6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
 7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.

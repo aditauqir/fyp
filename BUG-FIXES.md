@@ -9,8 +9,7 @@
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version is **`3.2.15`**. GitHub Release title is `Fyoutube 3.2.15`, tag `v3.2.15`.
-> **Local branch test build:** `3.4.0` (`3.4.0_release.zip`) — strip mount + inject harden; not a GitHub Release yet.
+> Shipped public version is **`3.4.0`**. GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`.
 
 ---
 
@@ -71,14 +70,14 @@ Last live check: **2026-08-23**.
 | Issue | GitHub title | GitHub state | Branch state | Summary |
 |---|---|---|---|---|
 | [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Hamburger close left a grey overlay and froze scroll. |
-| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2` remount on reload); follow-up hardened in local `3.4.0`** | Reload / early SPA remount could lose or misplace the strip. |
+| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2`); follow-up shipped in `3.4.0`** | Reload / early SPA remount could lose or misplace the strip. |
 | [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Tapping search showed two buttons and a tiny field on the left. |
 
 `OPEN` and `CLOSED` in the GitHub state column are live issue states. The branch state records implementation and verification separately.
 
 ---
 
-## Local follow-up — `3.4.0` strip mount + inject harden (not GitHub-released)
+## Shipped follow-up — `3.4.0` strip mount + inject harden
 
 **What it is:** Inline SVG control strip can disappear until a refresh after the video has started. Separately, Orion can leave a script tag present without executing page-world code.
 
@@ -88,7 +87,7 @@ Last live check: **2026-08-23**.
 - Page inject is one `ensurePageRuntime()` path: embedded text → blob → src, with root wait, retries, `yt-navigate-finish` reinject, and a 2s watchdog that also reschedules the fallback strip when the handshake is missing.
 - Page world re-entry guard on `__fypPageRuntimeInstalled` + `PAGE_RUNTIME_VERSION`.
 
-**How to verify:** Install local `3.4.0_release.zip`, cold-open `/watch`, SPA-open a video, switch videos, refresh after play. Strip stays under the title with six white icons. See [`PATCH_NOTES.md`](./PATCH_NOTES.md) and [`fixes.md`](./fixes.md).
+**How to verify:** Install `3.4.0_release.zip` from GitHub Release `v3.4.0`, cold-open `/watch`, SPA-open a video, switch videos, refresh after play. Strip stays under the title with six white icons. See [`PATCH_NOTES.md`](./PATCH_NOTES.md) and [`fixes.md`](./fixes.md).
 
 ---
 

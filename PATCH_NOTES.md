@@ -4,11 +4,9 @@
 
 ## v3.4.0
 
-- Fixed: The watch control strip remounts when YouTube rebuilds the title block, so the inline SVG buttons stay under the title after cold open and SPA video changes.
-- Fixed: The strip parks after `#title-row` instead of inside the clipped title row.
-- Fixed: Page-world injection is more reliable on Orion — one ensure path with embedded text, blob, and src fallbacks, plus a watchdog when the ready handshake disappears.
-- Notes: Local `bug-fixes-pr` package only. Not published as a GitHub Release.
-- Packaging: Numeric version `3.4.0`; recommended local Orion installer `3.4.0_release.zip` (Chrome MV3).
+- Fixed: Fixes an issue where the controls disappeared on playing a video.
+- Notes: Shipped as GitHub Release `v3.4.0`, title `Fyoutube 3.4.0`.
+- Packaging: Numeric version `3.4.0`; recommended Orion installer `3.4.0_release.zip` (Chrome MV3). Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
 
 ## v3.2.15
 
