@@ -1,7 +1,9 @@
 # PERFORMANCE-FIXES — `fix/performance-fixes`
 
 > **Okay — you switched from the search/menus / caption / prior agent onto this branch.**
-> Read this file **first**, then `HANDOFF.md`, `ARCHITECTURE.md`, and skim `youtube-mobile-background.user.js` before editing.
+> Read this file **first**, then [`HANDOFF.md`](./HANDOFF.md), [`ARCHITECTURE.md`](./ARCHITECTURE.md), and skim `youtube-mobile-background.user.js` before editing.
+>
+> **Docs map:** [AGENTS.md](./AGENTS.md) · [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md) · [README.md](./README.md)
 >
 > **Target device:** Orion Browser on **iPhone** (WebKit + install-from-file WebExtension). Desktop Chrome is not the acceptance surface.
 >

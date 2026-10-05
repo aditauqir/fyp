@@ -2,8 +2,11 @@
 
 This document is the technical contract for agents continuing the project.
 
+**Docs map:** [AGENTS.md](./AGENTS.md) · [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
+
 **Current shipped version:** `3.2.15` (`3.2.15_release.zip`)
 **GitHub Release:** `Fyoutube 3.2.15` (`v3.2.15`)
+**Local branch test build:** `3.4.0` (`3.4.0_release.zip` on `bug-fixes-pr`; not GitHub-released)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 

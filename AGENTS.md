@@ -1,15 +1,17 @@
 # Agent session requirements
 
+**Docs map:** [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [fixes.md](./fixes.md)
+
 At the start of every session, complete these actions before you edit code:
 
-1. Read `BUG-FIXES.md` and `HANDOFF.md`.
+1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) and [`HANDOFF.md`](./HANDOFF.md).
 2. Run `node scripts/check-issue-ledger.cjs`.
 3. Report every GitHub issue to the user.
 4. Include the live GitHub state and the branch state for each issue.
 
 If GitHub is unavailable, use the `BUG-FIXES.md` ledger. Label each reported state as **cached, not live**.
 
-Follow the remaining implementation, build, and handoff requirements in `HANDOFF.md`.
+Follow the remaining implementation, build, and handoff requirements in [`HANDOFF.md`](./HANDOFF.md).
 
 ## Record completed work
 

@@ -17,6 +17,8 @@
   <a href="https://discord.gg/sd5Y8f7ukh"><img src="https://img.shields.io/badge/Discord-Join%20the%20server%20for%20support%20or%20help-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord server for support or help"></a>
 </p>
 
+**Docs:** [Install](./INSTALL-ORION.md) · [Patch notes](./PATCH_NOTES.md) · [Architecture](./ARCHITECTURE.md) · [Handoff](./HANDOFF.md) · [Bug fixes](./BUG-FIXES.md) · [Agents](./AGENTS.md)
+
 ## What is this?
 
 ### Basically free YouTube Premium for iPhone
@@ -63,7 +65,7 @@ Use these packages from the [latest GitHub Release](https://github.com/aditauqir
 
 | Package | Use |
 | --- | --- |
-| `*_release.zip` (example: `3.2.15_release.zip`) | Recommended install for Orion |
+| `*_release.zip` (example: `3.4.0_release.zip`) | Recommended install for Orion |
 | `fyoutube-chrome-*.zip` | Chrome Manifest V3 fallback |
 | `fyoutube-firefox-*.zip` | Firefox ZIP fallback |
 | `fyoutube-orion-*.xpi` | XPI fallback |

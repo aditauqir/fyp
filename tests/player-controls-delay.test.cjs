@@ -30,12 +30,13 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function isUsableWatchMount\(/);
 assert.match(source, /function isVisibleWatchRoot\(/);
 assert.match(source, /function findVisibleWatchRoot\(/);
+assert.match(source, /function findWatchTitleRow\(/);
 assert.match(source, /function watchIdFromLocation\(/);
 assert.match(source, /getAttribute\('video-id'\)/);
 assert.doesNotMatch(
@@ -47,6 +48,17 @@ assert.match(source, /function findWatchBelowHost\(/);
 assert.match(source, /function findVisibleWatchPlayerHost\(/);
 assert.match(source, /function schedulePlayerControlsToolbar\(/);
 assert.match(source, /function toolbarIsParkedOnPlayer\(/);
+assert.match(source, /toolbarIsCorrectlyPlaced\(/);
+assert.match(source, /fypControlsAnchor = 'title-row'/);
+assert.doesNotMatch(source, /settledOnTitle/);
+assert.doesNotMatch(
+  source,
+  /title\.insertAdjacentElement\('afterend', toolbar\)/
+);
+assert.match(
+  source,
+  /titleRow\.insertAdjacentElement\('afterend', toolbar\)/
+);
 assert.doesNotMatch(
   source,
   /toolbarIsParkedOnPlayer\(toolbar\)\) \{\s*toolbar\.remove\(\);\s*\}\s*return;/

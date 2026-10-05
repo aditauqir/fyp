@@ -4,12 +4,14 @@
 > Baseline restored search: `origin/main` / `1ca4f57` (2.1.2 native masthead path).
 > Kept from later work: enlarged centered transport strip (rewind / play-pause / forward / pip / fullscreen).
 > Approved and shipping to `main` + GitHub Release `v2.2.3`.
+>
+> **Docs map:** [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [AGENTS.md](./AGENTS.md) · [README.md](./README.md)
 
 ---
 
 ## Agent contract
 
-1. Read this file + `HANDOFF.md` + `ARCHITECTURE.md` before editing.
+1. Read this file + [`HANDOFF.md`](./HANDOFF.md) + [`ARCHITECTURE.md`](./ARCHITECTURE.md) before editing.
 2. Source of truth: `youtube-mobile-background.user.js` → `./rebuild-extension.sh`.
 3. Mirror Ask/voice hide (only) in `firefox-extension/content.template.js`. Do **not** hide native masthead `#center` / search buttons.
 4. Webpage strip stays centered **transport-only**: rewind / play-pause / forward / pip / fullscreen. No speed, no gear, no Captions / More. Captions stay native YouTube CC. Speed/quality via native `.ytp-settings-button`.

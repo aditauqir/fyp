@@ -2,12 +2,15 @@
 
 > For AI agents continuing this work. Read this before editing.
 > **Current public ship version: `3.2.15` SHIPPED** (GitHub Release `v3.2.15`, title `Fyoutube 3.2.15`; branch `main`). Issue work still happens on `bug-fixes-pr`.
+> **Local branch test build: `3.4.0`** (`3.4.0_release.zip`) on `bug-fixes-pr` — strip mount + inject harden; not GitHub-released.
+>
+> **Docs map:** [AGENTS.md](./AGENTS.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
 >
 > **Watch-strip icons:** if the buttons are blank, white squares, stacked play/pause, or hidden under the title, follow **Watch-strip icons** below before editing.
 >
 > Always run `./rebuild-extension.sh` after edits.
 >
-> Read `ARCHITECTURE.md` first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
+> Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) first for the product model, layer boundaries, playback contract, and non-negotiable behavior.
 >
 > **Active branch convention (`google_cuck` / `.g` tag):** The `.g` suffix stands for **google**. Everything on this branch should carry the `g` tag (e.g. version `3.1.2.g`, release label `3.1.2.g`, packages `fyoutube-*-3.1.2.g.zip`, and `3.1.2.g_release.zip`). All deliverables, assets, and tasks worked on during this session/branch must have the `g` tag.
 >
@@ -87,7 +90,7 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.2.15_release.zip                  ← recommended Orion installer (gitignored artifact)
+└── 3.4.0_release.zip                  ← local Orion installer on bug-fixes-pr (gitignored artifact)
 ```
 
 ### Internal Chromium diagnostics workbench
@@ -143,7 +146,7 @@ In `youtube-mobile-background.user.js`:
 
 ## Watch-strip icons — if they vanish, turn into white boxes, or stack
 
-Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled this is **3.2.13** (`icon-strip-v3213-restore`). Public ship is 3.2.15. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
+Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled icon paint is **3.2.13** (`icon-strip-v3213-restore`). Public ship is 3.2.15. Local `3.4.0` (`icon-strip-v340-title-row`) hardens mount placement after `#title-row` and page inject reliability. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
 
 The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-controls-toolbar`. Fallback id: `yt-mobile-orion-ext-controls-toolbar`. Source of truth is `youtube-mobile-background.user.js`. Mirror the same paint and layout in `firefox-extension/content.template.js`. Do not hand-edit generated `page.js` or `content.js`.
 
@@ -263,6 +266,14 @@ shape.style.setProperty('stroke', '#fff', 'important'); // stroked icons
   - **Touch backdrop dismissal:** Injected `#fyp-search-backdrop` with subtle blur to dismiss the search overlay when tapping outside, preventing accidental click-through to videos below.
   - **Suggestions dropdown unclipped:** Configured `#center` to `overflow: visible !important` so `.ytSearchboxComponentSuggestionsContainer` / `.sbsb_a` drops down cleanly without getting clipped.
   - **Preserved controls:** Form submit button (`[🔍]`) and clear button (`[✕]`) properly styled and positioned on screen.
+
+### 3.4.0 — branch `bug-fixes-pr` (strip remount + inject harden, local package)
+
+- Remounts the watch control strip whenever `toolbarIsCorrectlyPlaced` fails; dropped sticky `settledOnTitle`.
+- Parks the strip after `#title-row` instead of inside `#title`, so Polymer title remounts cannot clip it.
+- Hardened page inject in `content.template.js`: one `ensurePageRuntime()` path (embedded text → blob → src), root wait, retries, navigate reinject, and a watchdog that restores fallback strip work when `data-fyp-page-ready` is missing.
+- Page-world re-entry guard prevents double observer install from inject retries.
+- Local packages only: `3.4.0_release.zip`. Not a GitHub Release.
 
 ### 3.2.15 — public ship (`Fyoutube 3.2.15`)
 - GitHub Release tag `v3.2.15`. Title is `Fyoutube 3.2.15`.

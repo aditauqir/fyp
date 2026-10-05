@@ -13,7 +13,11 @@ const template = fs.readFileSync(
 );
 
 assert.match(source, /\/\/ @version\s+\d+\.\d+\.\d+(\.g)?/);
-assert.match(source, /data-fyp-page-ready', '\d+\.\d+\.\d+(\.g)?'/);
+assert.match(source, /PAGE_RUNTIME_VERSION = '\d+\.\d+\.\d+(\.g)?'/);
+assert.match(
+  source,
+  /setAttribute\(\s*'data-fyp-page-ready',\s*PAGE_RUNTIME_VERSION\s*\)/
+);
 assert.match(source, /const MOBILE_SEARCH_OPEN_ATTR = 'data-fyp-mobile-search-open'/);
 assert.match(source, /const MOBILE_SEARCH_TRIGGER_SELECTOR = \[/);
 assert.match(source, /function closeMobileSearch\(\)/);

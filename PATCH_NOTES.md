@@ -1,5 +1,15 @@
 # Patch Notes
 
+**Docs map:** [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [AGENTS.md](./AGENTS.md)
+
+## v3.4.0
+
+- Fixed: The watch control strip remounts when YouTube rebuilds the title block, so the inline SVG buttons stay under the title after cold open and SPA video changes.
+- Fixed: The strip parks after `#title-row` instead of inside the clipped title row.
+- Fixed: Page-world injection is more reliable on Orion — one ensure path with embedded text, blob, and src fallbacks, plus a watchdog when the ready handshake disappears.
+- Notes: Local `bug-fixes-pr` package only. Not published as a GitHub Release.
+- Packaging: Numeric version `3.4.0`; recommended local Orion installer `3.4.0_release.zip` (Chrome MV3).
+
 ## v3.2.15
 
 - Fixed: The watch buttons stay on one row and stay visible when you open another video or refresh the page.

@@ -12,9 +12,9 @@ const content = fs.readFileSync(
   'utf8'
 );
 
-const pageVersion = page.match(
-  /setAttribute\('data-fyp-page-ready', '([^']+)'\)/
-)?.[1];
+const pageVersion =
+  page.match(/PAGE_RUNTIME_VERSION = '([^']+)'/)?.[1] ||
+  page.match(/setAttribute\('data-fyp-page-ready', '([^']+)'\)/)?.[1];
 const expectedVersion = content.match(
   /EXPECTED_PAGE_VERSION = '([^']+)'/
 )?.[1];
