@@ -1,4 +1,9 @@
-# Fyoutube
+<p align="center">
+  <img src="docs/images/fyoutube-logo.png" alt="Fyoutube" width="220">
+</p>
+
+<h1 align="center">Fyoutube</h1>
+
 <p align="center">
   <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
     <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">

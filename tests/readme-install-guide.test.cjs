@@ -6,6 +6,8 @@ const root = path.resolve(__dirname, '..');
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
 const install = fs.readFileSync(path.join(root, 'INSTALL-ORION.md'), 'utf8');
 
+assert.match(readme, /docs\/images\/fyoutube-logo\.png/);
+assert.match(readme, /alt="Fyoutube"/);
 assert.match(readme, /## What is this\?/);
 assert.match(readme, /### Basically free YouTube Premium for iPhone/);
 assert.match(readme, /## iPhone only — Orion Browser/);
