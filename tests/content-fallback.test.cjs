@@ -13,10 +13,19 @@ const page = fs.readFileSync(
 
 assert.match(content, /EXPECTED_PAGE_VERSION = '\d+\.\d+\.\d+(\.g)?'/);
 assert.match(content, /function pageRuntimeReady\(\)/);
+assert.match(content, /function ensurePageRuntime\(/);
+assert.match(content, /function injectWithBlob\(/);
+assert.match(content, /function injectionRoot\(/);
 assert.match(content, /script\.addEventListener\(\s*'error'/);
 assert.match(content, /document\.querySelector\('script\[nonce\]'\)/);
-assert.match(content, /if \(!pageRuntimeReady\(\)\) injectWithText\(\)/);
-assert.match(page, /setAttribute\('data-fyp-page-ready', '\d+\.\d+\.\d+(\.g)?'\)/);
+assert.match(content, /ensurePageRuntime\('boot'\)/);
+assert.match(content, /ensurePageRuntime\('watchdog'\)/);
+assert.match(page, /setAttribute\(\s*'data-fyp-page-ready',\s*PAGE_RUNTIME_VERSION\s*\)/);
+assert.match(page, /__fypPageRuntimeInstalled/);
+assert.match(page, /function findWatchTitleRow\(/);
+assert.match(page, /toolbarIsCorrectlyPlaced\(/);
+assert.match(page, /fypControlsAnchor = 'title-row'/);
+assert.doesNotMatch(page, /settledOnTitle/);
 assert.match(content, /ytd-rich-shelf-renderer:has\(a\[href\*="\/playables"\]\)/);
 assert.match(content, /HISTORY_FEED_ATTR = 'data-fyp-feed'/);
 assert.match(content, /function markFallbackHistoryFeedBrowse\(\)/);
@@ -51,13 +60,17 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row'/
 );
 assert.match(content, /function isFallbackVisibleWatchRoot\(/);
 assert.match(content, /function findFallbackVisibleWatchRoot\(/);
 assert.match(content, /function findFallbackActivePlayer\(/);
 assert.match(content, /function findFallbackWatchBelowHost\(/);
+assert.match(content, /function findFallbackWatchTitleRow\(/);
 assert.match(content, /function findFallbackVisibleWatchPlayerHost\(/);
+assert.match(content, /fallbackToolbarIsCorrectlyPlaced\(/);
+assert.match(content, /fypControlsAnchor = 'title-row'/);
+assert.doesNotMatch(content, /settledOnTitle/);
 assert.match(content, /function scheduleFallbackPlayerControlsToolbar\(/);
 assert.doesNotMatch(
   content,

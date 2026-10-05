@@ -1,13 +1,15 @@
 # BUG-FIXES — `bug-fixes-pr`
 
 > **Okay — GitHub issue work lives on this branch.**
-> Read this file **first**, then `HANDOFF.md`, `ARCHITECTURE.md`, and skim `youtube-mobile-background.user.js` before editing.
+> Read this file **first**, then [`HANDOFF.md`](./HANDOFF.md), [`ARCHITECTURE.md`](./ARCHITECTURE.md), and skim `youtube-mobile-background.user.js` before editing.
+>
+> **Docs map:** [AGENTS.md](./AGENTS.md) · [HANDOFF.md](./HANDOFF.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
 >
 > **Target device:** Orion Browser on **iPhone** (WebKit + install-from-file WebExtension). Desktop Chrome is not the acceptance surface.
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version is **`3.2.15`**. GitHub Release title is `Fyoutube 3.2.15`, tag `v3.2.15`.
+> Shipped public version is **`3.4.0`**. GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`.
 
 ---
 
@@ -32,8 +34,8 @@ If the user (or another agent summary) says any of:
 …then read, in order:
 
 1. **`BUG-FIXES.md`** (this file)
-2. **`HANDOFF.md`**
-3. **`ARCHITECTURE.md`**
+2. **[`HANDOFF.md`](./HANDOFF.md)**
+3. **[`ARCHITECTURE.md`](./ARCHITECTURE.md)**
 4. Relevant slices of **`youtube-mobile-background.user.js`**
 5. The GitHub issue body (`gh issue view <n> --repo aditauqir/fyp`)
 
@@ -41,7 +43,7 @@ If the user (or another agent summary) says any of:
 
 ## Goal
 
-Take open GitHub issues from [aditauqir/fyp](https://github.com/aditauqir/fyp/issues), fix them on **`bug-fixes-pr`**, and keep this file as the status ledger that reports to `HANDOFF.md`.
+Take open GitHub issues from [aditauqir/fyp](https://github.com/aditauqir/fyp/issues), fix them on **`bug-fixes-pr`**, and keep this file as the status ledger that reports to [`HANDOFF.md`](./HANDOFF.md).
 
 ---
 
@@ -68,10 +70,24 @@ Last live check: **2026-08-23**.
 | Issue | GitHub title | GitHub state | Branch state | Summary |
 |---|---|---|---|---|
 | [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Hamburger close left a grey overlay and froze scroll. |
-| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2` remount on reload)** | Reload removed the strip when title/metadata failed the visibility check. |
+| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2`); follow-up shipped in `3.4.0`** | Reload / early SPA remount could lose or misplace the strip. |
 | [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Tapping search showed two buttons and a tiny field on the left. |
 
 `OPEN` and `CLOSED` in the GitHub state column are live issue states. The branch state records implementation and verification separately.
+
+---
+
+## Shipped follow-up — `3.4.0` strip mount + inject harden
+
+**What it is:** Inline SVG control strip can disappear until a refresh after the video has started. Separately, Orion can leave a script tag present without executing page-world code.
+
+**What we changed:**
+- Remount whenever `toolbarIsCorrectlyPlaced` fails (dropped sticky `settledOnTitle`).
+- Primary host is after `#title-row`, not inside `#title`.
+- Page inject is one `ensurePageRuntime()` path: embedded text → blob → src, with root wait, retries, `yt-navigate-finish` reinject, and a 2s watchdog that also reschedules the fallback strip when the handshake is missing.
+- Page world re-entry guard on `__fypPageRuntimeInstalled` + `PAGE_RUNTIME_VERSION`.
+
+**How to verify:** Install `3.4.0_release.zip` from GitHub Release `v3.4.0`, cold-open `/watch`, SPA-open a video, switch videos, refresh after play. Strip stays under the title with six white icons. See [`PATCH_NOTES.md`](./PATCH_NOTES.md) and [`fixes.md`](./fixes.md).
 
 ---
 

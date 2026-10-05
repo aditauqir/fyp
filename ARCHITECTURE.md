@@ -2,8 +2,10 @@
 
 This document is the technical contract for agents continuing the project.
 
-**Current shipped version:** `3.2.15` (`3.2.15_release.zip`)
-**GitHub Release:** `Fyoutube 3.2.15` (`v3.2.15`)
+**Docs map:** [AGENTS.md](./AGENTS.md) · [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
+
+**Current shipped version:** `3.4.0` (`3.4.0_release.zip`)
+**GitHub Release:** `Fyoutube 3.4.0` (`v3.4.0`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
 
@@ -335,15 +337,15 @@ Required edit flow:
 5. The script regenerates both `page.js` files, copies shared popup/background files to Chrome, updates both manifests, syntax-checks JavaScript, and creates both ZIPs.
 6. Run the tests under `tests/`.
 
-Shipped package names (GitHub `v3.2.15`):
+Shipped package names (GitHub `v3.4.0`):
 
-- `3.2.15_release.zip` (recommended Orion Chrome MV3 installer)
-- `fyoutube-chrome-3.2.15.zip`
-- `fyoutube-firefox-3.2.15.zip`
-- `fyoutube-orion-3.2.15.zip`
-- `fyoutube-orion-3.2.15.xpi`
+- `3.4.0_release.zip` (recommended Orion Chrome MV3 installer)
+- `fyoutube-chrome-3.4.0.zip`
+- `fyoutube-firefox-3.4.0.zip`
+- `fyoutube-orion-3.4.0.zip`
+- `fyoutube-orion-3.4.0.xpi`
 
-Older `v3.1.1` download URLs stay available.
+Older `v3.2.15` download URLs stay available.
 
 ## Verification contract
 

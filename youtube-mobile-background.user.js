@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      3.2.15
-// @release-label 3.2.15
+// @version      3.4.0
+// @release-label 3.4.0
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,40 @@
 (() => {
   'use strict';
 
-  document.documentElement?.setAttribute('data-fyp-page-ready', '3.2.15');
+  const PAGE_RUNTIME_VERSION = '3.4.0';
+  const PAGE_RUNTIME_FLAG = '__fypPageRuntimeInstalled';
+  /*
+   * Tag present ≠ executed. Re-entry with the same version is a no-op so text +
+   * src inject retries cannot double-install observers. A newer version replaces
+   * a stale handshake.
+   */
+  try {
+    if (window[PAGE_RUNTIME_FLAG] === PAGE_RUNTIME_VERSION) {
+      document.documentElement?.setAttribute(
+        'data-fyp-page-ready',
+        PAGE_RUNTIME_VERSION
+      );
+      return;
+    }
+    Object.defineProperty(window, PAGE_RUNTIME_FLAG, {
+      configurable: true,
+      value: PAGE_RUNTIME_VERSION,
+    });
+  } catch {
+    if (window[PAGE_RUNTIME_FLAG] === PAGE_RUNTIME_VERSION) {
+      document.documentElement?.setAttribute(
+        'data-fyp-page-ready',
+        PAGE_RUNTIME_VERSION
+      );
+      return;
+    }
+    window[PAGE_RUNTIME_FLAG] = PAGE_RUNTIME_VERSION;
+  }
+
+  document.documentElement?.setAttribute(
+    'data-fyp-page-ready',
+    PAGE_RUNTIME_VERSION
+  );
 
   /*
    * Pristine timers for FYP-owned work (background recovery, controls hold, scans).
@@ -39,7 +72,7 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -7182,16 +7215,15 @@
     }
 
     /*
-     * Keep the transport strip above the playlist. If it ever lands as a
-     * #below sibling (title mount race), pin it with the metadata block
-     * instead of after playlist/recommendations/comments.
+     * Keep the transport strip above the playlist. Prefer after #title-row so
+     * the strip is not parked inside the flex-clipped title row during remounts.
      */
     const toolbar = document.getElementById(PLAYER_CONTROLS_TOOLBAR_ID);
     if (toolbar instanceof HTMLElement) {
-      const titleInMeta = descriptionBlock.querySelector('#title, h1');
-      if (titleInMeta instanceof Element && isUsableWatchMount(titleInMeta)) {
-        if (titleInMeta.nextElementSibling !== toolbar) {
-          titleInMeta.insertAdjacentElement('afterend', toolbar);
+      const titleRow = descriptionBlock.querySelector('#title-row');
+      if (titleRow instanceof Element && isUsableWatchMount(titleRow)) {
+        if (titleRow.nextElementSibling !== toolbar) {
+          titleRow.insertAdjacentElement('afterend', toolbar);
         }
       } else if (
         isUsableWatchMount(descriptionBlock) &&
@@ -7600,6 +7632,27 @@
     return null;
   }
 
+  function findWatchTitleRow() {
+    const watch = findVisibleWatchRoot();
+    if (!watch) return null;
+    const selectors = [
+      'ytd-watch-metadata #title-row',
+      'ytd-video-primary-info-renderer #title-row',
+    ];
+    for (const selector of selectors) {
+      const candidate = watch.querySelector(selector);
+      if (candidate instanceof Element && isUsableWatchMount(candidate)) {
+        return candidate;
+      }
+    }
+    const title = findWatchTitleAnchor();
+    if (title instanceof Element) {
+      const row = title.closest('#title-row');
+      if (row instanceof Element && isUsableWatchMount(row)) return row;
+    }
+    return null;
+  }
+
   function findWatchMetadataHost() {
     const watch = findVisibleWatchRoot();
     if (!watch) return null;
@@ -7673,7 +7726,7 @@
 
   function toolbarIsCorrectlyPlaced(
     toolbar,
-    title,
+    titleRow,
     metadata,
     below,
     playerHost,
@@ -7683,8 +7736,11 @@
       return false;
     }
     if (toolbarIsParkedOnPlayer(toolbar)) return false;
-    if (title instanceof Element) {
-      return title.nextElementSibling === toolbar && isUsableWatchMount(title);
+    if (titleRow instanceof Element) {
+      return (
+        titleRow.nextElementSibling === toolbar &&
+        isUsableWatchMount(titleRow)
+      );
     }
     if (metadata instanceof Element) {
       return (
@@ -7716,8 +7772,8 @@
    * WHAT: Places the control strip under the watch title, or the next available watch slot.
    * IDEALOGY: The strip stays in the title and metadata block, using the first real watch anchor instead of YouTube's player overlay.
    * FLOW:
-   *   toolbar and watch anchors --> title, metadata, below, player, or watch --> insert --> strip is in the page
-   * HOW: Inserts after the title when one exists. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
+   *   toolbar and watch anchors --> title-row, metadata, below, player, or watch --> insert --> strip is in the page
+   * HOW: Inserts after #title-row when one exists so the strip is not clipped inside the title flex row. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
    * EVENT LOG: Called from ensurePlayerControlsToolbar. No event of its own.
    */
   function raisePlayerControlsStack(toolbar) {
@@ -7736,14 +7792,14 @@
 
   function mountPlayerControlsToolbar(
     toolbar,
-    title,
+    titleRow,
     metadata,
     below,
     playerHost,
     watch
   ) {
-    if (title instanceof Element) {
-      title.insertAdjacentElement('afterend', toolbar);
+    if (titleRow instanceof Element) {
+      titleRow.insertAdjacentElement('afterend', toolbar);
       return true;
     }
     if (metadata instanceof Element) {
@@ -7770,7 +7826,7 @@
    * IDEALOGY: One toolbar id owns the strip. Off a watch page it is removed so other pages do not keep player buttons.
    * FLOW:
    *   /watch with a visible watch root --> create or reuse the toolbar --> mount if misplaced --> sync the buttons
-   * HOW: Removes the toolbar only when the path is not /watch. A missing watch root during a video change is left alone, because YouTube hides the old page before the new one exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, moves it when it is on the wrong video or inside the collapsed player, and syncs the buttons.
+   * HOW: Removes the toolbar only when the path is not /watch. A missing watch root during a video change is left alone, because YouTube hides the old page before the new one exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, remounts whenever toolbarIsCorrectlyPlaced fails, and syncs the buttons.
    * EVENT LOG: Called from scanPage and from the toolbar retry schedule after yt-navigate-finish, popstate, and pageshow.
    */
   function ensurePlayerControlsToolbar() {
@@ -7781,12 +7837,12 @@
 
     const watch = findVisibleWatchRoot();
     if (!watch) return;
-    const title = findWatchTitleAnchor();
+    const titleRow = findWatchTitleRow();
     const metadata = findWatchMetadataHost();
     const below = findWatchBelowHost();
     const playerHost = findVisibleWatchPlayerHost();
     const watchChromeExists =
-      title instanceof Element ||
+      titleRow instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
@@ -7808,22 +7864,29 @@
       toolbar.replaceChildren(...createPlayerControlButtons());
     }
 
-    const onThisWatch =
-      toolbar.isConnected &&
-      toolbar.closest('ytd-watch-flexy') === watch &&
-      !toolbar.closest(COLLAPSED_PLAYER_SHELL_SELECTOR);
-    const settledOnTitle = toolbar.dataset.fypControlsAnchor === 'title';
-    if (!onThisWatch || (!settledOnTitle && title instanceof Element)) {
+    if (
+      !toolbarIsCorrectlyPlaced(
+        toolbar,
+        titleRow,
+        metadata,
+        below,
+        playerHost,
+        watch
+      )
+    ) {
       mountPlayerControlsToolbar(
         toolbar,
-        title,
+        titleRow,
         metadata,
         below,
         playerHost,
         watch
       );
-      if (title instanceof Element && toolbar.previousElementSibling === title) {
-        toolbar.dataset.fypControlsAnchor = 'title';
+      if (
+        titleRow instanceof Element &&
+        toolbar.previousElementSibling === titleRow
+      ) {
+        toolbar.dataset.fypControlsAnchor = 'title-row';
       } else {
         delete toolbar.dataset.fypControlsAnchor;
       }

@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.2.15';
+  const EXPECTED_PAGE_VERSION = '3.4.0';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v3213-restore';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -1936,6 +1936,30 @@
     return null;
   }
 
+  function findFallbackWatchTitleRow() {
+    const watch = findFallbackVisibleWatchRoot();
+    if (!watch) return null;
+    const selectors = [
+      'ytd-watch-metadata #title-row',
+      'ytd-video-primary-info-renderer #title-row',
+    ];
+    for (const selector of selectors) {
+      const candidate = watch.querySelector(selector);
+      if (
+        candidate instanceof Element &&
+        isFallbackUsableWatchMount(candidate)
+      ) {
+        return candidate;
+      }
+    }
+    const title = findFallbackWatchTitleAnchor();
+    if (title instanceof Element) {
+      const row = title.closest('#title-row');
+      if (row instanceof Element && isFallbackUsableWatchMount(row)) return row;
+    }
+    return null;
+  }
+
   function findFallbackWatchMetadataHost() {
     const watch = findFallbackVisibleWatchRoot();
     if (!watch) return null;
@@ -2061,7 +2085,7 @@
 
   function fallbackToolbarIsCorrectlyPlaced(
     toolbar,
-    title,
+    titleRow,
     metadata,
     below,
     playerHost,
@@ -2071,10 +2095,10 @@
       return false;
     }
     if (fallbackToolbarIsParkedOnPlayer(toolbar)) return false;
-    if (title instanceof Element) {
+    if (titleRow instanceof Element) {
       return (
-        title.nextElementSibling === toolbar &&
-        isFallbackUsableWatchMount(title)
+        titleRow.nextElementSibling === toolbar &&
+        isFallbackUsableWatchMount(titleRow)
       );
     }
     if (metadata instanceof Element) {
@@ -2107,8 +2131,8 @@
    * WHAT: Places the fallback control strip under the watch title, or the next available watch slot.
    * IDEALOGY: The strip stays in the title and metadata block, using the first real watch anchor instead of YouTube's player overlay.
    * FLOW:
-   *   toolbar and watch anchors --> title, metadata, below, player, or watch --> insert --> strip is in the page
-   * HOW: Inserts after the title when one exists. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
+   *   toolbar and watch anchors --> title-row, metadata, below, player, or watch --> insert --> strip is in the page
+   * HOW: Inserts after #title-row when one exists so the strip is not clipped inside the title flex row. Otherwise it inserts at the start of metadata, then the below host, then after the player host, and finally appends to the watch root. It returns false when none of those nodes exist.
    * EVENT LOG: Called from ensureFallbackPlayerControlsToolbar. No event of its own.
    */
   function raisePlayerControlsStack(toolbar) {
@@ -2127,14 +2151,14 @@
 
   function mountFallbackPlayerControlsToolbar(
     toolbar,
-    title,
+    titleRow,
     metadata,
     below,
     playerHost,
     watch
   ) {
-    if (title instanceof Element) {
-      title.insertAdjacentElement('afterend', toolbar);
+    if (titleRow instanceof Element) {
+      titleRow.insertAdjacentElement('afterend', toolbar);
       return true;
     }
     if (metadata instanceof Element) {
@@ -2161,7 +2185,7 @@
    * IDEALOGY: One toolbar id owns the strip. Off a watch page it is removed so other pages do not keep player buttons.
    * FLOW:
    *   /watch with a visible watch root --> create or reuse the toolbar --> mount if misplaced --> sync the buttons
-   * HOW: Removes the toolbar when the path is not /watch or no visible watch root exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, mounts it when placement is wrong, and syncs the buttons.
+   * HOW: Removes the toolbar when the path is not /watch or no visible watch root exists. On a watch page it rebuilds the toolbar when it is missing or its layout id differs, remounts whenever fallbackToolbarIsCorrectlyPlaced fails, and syncs the buttons.
    * EVENT LOG: Called from scheduleFallbackPlayerControlsToolbar and the 1200ms fallback interval, including after yt-navigate-finish, popstate, and pageshow.
    */
   function ensureFallbackPlayerControlsToolbar() {
@@ -2171,12 +2195,12 @@
     }
     const watch = findFallbackVisibleWatchRoot();
     if (!watch) return;
-    const title = findFallbackWatchTitleAnchor();
+    const titleRow = findFallbackWatchTitleRow();
     const metadata = findFallbackWatchMetadataHost();
     const below = findFallbackWatchBelowHost();
     const playerHost = findFallbackVisibleWatchPlayerHost();
     const watchChromeExists =
-      title instanceof Element ||
+      titleRow instanceof Element ||
       metadata instanceof Element ||
       below instanceof Element ||
       playerHost instanceof Element ||
@@ -2196,22 +2220,29 @@
       toolbar.setAttribute('aria-label', 'Video player controls');
       toolbar.replaceChildren(...createPlayerControlButtons());
     }
-    const onThisWatch =
-      toolbar.isConnected &&
-      toolbar.closest('ytd-watch-flexy') === watch &&
-      !toolbar.closest(FALLBACK_COLLAPSED_PLAYER_SHELL_SELECTOR);
-    const settledOnTitle = toolbar.dataset.fypControlsAnchor === 'title';
-    if (!onThisWatch || (!settledOnTitle && title instanceof Element)) {
+    if (
+      !fallbackToolbarIsCorrectlyPlaced(
+        toolbar,
+        titleRow,
+        metadata,
+        below,
+        playerHost,
+        watch
+      )
+    ) {
       mountFallbackPlayerControlsToolbar(
         toolbar,
-        title,
+        titleRow,
         metadata,
         below,
         playerHost,
         watch
       );
-      if (title instanceof Element && toolbar.previousElementSibling === title) {
-        toolbar.dataset.fypControlsAnchor = 'title';
+      if (
+        titleRow instanceof Element &&
+        toolbar.previousElementSibling === titleRow
+      ) {
+        toolbar.dataset.fypControlsAnchor = 'title-row';
       } else {
         delete toolbar.dataset.fypControlsAnchor;
       }
@@ -3297,6 +3328,8 @@
   /* __EMBEDDED_PAGE_SOURCE_DECLARATION__ */
 
   const src = api.runtime.getURL('page.js');
+  let injectInFlight = false;
+  let pageRuntimeWatchdogStarted = false;
 
   function pageRuntimeReady() {
     return (
@@ -3305,8 +3338,85 @@
     );
   }
 
+  function injectionRoot() {
+    return document.documentElement || document.head || document.body || null;
+  }
+
+  function applyScriptNonce(script) {
+    const nonceSource = document.querySelector('script[nonce]');
+    const nonce = nonceSource?.nonce || nonceSource?.getAttribute('nonce');
+    if (nonce) script.setAttribute('nonce', nonce);
+  }
+
+  function getEmbeddedPageCode() {
+    return typeof __fyp_embedded_page_code === 'string' &&
+      __fyp_embedded_page_code
+      ? __fyp_embedded_page_code
+      : null;
+  }
+
+  function injectWithText() {
+    const root = injectionRoot();
+    if (!root) return false;
+    if (pageRuntimeReady()) return true;
+    document.getElementById(PAGE_SCRIPT_ID)?.remove();
+
+    try {
+      const code = getEmbeddedPageCode();
+      if (!code) return false;
+      const script = document.createElement('script');
+      script.id = PAGE_SCRIPT_ID;
+      applyScriptNonce(script);
+      script.textContent = code;
+      root.appendChild(script);
+      script.remove();
+      // Tag present ≠ executed. Only the handshake proves page world ran.
+      return pageRuntimeReady();
+    } catch {
+      return false;
+    }
+  }
+
+  function injectWithBlob() {
+    const root = injectionRoot();
+    if (!root) return false;
+    if (pageRuntimeReady()) return true;
+    const code = getEmbeddedPageCode();
+    if (!code) return false;
+    document.getElementById(PAGE_SCRIPT_ID)?.remove();
+
+    try {
+      const blob = new Blob([code], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const script = document.createElement('script');
+      script.id = PAGE_SCRIPT_ID;
+      applyScriptNonce(script);
+      script.src = url;
+      script.async = false;
+      script.addEventListener(
+        'load',
+        () => {
+          URL.revokeObjectURL(url);
+        },
+        { once: true }
+      );
+      script.addEventListener(
+        'error',
+        () => {
+          URL.revokeObjectURL(url);
+          script.remove();
+        },
+        { once: true }
+      );
+      root.appendChild(script);
+      return pageRuntimeReady();
+    } catch {
+      return false;
+    }
+  }
+
   function injectWithSrc() {
-    const root = document.documentElement || document.head || document.body;
+    const root = injectionRoot();
     if (!root) return false;
     if (pageRuntimeReady()) return true;
     document.getElementById(PAGE_SCRIPT_ID)?.remove();
@@ -3315,39 +3425,33 @@
     script.id = PAGE_SCRIPT_ID;
     script.src = src;
     script.async = false;
+    applyScriptNonce(script);
     script.addEventListener(
       'error',
       () => {
         script.remove();
-        injectWithText();
+        ensurePageRuntime('src-error');
       },
       { once: true }
     );
     root.appendChild(script);
-    return true;
+    return pageRuntimeReady();
   }
 
-  async function injectWithText() {
-    const root = document.documentElement || document.head || document.body;
+  async function injectWithFetchedText() {
+    const root = injectionRoot();
     if (!root) return false;
     if (pageRuntimeReady()) return true;
-    document.getElementById(PAGE_SCRIPT_ID)?.remove();
+    if (getEmbeddedPageCode()) return injectWithText();
 
     try {
-      let code =
-        typeof __fyp_embedded_page_code === 'string' && __fyp_embedded_page_code
-          ? __fyp_embedded_page_code
-          : null;
-      if (!code) {
-        const response = await fetch(src);
-        if (!response.ok) throw new Error(`page.js returned ${response.status}`);
-        code = await response.text();
-      }
+      const response = await fetch(src);
+      if (!response.ok) throw new Error(`page.js returned ${response.status}`);
+      const code = await response.text();
+      document.getElementById(PAGE_SCRIPT_ID)?.remove();
       const script = document.createElement('script');
       script.id = PAGE_SCRIPT_ID;
-      const nonceSource = document.querySelector('script[nonce]');
-      const nonce = nonceSource?.nonce || nonceSource?.getAttribute('nonce');
-      if (nonce) script.setAttribute('nonce', nonce);
+      applyScriptNonce(script);
       script.textContent = code;
       root.appendChild(script);
       script.remove();
@@ -3357,21 +3461,67 @@
     }
   }
 
-  // FORCE INJECTION: Inject immediately at document_start without waiting
-  if (!pageRuntimeReady()) injectWithText();
+  function ensurePageRuntime(reason = 'boot') {
+    if (pageRuntimeReady()) return true;
+    if (injectInFlight) return false;
+    injectInFlight = true;
+    try {
+      if (!injectionRoot()) return false;
+      // Prefer embedded text, then blob (CSP-friendly), then WAR src.
+      if (injectWithText()) return true;
+      if (injectWithBlob()) return pageRuntimeReady();
+      injectWithSrc();
+      if (!pageRuntimeReady() && !getEmbeddedPageCode()) {
+        void injectWithFetchedText();
+      }
+      return pageRuntimeReady();
+    } finally {
+      injectInFlight = false;
+    }
+  }
 
-  if (!injectWithSrc()) {
-    const observer = new MutationObserver(() => {
-      if (!pageRuntimeReady()) injectWithText();
-      if (injectWithSrc()) observer.disconnect();
+  function schedulePageRuntimeEnsure() {
+    const delays = [0, 16, 50, 100, 200, 400, 800, 1600, 3200, 6000];
+    for (const ms of delays) {
+      setTimeout(() => {
+        if (!pageRuntimeReady()) ensurePageRuntime(`retry-${ms}`);
+      }, ms);
+    }
+  }
+
+  function startPageRuntimeWatchdog() {
+    if (pageRuntimeWatchdogStarted) return;
+    pageRuntimeWatchdogStarted = true;
+    setInterval(() => {
+      if (!pageRuntimeReady()) {
+        ensurePageRuntime('watchdog');
+        if (!pageRuntimeReady()) {
+          // Page world died mid-SPA: keep fallback strip alive.
+          scheduleFallbackPlayerControlsToolbar();
+        }
+      }
+    }, 2000);
+  }
+
+  // FORCE INJECTION: one ensure path, handshake-only success.
+  ensurePageRuntime('boot');
+  schedulePageRuntimeEnsure();
+  startPageRuntimeWatchdog();
+
+  if (!injectionRoot()) {
+    const rootObserver = new MutationObserver(() => {
+      if (!injectionRoot()) return;
+      ensurePageRuntime('root-appeared');
+      if (injectionRoot()) rootObserver.disconnect();
     });
-    observer.observe(document, { childList: true, subtree: true });
+    rootObserver.observe(document, { childList: true, subtree: true });
   }
 
-  // A tag can exist without executing in Orion. Verify a PAGE-world handshake.
-  for (const delay of [0, 20, 50, 100, 200, 500, 1200]) {
-    setTimeout(() => {
-      if (!pageRuntimeReady()) injectWithText();
-    }, delay);
-  }
+  document.addEventListener(
+    'yt-navigate-finish',
+    () => {
+      if (!pageRuntimeReady()) ensurePageRuntime('yt-navigate-finish');
+    },
+    true
+  );
 })();

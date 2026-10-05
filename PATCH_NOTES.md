@@ -1,5 +1,13 @@
 # Patch Notes
 
+**Docs map:** [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [AGENTS.md](./AGENTS.md)
+
+## v3.4.0
+
+- Fixed: Fixes an issue where the controls disappeared on playing a video.
+- Notes: Shipped as GitHub Release `v3.4.0`, title `Fyoutube 3.4.0`.
+- Packaging: Numeric version `3.4.0`; recommended Orion installer `3.4.0_release.zip` (Chrome MV3). Zip names are `fyoutube-chrome-`, `fyoutube-firefox-`, and `fyoutube-orion-`.
+
 ## v3.2.15
 
 - Fixed: The watch buttons stay on one row and stay visible when you open another video or refresh the page.

@@ -1,5 +1,15 @@
 # Bug fix log
 
+**Docs map:** [BUG-FIXES.md](./BUG-FIXES.md) · [HANDOFF.md](./HANDOFF.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [AGENTS.md](./AGENTS.md)
+
+## 2026-10-04 — Watch strip vanished until refresh; page inject hardened (fyp 3.4.0)
+
+### In plain English
+- **What was broken:** The inline SVG rewind / play / forward strip could disappear on cold watch open or early SPA load, then come back only after refreshing once the video had started.
+- **Why it happened:** Sticky `settledOnTitle` blocked remount after Polymer rebuilt `#title`, and parking inside `#title-row` clipped the bar. Separately, Orion can leave a `<script>` tag present without executing page-world code.
+- **What we changed:** Remount whenever placement is wrong; host after `#title-row`; one `ensurePageRuntime()` inject path with text → blob → src, retries, navigate reinject, and a watchdog that restores fallback strip work when the ready handshake disappears.
+- **How to verify:** Install `3.4.0_release.zip` from GitHub Release `v3.4.0`. Cold-open `/watch`, open a video from Home, switch videos, refresh after play. Confirm the strip stays under the title with six white icons.
+
 ## 2026-08-23 — Refreshing a watch page hid the transport strip (fyp 3.1.1, issue #2)
 
 ### In plain English
