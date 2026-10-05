@@ -2,27 +2,19 @@
   <img src="docs/images/fyoutube-logo.png" alt="Fyoutube" width="220">
 </p>
 
-<h1 align="center">Fyoutube</h1>
-
-<p align="center">
-  <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
-    <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
-  </a>
-  <a href="https://github.com/aditauqir/fyp" title="View the project on GitHub">
-    <img src="https://skillicons.dev/icons?i=github&theme=dark" alt="GitHub" height="48">
-  </a>
-</p>
+<h1 align="center">FYoutube Premium for iOS</h1>
 
 <p align="center">
   <a href="https://browser.kagi.com/"><img src="https://img.shields.io/badge/Orion-Browser-14B86E?style=for-the-badge&logo=safari&logoColor=white" alt="Orion Browser"></a>
   <a href="https://github.com/aditauqir/fyp/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Download latest release"></a>
 </p>
-
 <p align="center">
-  <a href="https://discord.gg/sd5Y8f7ukh"><img src="https://img.shields.io/badge/Discord-Join%20the%20server%20for%20support%20or%20help-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord server for support or help"></a>
+  <a href="https://discord.gg/sd5Y8f7ukh">
+    <img src="https://skillicons.dev/icons?i=discord" alt="Discord" />
+  </a>
 </p>
+<p align="center">
 
-**Docs:** [Install](./INSTALL-ORION.md) · [Patch notes](./PATCH_NOTES.md) · [Architecture](./ARCHITECTURE.md) · [Handoff](./HANDOFF.md) · [Bug fixes](./BUG-FIXES.md) · [Agents](./AGENTS.md)
 
 ## What is this?
 
@@ -34,6 +26,9 @@ I built **Fyoutube** because I was fed up with the "premium" youtube apps that r
 The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, screen-off audio, and built-in YouTube ad blocking. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube. Also, the logo is hand-made.
 
 This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin. And I will never ask for your money. Plus feel free to fork this shit, I would love to see more things like this made :p
+
+#### Documentation
+[Install](./INSTALL-ORION.md) · [Patch notes](./PATCH_NOTES.md) · [Architecture](./ARCHITECTURE.md) · [Handoff](./HANDOFF.md) · [Bug fixes](./BUG-FIXES.md) · [Agents](./AGENTS.md) 
 
 ## iPhone only — Orion Browser
 
