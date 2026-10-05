@@ -35,9 +35,18 @@ assert.match(
 assert.match(readme, /Gorstak/);
 assert.match(readme, /## Final extension result/);
 assert.match(readme, /docs\/images\/final-extension-result\.png/);
-assert.match(readme, /docs\/images\/youtube-mobile-feed\.png/);
-assert.match(readme, /docs\/images\/player-inline-controls\.png/);
-assert.match(readme, /docs\/images\/background-playback-lock-screen\.png/);
+assert.match(readme, /## Screenshots/);
+assert.match(readme, /docs\/images\/readme-home\.jpg/);
+assert.match(readme, /docs\/images\/readme-search\.jpg/);
+assert.match(readme, /docs\/images\/readme-player\.jpg/);
+assert.match(readme, /docs\/images\/readme-airplay\.jpg/);
+assert.match(readme, /docs\/images\/readme-background-play\.jpg/);
+assert.match(readme, /<sub>Home page<\/sub>/);
+assert.match(readme, /<sub>Search bar<\/sub>/);
+assert.match(readme, /<sub>Player<\/sub>/);
+assert.match(readme, /<sub>AirPlay<\/sub>/);
+assert.match(readme, /<sub>Background play<\/sub>/);
+assert.doesNotMatch(readme, /\| YouTube native app like experienc \|/);
 assert.match(readme, /docs\/images\/orion-install-from-file\.png/);
 assert.match(readme, /checks GitHub on a schedule/);
 assert.match(readme, /Uninstall the old \*\*Fyoutube\*\* extension/);
@@ -62,14 +71,14 @@ assert.match(readme, /Tapping the extension icon shows no buttons/);
 assert.match(readme, /three changelog lines, \*\*Go to YouTube\*\*/);
 assert.match(readme, /orion-multiple-subtitle-tracks\.png/);
 assert.match(readme, /Prefer an authored English track/);
-assert.match(readme, /docs\/images\/player-inline-controls\.png/);
 
 for (const image of [
   'final-extension-result.png',
-  'youtube-watch-page.png',
-  'youtube-mobile-feed.png',
-  'player-inline-controls.png',
-  'background-playback-lock-screen.png',
+  'readme-home.jpg',
+  'readme-search.jpg',
+  'readme-player.jpg',
+  'readme-airplay.jpg',
+  'readme-background-play.jpg',
   'orion-install-from-file.png',
 ]) {
   assert.ok(fs.existsSync(path.join(root, 'docs', 'images', image)), image);
