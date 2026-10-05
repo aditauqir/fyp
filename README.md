@@ -115,25 +115,16 @@ After the install procedure, **Fyoutube** must be enabled in Orion:
 
 ## Screenshots
 
-| YouTube native app like experienc | Phone-friendly recommendation feed |
-| --- | --- |
-| <img src="docs/images/player-inline-controls.png" alt="Fyoutube enlarged five-button transport strip below an inline YouTube video in Orion" width="390"> | <img src="docs/images/youtube-mobile-feed.png" alt="Fyoutube one-column YouTube feed in Orion" width="390"> |
-
-### AirPlay and Return YouTube Dislike
-
-The inline player includes an AirPlay button. Return YouTube Dislike also restores the public dislike count beside YouTube's like button.
-
-<p align="center">
-  <img src="docs/images/airplay-return-youtube-dislike.png" alt="Fyoutube inline player with AirPlay and a restored Return YouTube Dislike count" width="390">
+<!-- Wide phone strip: swipe/scroll sideways when the row is wider than the pane -->
+<p>
+  <img src="docs/images/readme-home.jpg" height="420" alt="Home page" title="Home page" />
+  <img src="docs/images/readme-search.jpg" height="420" alt="Search bar" title="Search bar" />
+  <img src="docs/images/readme-player.jpg" height="420" alt="Player" title="Player" />
+  <img src="docs/images/readme-airplay.jpg" height="420" alt="AirPlay" title="AirPlay" />
+  <img src="docs/images/readme-background-play.jpg" height="420" alt="Background play" title="Background play" />
 </p>
 
-### Background Player options on iPhone
-
-The video keeps playing from the iPhone Lock Screen, including when the display is off:
-
-<p align="center">
-  <img src="docs/images/background-playback-lock-screen.png" alt="iPhone Lock Screen showing YouTube background playback controls for a video playing through Fyoutube" width="390">
-</p>
+<sub>Home page</sub> · <sub>Search bar</sub> · <sub>Player</sub> · <sub>AirPlay</sub> · <sub>Background play</sub>
 
 ## Extension menu and updates
 
