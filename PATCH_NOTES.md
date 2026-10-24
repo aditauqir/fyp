@@ -2,6 +2,12 @@
 
 **Docs map:** [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [AGENTS.md](./AGENTS.md)
 
+## v3.4.1 (local test build)
+
+- Fixed: The watch buttons no longer turn into an empty black bar when a new video loads.
+- Notes: Local test build, not shipped. Install `3.4.1_release.zip`.
+- Packaging: Numeric version `3.4.1`; recommended Orion installer `3.4.1_release.zip` (Chrome MV3).
+
 ## v3.4.0
 
 - Fixed: Fixes an issue where the controls disappeared on playing a video.

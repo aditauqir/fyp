@@ -153,6 +153,7 @@ The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-cont
 
 | What they report | Cause | Do this |
 |---|---|---|
+| The strip is there but the buttons have no `<svg>` at all | Trusted Types. WebKit throws on `DOMParser.parseFromString` on YouTube, so the icon helper returned `null`. | Build icons with `createElementNS` from the tag tokenizer in `svgElementFromMarkup`. Never use `DOMParser`, `innerHTML`, or `insertAdjacentHTML` for FYP icons. |
 | SVG nodes are in the DOM, glyphs are blank | YouTube paints `path { fill: var(--yt-spec-text-primary) }`. On the dark `#111` strip that color is nearly black. | Paint the real glyph with inline `fill` or `stroke` `#fff` and `!important` in `paintPlayerControlIcon`. |
 | Only the play triangle shows; the other buttons look gone | Those glyphs were still dark, or the buttons were allowed to shrink to zero width (`flex: 1 1 0` and `min-width: 0`). Play was the only icon forced white, so it was the only one you could see. | One row, six buttons, each `flex: 0 0 3.25rem`, `width` / `min-width` / `height: 3.25rem`. Paint every icon, not only play. |
 | Every control is a white square | Each icon SVG includes a full-canvas rectangle, `M0 0h…v…H0z` with `fill="none"`. A check that still expected the space in `M0 0` missed it after spaces were removed (`M00…`). Paint then filled that rectangle white and covered the glyph. | Detect the rectangle only after removing spaces and lowercasing: `/^m00h\d+v\d+h0z$/`. Then `shape.remove()`. Do not restyle it. |
@@ -162,7 +163,7 @@ The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-cont
 ### Rules that must stay true
 
 1. Order on one line, `flex-wrap: nowrap`: rewind, play-pause, forward, pip, airplay, fullscreen. Do not put play on a second row.
-2. Build icons with `createElementNS` (`SVG_NS`) from a `DOMParser` clone. Do not assign these icons through `innerHTML`. Trusted Types will reject that and can abort the page scan before the video attaches.
+2. Build icons with `createElementNS` (`SVG_NS`) from the tag tokenizer in `svgElementFromMarkup`. Do not use `DOMParser`; WebKit treats it as a Trusted Types sink. Do not assign these icons through `innerHTML`. Trusted Types will reject that and can abort the page scan before the video attaches.
 3. `setPlaybackGlyph` owns play/pause. It keeps one path and sets `d` to the play triangle or the pause bars. Both shapes are the 16×16 paths already in `PLAYBACK_GLYPH_PATHS`.
 4. Call `paintPlayerControlIcon` after the icon is inserted, and again from the sync function, so a later YouTube style cannot fade the glyph.
 5. Inline `!important` on the glyph beats YouTube. Do not set `fill` on the `<svg>` element. A `fill` there is inherited and wipes the children. Do not put `fill:` inside the `.fyp-player-control svg { }` rule. Tests reject that. Do not set `fill: none` on the `<svg>` itself.

@@ -77,6 +77,18 @@ Last live check: **2026-08-23**.
 
 ---
 
+## Local follow-up — `3.4.1` empty strip buttons (not shipped)
+
+**What it is:** After a new video loads, the strip stays under the title, but its six buttons render with no icons.
+
+**Cause:** YouTube's Trusted Types make WebKit throw on `DOMParser.parseFromString`. The icon helper caught the error and returned no SVG.
+
+**What we changed:** Icons are built with `createElementNS` from a small tag tokenizer. No parser sink is used. The fix is mirrored in `content.template.js`. Comment layout uses the visible watch root. Layout id is `icon-strip-v341-tt-icons`.
+
+**How to verify:** Install `3.4.1_release.zip`. Open a video, switch videos, go back and forward, and refresh. Six white icons stay each time.
+
+---
+
 ## Shipped follow-up — `3.4.0` strip mount + inject harden
 
 **What it is:** Inline SVG control strip can disappear until a refresh after the video has started. Separately, Orion can leave a script tag present without executing page-world code.
