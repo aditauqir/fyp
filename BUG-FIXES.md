@@ -10,6 +10,8 @@
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
 > Shipped public version is **`3.4.0`**. GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`.
+>
+> Local test build is **`3.4.1`** (not shipped, not pushed). It waits on the user's iPhone test. See **Local follow-up — `3.4.1`** below.
 
 ---
 

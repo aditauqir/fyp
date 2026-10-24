@@ -5,6 +5,7 @@ This document is the technical contract for agents continuing the project.
 **Docs map:** [AGENTS.md](./AGENTS.md) · [HANDOFF.md](./HANDOFF.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
 
 **Current shipped version:** `3.4.0` (`3.4.0_release.zip`)
+**Local test build:** `3.4.1` (`3.4.1_release.zip`, not shipped) — Trusted Types-safe strip icons
 **GitHub Release:** `Fyoutube 3.4.0` (`v3.4.0`)
 **Repository:** `https://github.com/aditauqir/fyp.git`
 **Primary target:** Orion Browser on iPhone, using an install-from-file WebExtension
@@ -222,7 +223,11 @@ flowchart LR
 
 ### Watch strip icons
 
-The custom watch row is one line of six buttons: rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. Play/pause is one SVG and one glyph path. Icon files include a full-canvas rectangle that must be removed before paint, or the button becomes a white square and play/pause stack. Glyphs stay white with inline `!important`. The strip stays above later page layers. The symptom table and the repair steps are **Watch-strip icons** in [`HANDOFF.md`](./HANDOFF.md).
+The custom watch row is one line of six buttons: rewind, play/pause, forward, Picture in Picture, AirPlay, and fullscreen. Play/pause is one SVG and one glyph path. Icon files include a full-canvas rectangle that must be removed before paint, or the button becomes a white square and play/pause stack. Glyphs stay white with inline `!important`. The strip stays above later page layers.
+
+Icons are built only with `createElementNS`, from the tag tokenizer in `svgElementFromMarkup`. YouTube enforces Trusted Types, and WebKit treats `DOMParser.parseFromString`, `innerHTML`, and `script.textContent` as blocked sinks. A blocked sink fails silently in the icon helper and leaves the buttons empty (fixed in local build 3.4.1). Code that looks for the current watch page must use `findVisibleWatchRoot()`, because YouTube keeps stale hidden `ytd-watch-flexy` nodes.
+
+The symptom table and the repair steps are **Watch-strip icons** in [`HANDOFF.md`](./HANDOFF.md).
 
 ## Mobile shell architecture
 
