@@ -1,9 +1,7 @@
 # HANDOFF — Fyoutube for Orion (iOS)
 
 > For AI agents continuing this work. Read this before editing.
-> **Current public ship version: `3.4.0` SHIPPED** (GitHub Release `v3.4.0`, title `Fyoutube 3.4.0`; branch `main`). Issue work still happens on `bug-fixes-pr`.
->
-> **Local test build: `3.4.1` (NOT shipped, NOT pushed).** Committed on local `bug-fixes-pr` (commits `9f8a911` code, then a docs commit). It fixes the strip buttons going empty after a new video loads (Trusted Types blocked `DOMParser`). The user tests `3.4.1_release.zip` on iPhone before any push. Do not push or publish until the user confirms. See **3.4.1** under Latest changes.
+> **Current public ship version: `3.4.1` SHIPPED** (GitHub Release `v3.4.1`, title `Fyoutube 3.4.1`; branch `main`). Issue work still happens on `bug-fixes-pr`. 3.4.1 fixes the strip buttons going empty after a new video loads (Trusted Types blocked `DOMParser`). See **3.4.1** under Latest changes.
 >
 > **Worktree note (2026-10-24):** The main project folder was switched to `google_cuck` from outside the agent session. The 3.4.1 work was done in a separate worktree at `/Users/aditauqir/Code/fyp-bug-fixes-pr` on branch `bug-fixes-pr`. Run `git worktree list` before editing. Do not switch the main folder's branch without asking the user.
 >
@@ -93,8 +91,7 @@ If the user asks for a resume or resume material, provide the complete `RESUME-W
 ├── youtube-mobile-background.user.js   ← SOURCE OF TRUTH
 ├── firefox-extension/                  ← Firefox MV2 (Orion “Firefox” / file install)
 ├── chrome-extension/                   ← Chrome MV3 (prefer this on Orion iOS)
-└── 3.4.0_release.zip                  ← shipped Orion installer (gitignored artifact; also on GitHub Release v3.4.0)
-    3.4.1_release.zip                  ← local test build, not shipped (gitignored artifact)
+└── 3.4.1_release.zip                  ← shipped Orion installer (gitignored artifact; also on GitHub Release v3.4.1)
 ```
 
 ### Internal Chromium diagnostics workbench
@@ -150,7 +147,7 @@ In `youtube-mobile-background.user.js`:
 
 ## Watch-strip icons — if they vanish, turn into white boxes, or stack
 
-Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled icon paint is **3.2.13** (`icon-strip-v3213-restore`). Public ship is **3.4.0** (`icon-strip-v340-title-row`) — mount after `#title-row` plus page inject reliability. Local test build **3.4.1** (`icon-strip-v341-tt-icons`) builds icons without `DOMParser`, because YouTube's Trusted Types make WebKit reject it and the buttons render empty. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
+Read this before touching the custom rewind / play / forward / Picture in Picture / AirPlay / fullscreen row. The local test build that settled icon paint is **3.2.13** (`icon-strip-v3213-restore`). **3.4.0** (`icon-strip-v340-title-row`) mounted after `#title-row` and hardened page inject. Public ship **3.4.1** (`icon-strip-v341-tt-icons`) builds icons without `DOMParser`, because YouTube's Trusted Types make WebKit reject it and the buttons render empty. Orion on iPhone is the device that matters. Do not set width, flex, or `--yt-spec-text-primary` on masthead buttons while fixing search. That shrinks header controls and repaints icons. Keep the search overlay `display: none` until it is open so it cannot cover this strip.
 
 The strip is one FYP-owned toolbar. Page world id: `vm-yt-mobile-background-controls-toolbar`. Fallback id: `yt-mobile-orion-ext-controls-toolbar`. Source of truth is `youtube-mobile-background.user.js`. Mirror the same paint and layout in `firefox-extension/content.template.js`. Do not hand-edit generated `page.js` or `content.js`.
 
@@ -207,16 +204,19 @@ shape.style.setProperty('stroke', '#fff', 'important'); // stroked icons
 
 ---
 
-## Latest changes (through 3.4.1 local)
+## Latest changes (through 3.4.1)
 
-### 3.4.1 — local test build on `bug-fixes-pr` (empty strip buttons after a new video)
+### 3.4.1 — public ship (`Fyoutube 3.4.1`, empty strip buttons after a new video)
+- GitHub Release tag `v3.4.1`. Title is `Fyoutube 3.4.1`. Recommended installer: `3.4.1_release.zip` (Chrome MV3).
+- Release note line: "Fixes an issue where the player buttons went blank when a new video loaded."
+- Direct assets: `https://github.com/aditauqir/fyp/releases/download/v3.4.1/3.4.1_release.zip`, plus `fyoutube-chrome-3.4.1.zip`, `fyoutube-firefox-3.4.1.zip`, `fyoutube-orion-3.4.1.zip`, `fyoutube-orion-3.4.1.xpi` at the same path. Older `v3.4.0` URLs stay available.
 - **Symptom:** After a new video loads, the black strip stays under the title, but its six buttons show no icons. The DOM has 6 `.fyp-player-control` buttons and 0 `<svg>` nodes.
 - **Root cause:** YouTube enforces Trusted Types. WebKit (Safari 26 / Orion on iOS 26) treats `DOMParser.parseFromString` as a TrustedHTML sink and throws `This assignment requires a TrustedHTML`. `svgElementFromMarkup` caught the error and returned `null`, so `replaceIconContents` emptied every button. Nothing was logged.
 - **Fix:** `svgElementFromMarkup` now tokenizes FYP's own icon markup with `SVG_TAG_PATTERN` / `SVG_ATTR_PATTERN` and builds every node with `document.createElementNS(SVG_NS, name)`. It skips `xmlns*` and `on*` attributes. `cloneSvgNode` was removed. The same code is in `firefox-extension/content.template.js`. The search icon and nav icons use the same helper, so they are fixed too; no search code changed.
 - **Also:** `findCommentsRoot` and `positionCommentsAfterRecommendations` now use `findVisibleWatchRoot()` instead of `document.querySelector('ytd-watch-flexy')`, so a hidden stale watch page cannot receive the strip or comments.
 - **Layout id:** `PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v341-tt-icons'` so any strip that was already built empty is rebuilt.
 - **Test guard:** `tests/player-controls-delay.test.cjs` fails if `new DOMParser()` appears in the userscript or `content.template.js`.
-- **Verified:** Headless WebKit (Playwright) on live YouTube at 390×844 with the generated `chrome-extension/page.js` injected. Before: 6 buttons, 0 SVGs. After: 6 SVGs after an SPA video switch, back, forward, and reload. Play/pause toggled `video.paused`; forward moved +10s; rewind moved −10s. No FYP page errors. `node --test tests/*.cjs` 19/19 pass. Not yet verified on a physical iPhone.
+- **Verified:** Headless WebKit (Playwright) on live YouTube at 390×844 with the generated `chrome-extension/page.js` injected. Before: 6 buttons, 0 SVGs. After: 6 SVGs after an SPA video switch, back, forward, and reload. Play/pause toggled `video.paused`; forward moved +10s; rewind moved −10s. No FYP page errors. `node --test tests/*.cjs` 19/19 pass. The user tested the zip on iPhone and approved the ship.
 
 ### How to reproduce strip bugs in WebKit (no iPhone needed)
 Orion uses WebKit, so Playwright WebKit catches Trusted Types and mount bugs. Keep the harness outside the repo (for example under `$KIROCREW_SCRATCH` or `~/Code/<test_dir>`).
@@ -608,7 +608,7 @@ After reinstall + hard refresh on Orion:
 1. Read [`BUG-FIXES.md`](./BUG-FIXES.md) first and stay on **`bug-fixes-pr`** for GitHub issue work.
 2. Run `node scripts/check-issue-ledger.cjs`.
 3. Report every issue, live GitHub state, and branch state to the user.
-4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`. Local `3.4.1` is waiting on the user's iPhone test; ask before pushing or publishing it.
+4. Confirm the latest shipped GitHub Release title is `Fyoutube 3.4.1`, tag `v3.4.1`.
 5. Pick the next open issue that does not have a verified fix. Do not continue `FIX-BRANCH.md` search experiments unless asked.
 6. Implement in the **userscript**, mirror fallback if needed, and update the `BUG-FIXES.md` ledger.
 7. Run `./rebuild-extension.sh` and all tests; give the user the new zip path.

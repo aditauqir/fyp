@@ -8,7 +8,7 @@
 - **What was broken:** After a new video loaded, the black strip under the title stayed, but the six buttons inside it showed no icons.
 - **Why it happened:** YouTube enforces Trusted Types. WebKit (Safari 26, Orion on iOS 26) treats `DOMParser.parseFromString` as a TrustedHTML sink, so every icon parse threw. `svgElementFromMarkup` caught the error and returned `null`, and each button was left empty.
 - **What we changed:** `svgElementFromMarkup` now tokenizes FYP's own icon markup and builds nodes with `createElementNS` only. No HTML or XML parser runs. The same change is mirrored in `content.template.js`. Comment layout now reads the visible `ytd-watch-flexy` instead of the first one, so a stale hidden watch page cannot receive the strip. Layout id `icon-strip-v341-tt-icons` rebuilds any already empty strip.
-- **How to verify:** Install `3.4.1_release.zip`. Open a video, tap a recommendation, go back and forward, and refresh. Confirm six white icons each time, and that play, pause, forward, and rewind work.
+- **How to verify:** Install `3.4.1_release.zip` from GitHub Release `v3.4.1`. Open a video, tap a recommendation, go back and forward, and refresh. Confirm six white icons each time, and that play, pause, forward, and rewind work.
 
 ### Code that mattered
 **Before (broken idea):**
