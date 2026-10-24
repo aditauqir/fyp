@@ -3,7 +3,7 @@
 > For AI agents continuing this work. Read this before editing.
 > **Current public ship version: `3.4.1` SHIPPED** (GitHub Release `v3.4.1`, title `Fyoutube 3.4.1`; branch `main`). Issue work still happens on `bug-fixes-pr`. 3.4.1 fixes the strip buttons going empty after a new video loads (Trusted Types blocked `DOMParser`). See **3.4.1** under Latest changes.
 >
-> **Worktree note (2026-10-24):** The main project folder was switched to `google_cuck` from outside the agent session. The 3.4.1 work was done in a separate worktree at `/Users/aditauqir/Code/fyp-bug-fixes-pr` on branch `bug-fixes-pr`. Run `git worktree list` before editing. Do not switch the main folder's branch without asking the user.
+> **Branches (2026-10-24):** Only `main` and `bug-fixes-pr` exist, locally and on GitHub. `features`, `google_cuck`, and `testing` were deleted after they were confirmed fully merged into `main`. The `.g` / `google_cuck` notes below are history.
 >
 > **Docs map:** [AGENTS.md](./AGENTS.md) · [BUG-FIXES.md](./BUG-FIXES.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [PATCH_NOTES.md](./PATCH_NOTES.md) · [fixes.md](./fixes.md) · [INSTALL-ORION.md](./INSTALL-ORION.md) · [README.md](./README.md) · [PERFORMANCE-FIXES.md](./PERFORMANCE-FIXES.md) · [FIX-BRANCH.md](./FIX-BRANCH.md)
 >
