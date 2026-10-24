@@ -9,7 +9,7 @@
 >
 > Source of truth remains `youtube-mobile-background.user.js` → `./rebuild-extension.sh`. Do **not** hand-edit generated `page.js`.
 >
-> Shipped public version is **`3.4.0`**. GitHub Release title is `Fyoutube 3.4.0`, tag `v3.4.0`.
+> Shipped public version is **`3.4.1`**. GitHub Release title is `Fyoutube 3.4.1`, tag `v3.4.1`. See **Shipped follow-up — `3.4.1`** below.
 
 ---
 
@@ -70,10 +70,22 @@ Last live check: **2026-08-23**.
 | Issue | GitHub title | GitHub state | Branch state | Summary |
 |---|---|---|---|---|
 | [#1](https://github.com/aditauqir/fyp/issues/1) | Opening the sidebar and closing it again breaks scrolling | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Hamburger close left a grey overlay and froze scroll. |
-| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2`); follow-up shipped in `3.4.0`** | Reload / early SPA remount could lose or misplace the strip. |
+| [#2](https://github.com/aditauqir/fyp/issues/2) | Refreshing video loses media controls | **CLOSED** | **Shipped in 3.1.1 (`9253cb2`); follow-ups shipped in `3.4.0` and `3.4.1`** | Reload / early SPA remount could lose or misplace the strip. |
 | [#3](https://github.com/aditauqir/fyp/issues/3) | Searchbar/Search button is kinda messed up | **CLOSED** | **Shipped in 3.1.1 (`316702e`)** | Tapping search showed two buttons and a tiny field on the left. |
 
 `OPEN` and `CLOSED` in the GitHub state column are live issue states. The branch state records implementation and verification separately.
+
+---
+
+## Shipped follow-up — `3.4.1` empty strip buttons
+
+**What it is:** After a new video loads, the strip stays under the title, but its six buttons render with no icons.
+
+**Cause:** YouTube's Trusted Types make WebKit throw on `DOMParser.parseFromString`. The icon helper caught the error and returned no SVG.
+
+**What we changed:** Icons are built with `createElementNS` from a small tag tokenizer. No parser sink is used. The fix is mirrored in `content.template.js`. Comment layout uses the visible watch root. Layout id is `icon-strip-v341-tt-icons`.
+
+**How to verify:** Install `3.4.1_release.zip` from GitHub Release `v3.4.1`. The user confirmed it on iPhone before ship. Open a video, switch videos, go back and forward, and refresh. Six white icons stay each time.
 
 ---
 

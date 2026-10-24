@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fuck YouTube Premium
 // @namespace    https://github.com/violentmonkey
-// @version      3.4.0
-// @release-label 3.4.0
+// @version      3.4.1
+// @release-label 3.4.1
 // @description  Orion iOS: inline playback, explicit fullscreen, native hamburger drawer, no mini-guide/Shorts/miniplayer, and update checks.
 // @author       You
 // @match        *://youtube.com/*
@@ -18,7 +18,7 @@
 (() => {
   'use strict';
 
-  const PAGE_RUNTIME_VERSION = '3.4.0';
+  const PAGE_RUNTIME_VERSION = '3.4.1';
   const PAGE_RUNTIME_FLAG = '__fypPageRuntimeInstalled';
   /*
    * Tag present ≠ executed. Re-entry with the same version is a no-op so text +
@@ -72,7 +72,7 @@
   const NAV_ID = `${SCRIPT_ID}-nav`;
   const WELCOME_ID = `${SCRIPT_ID}-welcome`;
   const PLAYER_CONTROLS_TOOLBAR_ID = `${SCRIPT_ID}-controls-toolbar`;
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v341-tt-icons';
   const WELCOME_KEY = `${SCRIPT_ID}:welcome-shown`;
   const BACKEND_HOST = 'www.youtube.com';
   const CHANNEL_ROOT_PATH_PATTERN =
@@ -1683,24 +1683,6 @@
    */
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  function cloneSvgNode(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent;
-      if (!text || !text.trim()) return null;
-      return document.createTextNode(text);
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return null;
-    const clone = document.createElementNS(SVG_NS, node.localName);
-    for (const attr of node.attributes) {
-      clone.setAttribute(attr.name, attr.value);
-    }
-    for (const child of node.childNodes) {
-      const copied = cloneSvgNode(child);
-      if (copied) clone.appendChild(copied);
-    }
-    return clone;
-  }
-
   function isCurrentColorPaint(value) {
     return /^currentcolor$/i.test(String(value || '').trim());
   }
@@ -1762,16 +1744,58 @@
     svg.style.setProperty('visibility', 'visible', 'important');
   }
 
+  /*
+   * WHAT: Builds an SVG node tree from FYP's own icon markup without any HTML or XML parser.
+   * IDEALOGY: YouTube enforces Trusted Types, and WebKit treats DOMParser.parseFromString as a TrustedHTML sink. A rejected parse left every strip button empty after a video load, so icons are built with createElementNS only.
+   * FLOW:
+   *   icon markup --> tag and attribute tokens --> createElementNS tree --> one <svg> root
+   * HOW: Walks the opening, closing, and self-closing tags with one regex, copies quoted attributes except xmlns and on* handlers, and nests children with a stack. Returns null when the first element is not an <svg>.
+   * EVENT LOG: Called while icons are built. No event of its own.
+   */
+  const SVG_TAG_PATTERN =
+    /<(\/?)([a-zA-Z][\w:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g;
+  const SVG_ATTR_PATTERN = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?/g;
+
+  function decodeSvgAttrValue(value) {
+    return String(value)
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+  }
+
   function svgElementFromMarkup(markup) {
     try {
       const text = String(markup || '').trim();
       const source = text.startsWith('<svg')
         ? text
         : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
-      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
-      const svg = parsed?.documentElement;
-      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
-      return cloneSvgNode(svg);
+      let root = null;
+      const stack = [];
+      for (const match of source.matchAll(SVG_TAG_PATTERN)) {
+        const [, closing, name, attrs, selfClosing] = match;
+        if (closing) {
+          stack.pop();
+          if (root && stack.length === 0) break;
+          continue;
+        }
+        const node = document.createElementNS(SVG_NS, name);
+        for (const attr of attrs.matchAll(SVG_ATTR_PATTERN)) {
+          const attrName = attr[1];
+          if (/^xmlns(?::|$)/i.test(attrName) || /^on/i.test(attrName)) continue;
+          node.setAttribute(
+            attrName,
+            decodeSvgAttrValue(attr[2] ?? attr[3] ?? '')
+          );
+        }
+        if (stack.length) stack[stack.length - 1].appendChild(node);
+        else if (!root) root = node;
+        else break;
+        if (!selfClosing) stack.push(node);
+      }
+      if (!root || String(root.localName).toLowerCase() !== 'svg') return null;
+      return root;
     } catch {
       return null;
     }
@@ -7055,7 +7079,9 @@
   }
 
   function findCommentsRoot() {
-    const watch = document.querySelector('ytd-watch-flexy');
+    // YouTube keeps stale hidden watch pages. Use the visible one so the
+    // layout never moves the strip or comments into a hidden page.
+    const watch = findVisibleWatchRoot();
     return (
       watch?.querySelector('ytd-comments#comments') ||
       watch?.querySelector('#comments ytd-comments') ||
@@ -7106,7 +7132,7 @@
   function positionCommentsAfterRecommendations() {
     if (location.pathname !== '/watch') return;
 
-    const watch = document.querySelector('ytd-watch-flexy');
+    const watch = findVisibleWatchRoot();
     if (!watch) return;
 
     let below = watch.querySelector('#below');

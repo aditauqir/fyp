@@ -27,12 +27,12 @@
 
   const PAGE_SCRIPT_ID = 'yt-mobile-orion-page-script';
   const PAGE_READY_ATTR = 'data-fyp-page-ready';
-  const EXPECTED_PAGE_VERSION = '3.4.0';
+  const EXPECTED_PAGE_VERSION = '3.4.1';
   const HISTORY_FEED_ATTR = 'data-fyp-feed';
   const DOM_FALLBACK_STYLE_ID = 'fyp-orion-dom-fallback-style';
   const PLAYER_CONTROLS_TOOLBAR_ID =
     'yt-mobile-orion-ext-controls-toolbar';
-  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row';
+  const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v341-tt-icons';
   const FYP_OWNED_SELECTOR = [
     `#${PLAYER_CONTROLS_TOOLBAR_ID}`,
     '[data-fyp-player-action]',
@@ -242,27 +242,9 @@
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   });
 
-  // Trusted Types can reject innerHTML on YouTube pages. Use XML parsing plus
-  // DOM nodes so a rejected icon cannot stop the fallback before video setup.
+  // Trusted Types reject innerHTML and DOMParser on YouTube pages. Build icons
+  // with createElementNS so a rejected sink cannot empty the fallback strip.
   const SVG_NS = 'http://www.w3.org/2000/svg';
-
-  function cloneSvgNode(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent;
-      if (!text || !text.trim()) return null;
-      return document.createTextNode(text);
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return null;
-    const clone = document.createElementNS(SVG_NS, node.localName);
-    for (const attr of node.attributes) {
-      clone.setAttribute(attr.name, attr.value);
-    }
-    for (const child of node.childNodes) {
-      const copied = cloneSvgNode(child);
-      if (copied) clone.appendChild(copied);
-    }
-    return clone;
-  }
 
   function isCurrentColorPaint(value) {
     return /^currentcolor$/i.test(String(value || '').trim());
@@ -325,16 +307,58 @@
     svg.style.setProperty('visibility', 'visible', 'important');
   }
 
+  /*
+   * WHAT: Builds an SVG node tree from FYP's own icon markup without any HTML or XML parser.
+   * IDEALOGY: YouTube enforces Trusted Types, and WebKit treats DOMParser.parseFromString as a TrustedHTML sink. A rejected parse left every strip button empty after a video load, so icons are built with createElementNS only.
+   * FLOW:
+   *   icon markup --> tag and attribute tokens --> createElementNS tree --> one <svg> root
+   * HOW: Walks the opening, closing, and self-closing tags with one regex, copies quoted attributes except xmlns and on* handlers, and nests children with a stack. Returns null when the first element is not an <svg>.
+   * EVENT LOG: Called while icons are built. No event of its own.
+   */
+  const SVG_TAG_PATTERN =
+    /<(\/?)([a-zA-Z][\w:-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g;
+  const SVG_ATTR_PATTERN = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?/g;
+
+  function decodeSvgAttrValue(value) {
+    return String(value)
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+  }
+
   function svgElementFromMarkup(markup) {
     try {
       const text = String(markup || '').trim();
       const source = text.startsWith('<svg')
         ? text
         : `<svg viewBox="0 0 24 24" aria-hidden="true">${text}</svg>`;
-      const parsed = new DOMParser().parseFromString(source, 'image/svg+xml');
-      const svg = parsed?.documentElement;
-      if (!svg || String(svg.localName).toLowerCase() !== 'svg') return null;
-      return cloneSvgNode(svg);
+      let root = null;
+      const stack = [];
+      for (const match of source.matchAll(SVG_TAG_PATTERN)) {
+        const [, closing, name, attrs, selfClosing] = match;
+        if (closing) {
+          stack.pop();
+          if (root && stack.length === 0) break;
+          continue;
+        }
+        const node = document.createElementNS(SVG_NS, name);
+        for (const attr of attrs.matchAll(SVG_ATTR_PATTERN)) {
+          const attrName = attr[1];
+          if (/^xmlns(?::|$)/i.test(attrName) || /^on/i.test(attrName)) continue;
+          node.setAttribute(
+            attrName,
+            decodeSvgAttrValue(attr[2] ?? attr[3] ?? '')
+          );
+        }
+        if (stack.length) stack[stack.length - 1].appendChild(node);
+        else if (!root) root = node;
+        else break;
+        if (!selfClosing) stack.push(node);
+      }
+      if (!root || String(root.localName).toLowerCase() !== 'svg') return null;
+      return root;
     } catch {
       return null;
     }

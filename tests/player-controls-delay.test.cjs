@@ -30,7 +30,7 @@ assert.match(source, /visibility: visible !important;/);
 assert.match(source, /opacity: 1 !important;/);
 assert.match(
   source,
-  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row'/
+  /const PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v341-tt-icons'/
 );
 assert.match(source, /function ensurePlayerControlsToolbar\(\)/);
 assert.match(source, /function isUsableWatchMount\(/);
@@ -191,7 +191,17 @@ assert.doesNotMatch(
 );
 assert.match(source, /function solidifyPlayerIcon\(/);
 assert.match(source, /const SVG_NS = 'http:\/\/www\.w3\.org\/2000\/svg'/);
-assert.match(source, /createElementNS\(SVG_NS, node\.localName\)/);
+// WebKit treats DOMParser.parseFromString as a Trusted Types sink on YouTube.
+// A rejected parse left every strip button empty after a new video loaded.
+assert.match(source, /const node = document\.createElementNS\(SVG_NS, name\)/);
+assert.doesNotMatch(source, /new DOMParser\(\)/);
+assert.doesNotMatch(
+  fs.readFileSync(
+    path.join(__dirname, '..', 'firefox-extension', 'content.template.js'),
+    'utf8'
+  ),
+  /new DOMParser\(\)/
+);
 assert.match(source, /playerIcon: true/);
 assert.match(
   source,

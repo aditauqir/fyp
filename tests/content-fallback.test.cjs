@@ -60,7 +60,7 @@ assert.match(content, /max-width: 100% !important/);
 assert.match(content, /function ensureFallbackPlayerControlsToolbar\(\)/);
 assert.match(
   content,
-  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v340-title-row'/
+  /PLAYER_CONTROLS_LAYOUT_VERSION = 'icon-strip-v341-tt-icons'/
 );
 assert.match(content, /function isFallbackVisibleWatchRoot\(/);
 assert.match(content, /function findFallbackVisibleWatchRoot\(/);
