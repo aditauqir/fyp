@@ -2,63 +2,33 @@
   <img src="docs/images/fyoutube-logo.png" alt="Fyoutube" width="220">
 </p>
 
-<h1 align="center">Fyoutube</h1>
-
-<p align="center">
-  <a href="https://apps.apple.com/us/app/orion-browser-by-kagi/id1484498200" title="Install Orion Browser on iPhone">
-    <img src="https://skillicons.dev/icons?i=apple&theme=dark" alt="Apple iPhone" height="48">
-  </a>
-  <a href="https://github.com/aditauqir/fyp" title="View the project on GitHub">
-    <img src="https://skillicons.dev/icons?i=github&theme=dark" alt="GitHub" height="48">
-  </a>
-</p>
+<h1 align="center">FYoutube Premium for iOS</h1>
 
 <p align="center">
   <a href="https://browser.kagi.com/"><img src="https://img.shields.io/badge/Orion-Browser-14B86E?style=for-the-badge&logo=safari&logoColor=white" alt="Orion Browser"></a>
   <a href="https://github.com/aditauqir/fyp/releases/latest"><img src="https://img.shields.io/badge/Download-Latest%20Release-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Download latest release"></a>
 </p>
-
 <p align="center">
-  <a href="https://discord.gg/sd5Y8f7ukh"><img src="https://img.shields.io/badge/Discord-Join%20the%20server%20for%20support%20or%20help-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Discord server for support or help"></a>
+  <a href="https://discord.gg/sd5Y8f7ukh">
+    <img src="https://skillicons.dev/icons?i=discord" alt="Discord" />
+  </a>
 </p>
+<p align="center">
 
-**Docs:** [Install](./INSTALL-ORION.md) · [Patch notes](./PATCH_NOTES.md) · [Architecture](./ARCHITECTURE.md) · [Handoff](./HANDOFF.md) · [Bug fixes](./BUG-FIXES.md) · [Agents](./AGENTS.md)
 
 ## What is this?
 
 ### Basically free YouTube Premium for iPhone
 
-I built **Fyoutube** because I was fed up with App Store apps and partial solutions that never delivered a good YouTube experience (even if they did, it was paid and locked up for some reason). Orion Browser supports browser extensions on iPhone, so this extension turns desktop YouTube into something closer to the useful parts of YouTube Premium without the subscription.
+I built **Fyoutube** because I was fed up with the "premium" youtube apps that required YOU to pay? So what did I do? Asked cursor to cook me up an extension, and since Orion Browser supports browser extensions on iPhone, it was a win-win. Just that chrome extension translating to webkit is kinda iffy so somethings might break. This is made out of pure frustration and rage.
 
-#### The Architecture
-The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, screen-off audio, and built-in YouTube ad blocking. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube.
+#### Wait, how does it work?
+The extension loads desktop YouTube as its functional backend, then turns it into an iPhone-friendly interface with a full-width inline player, one-column feeds, mobile search, hamburger-only navigation, background playback, screen-off audio, and built-in YouTube ad blocking. This does not currently use any youtube api yet, but im working on it. It basically just rearranges stuff on the webpage by loading a desktop version of youtube. Also, the logo is hand-made.
 
-### Notes
-This extension blocks YouTube ads in the page. You do not need uBlock Origin for that. The goal is a free, Premium-like YouTube experience that keeps playing without forcing you into fullscreen or Picture in Picture.
+This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin. And I will never ask for your money. Plus feel free to fork this shit, I would love to see more things like this made :p
 
-This project is not affiliated with or endorsed by YouTube, Google, Orion, Kagi, or uBlock Origin.
-
-### Search behavior
-
-Fyoutube treats YouTube's masthead search control as a trigger only. Tapping
-it opens a separate centered search layer over the current page with a light
-blur, while **Ask YouTube** and voice search remain hidden. The overlay accepts
-the keyboard Enter key or its Search button and navigates directly to the
-standard YouTube results URL. For example, `blue balls` becomes
-`https://www.youtube.com/results?search_query=blue+balls`.
-
-The implementation stays dependency-free and uses the page-world DOM so it can
-be embedded into Orion's install-from-file extension bridge. The current
-YouTube search field may be a `textarea`, so the extension does not depend on
-YouTube's native input element type.
-
-## Internal Chromium diagnostics workbench
-
-This branch includes a maintainer-only Chromium extension at [`workbench/youtube-diagnostics`](./workbench/youtube-diagnostics) for investigating YouTube regressions. It is not included in the Fyoutube Orion release packages.
-
-To use it, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the workbench folder. Reload YouTube after installation. The popup can pause capture, save a structured DOM/element log as JSONL, and download the current HTML source separately. The current diagnostic artifacts are stored in [`workbench/logs`](./workbench/logs).
-
-
+#### Documentation
+[Install](./INSTALL-ORION.md) · [Patch notes](./PATCH_NOTES.md) · [Architecture](./ARCHITECTURE.md) · [Handoff](./HANDOFF.md) · [Bug fixes](./BUG-FIXES.md) · [Agents](./AGENTS.md) 
 
 ## iPhone only — Orion Browser
 
@@ -105,7 +75,7 @@ Do not unzip the file. Do not rename the file.
 - Orion iOS extension support is [still preliminary](https://help.kagi.com/orion/browser-extensions/ios-ipados-extensions.html).
 - If the release zip does not install, use the Chrome ZIP, then the Firefox ZIP, then the XPI.
 
-## Final extension result
+**Final extension result**
 
 After the install procedure, **Fyoutube** must be enabled in Orion:
 
