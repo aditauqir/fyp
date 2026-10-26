@@ -10,6 +10,7 @@ You madlads, first of all insane respect, then second, same rules.
 
 # FOR BOTH
 use any skill or method to make this better experience, its all you 
+and open a pull request with a description in short, i will approve it after testing
 
 > i dont explicitly ban the usage of Ai, you are allowed to use it however you want it to
 > 
